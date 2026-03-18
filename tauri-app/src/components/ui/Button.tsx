@@ -1,7 +1,9 @@
-import { cn } from "@/lib/utils";
-import type { ButtonHTMLAttributes } from "react";
+import {
+  Button as FluentButton,
+  type ButtonProps as FluentButtonProps,
+} from "@fluentui/react-components";
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+interface ButtonProps extends Omit<FluentButtonProps, "size"> {
   variant?: "filled" | "outlined" | "ghost";
   size?: "sm" | "md";
 }
@@ -9,28 +11,23 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 export function Button({
   variant = "filled",
   size = "md",
-  className,
   children,
   ...props
 }: ButtonProps) {
+  const appearance =
+    variant === "filled"
+      ? "primary"
+      : variant === "outlined"
+        ? "outline"
+        : "subtle";
+
   return (
-    <button
-      className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-colors",
-        size === "sm" && "h-8 px-3 text-xs",
-        size === "md" && "h-10 px-4 text-sm",
-        variant === "filled" &&
-          "bg-[var(--brand)] text-[var(--text-inverse)] hover:opacity-90",
-        variant === "outlined" &&
-          "border border-[var(--border-strong)] text-[var(--text-heading)] hover:bg-[var(--bg-raised)]",
-        variant === "ghost" &&
-          "text-[var(--text-paragraph)] hover:text-[var(--text-heading)] hover:bg-[var(--bg-raised)]",
-        props.disabled && "opacity-50 cursor-not-allowed",
-        className
-      )}
+    <FluentButton
+      appearance={appearance}
+      size={size === "sm" ? "small" : "medium"}
       {...props}
     >
       {children}
-    </button>
+    </FluentButton>
   );
 }

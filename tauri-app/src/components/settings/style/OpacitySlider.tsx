@@ -1,3 +1,4 @@
+import { Caption1, tokens } from "@fluentui/react-components";
 import { Collapsible } from "@/components/ui/Collapsible";
 import { Slider } from "@/components/ui/Slider";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -7,25 +8,45 @@ export function OpacitySlider() {
   const updateSettings = useSettingsStore((s) => s.updateSettings);
 
   return (
-    <div className="rounded-xl bg-[var(--bg-raised)] p-4">
+    <div
+      style={{
+        background: tokens.colorNeutralBackground1,
+        borderRadius: 8,
+        border: `1px solid ${tokens.colorNeutralStroke2}`,
+        padding: "12px 20px",
+      }}
+    >
       <Collapsible title="Opacity">
-        <div className="px-1">
-          <Slider
-            value={settings.opacity}
-            min={0}
-            max={1}
-            step={0.1}
-            onChange={(v) => updateSettings({ opacity: v })}
-          />
-          <div className="flex justify-between mt-1">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <circle cx="8" cy="8" r="3" stroke="var(--icon-subtle)" strokeWidth="1.2" />
-              <path d="M8 2V4M8 12V14M2 8H4M12 8H14" stroke="var(--icon-subtle)" strokeWidth="1.2" strokeLinecap="round" />
-            </svg>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <circle cx="8" cy="8" r="3" stroke="var(--icon-subtle)" strokeWidth="1.2" />
-              <path d="M8 1V4M8 12V15M1 8H4M12 8H15M3.5 3.5L5 5M11 11L12.5 12.5M12.5 3.5L11 5M5 11L3.5 12.5" stroke="var(--icon-subtle)" strokeWidth="1.2" strokeLinecap="round" />
-            </svg>
+        <div className="flex flex-col gap-4">
+          <div>
+            <div className="flex items-center justify-between" style={{ marginBottom: 4 }}>
+              <Caption1 style={{ fontWeight: 600 }}>Overall</Caption1>
+              <Caption1 style={{ color: tokens.colorNeutralForeground4 }}>
+                {Math.round(settings.opacity * 100)}%
+              </Caption1>
+            </div>
+            <Slider
+              value={settings.opacity}
+              min={0.1}
+              max={1}
+              step={0.05}
+              onChange={(v) => updateSettings({ opacity: v })}
+            />
+          </div>
+          <div>
+            <div className="flex items-center justify-between" style={{ marginBottom: 4 }}>
+              <Caption1 style={{ fontWeight: 600 }}>Metric pills</Caption1>
+              <Caption1 style={{ color: tokens.colorNeutralForeground4 }}>
+                {Math.round(settings.pillOpacity * 100)}%
+              </Caption1>
+            </div>
+            <Slider
+              value={settings.pillOpacity}
+              min={0}
+              max={1}
+              step={0.05}
+              onChange={(v) => updateSettings({ pillOpacity: v })}
+            />
           </div>
         </div>
       </Collapsible>

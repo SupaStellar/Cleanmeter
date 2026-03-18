@@ -180,8 +180,7 @@ fn build_command(cmd: &PipeCommand) -> Vec<u8> {
     buf
 }
 
-/// TCP-based pipe client for development / cross-platform
-/// On Windows, this would use named pipes; on other platforms, TCP fallback
+/// Named pipe client for Windows communication with HardwareMonitor backend
 pub async fn run_pipe_client(
     app: AppHandle,
     mut cmd_rx: mpsc::Receiver<PipeCommand>,
@@ -194,32 +193,21 @@ pub async fn run_pipe_client(
         info!("Connecting to HardwareMonitor...");
         let _ = app.emit("pipe-status", PipeStatus { connected: false, error: None });
 
-        match tokio::net::TcpStream::connect("127.0.0.1:31337").await {
-            Ok(stream) => {
-                info!("Connected to HardwareMonitor");
+        let pipe_name = r"\\.\pipe\HardwareMonitor_31337";
+        match std::fs::OpenOptions::new().read(true).write(true).open(pipe_name) {
+            Ok(pipe_file) => {
+                info!("Connected to HardwareMonitor via named pipe");
                 let _ = app.emit("pipe-status", PipeStatus { connected: true, error: None });
                 retry_delay = Duration::from_secs(2);
 
-                let std_stream = match stream.into_std() {
-                    Ok(s) => s,
-                    Err(e) => {
-                        error!("Failed to convert stream: {}", e);
-                        continue;
-                    }
-                };
-                std_stream.set_nonblocking(false).ok();
-                std_stream
-                    .set_read_timeout(Some(Duration::from_secs(5)))
-                    .ok();
-
-                let mut writer = match std_stream.try_clone() {
+                let mut writer = match pipe_file.try_clone() {
                     Ok(w) => w,
                     Err(e) => {
-                        error!("Failed to clone stream: {}", e);
+                        error!("Failed to clone pipe handle: {}", e);
                         continue;
                     }
                 };
-                let mut reader = std_stream;
+                let mut reader = pipe_file;
                 let app_for_read = app.clone();
                 let running_for_read = running.clone();
 

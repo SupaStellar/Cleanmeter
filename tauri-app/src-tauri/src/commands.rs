@@ -53,6 +53,7 @@ pub fn set_overlay_visible(visible: bool, app: AppHandle) {
     if let Some(overlay) = app.get_webview_window("overlay") {
         if visible {
             let _ = overlay.show();
+            let _ = overlay.set_always_on_top(true);
         } else {
             let _ = overlay.hide();
         }
@@ -143,17 +144,35 @@ pub fn check_dotnet_runtime() -> bool {
 }
 
 #[tauri::command]
-pub fn get_monitors() -> Vec<MonitorInfo> {
-    // Return a default monitor for now — Tauri 2 provides monitor info
-    // through the window API which we'll use in the frontend
-    vec![MonitorInfo {
-        name: "Primary".to_string(),
-        width: 1920,
-        height: 1080,
-        x: 0,
-        y: 0,
-        primary: true,
-    }]
+pub fn get_monitors(app: AppHandle) -> Vec<MonitorInfo> {
+    let Some(window) = app.get_webview_window("settings") else {
+        return vec![];
+    };
+    let monitors = window.available_monitors().unwrap_or_default();
+    let primary = window.primary_monitor().ok().flatten();
+    let primary_name = primary.as_ref().and_then(|m| m.name()).map(|s| s.to_string());
+
+    monitors
+        .into_iter()
+        .map(|m| {
+            let name = m.name().map(|s| s.to_string()).unwrap_or_default();
+            let size = m.size();
+            let pos = m.position();
+            let is_primary = primary_name.as_deref() == Some(name.as_str());
+            MonitorInfo {
+                name: if is_primary {
+                    format!("{} (Primary)", name)
+                } else {
+                    name
+                },
+                width: size.width,
+                height: size.height,
+                x: pos.x,
+                y: pos.y,
+                primary: is_primary,
+            }
+        })
+        .collect()
 }
 
 #[tauri::command]
@@ -166,4 +185,61 @@ pub fn grant_admin_consent(settings_mgr: State<'_, SettingsManager>) {
     let mut prefs = settings_mgr.get_preferences();
     prefs.admin_consent = true;
     settings_mgr.save_preferences(prefs);
+}
+
+#[tauri::command]
+pub fn launch_hardware_monitor(app: AppHandle) -> Result<(), String> {
+    // Find HardwareMonitor.exe relative to the app's resource directory
+    let exe_path = app
+        .path()
+        .resource_dir()
+        .ok()
+        .map(|p| p.join("HardwareMonitor.exe"))
+        .filter(|p| p.exists())
+        // Fallback: look next to the tauri exe in dev
+        .or_else(|| {
+            std::env::current_exe().ok().and_then(|exe| {
+                // Walk up to find the publish folder
+                let candidates = [
+                    exe.parent()?.join("HardwareMonitor.exe"),
+                ];
+                candidates.into_iter().find(|p| p.exists())
+            })
+        })
+        // Final fallback: hardcoded dev path
+        .unwrap_or_else(|| {
+            std::path::PathBuf::from(
+                r"C:\Users\alimm\cleanmeter\HardwareMonitor\HardwareMonitor\bin\Release\net8.0\win-x64\publish\HardwareMonitor.exe"
+            )
+        });
+
+    let exe_str = exe_path.to_string_lossy().to_string();
+
+    // Write a PowerShell script to a temp file, then execute it elevated.
+    // This installs HardwareMonitor as a Windows Service (runs as SYSTEM with
+    // full hardware access for LibreHardwareMonitor sensor readings).
+    let script = format!(
+        "$exe = '{}'\n\
+         $svc = Get-Service -Name 'CleanMeterHW' -ErrorAction SilentlyContinue\n\
+         if (-not $svc) {{ New-Service -Name 'CleanMeterHW' -BinaryPathName $exe -DisplayName 'CleanMeter Hardware Monitor' -StartupType Automatic }}\n\
+         $svc = Get-Service -Name 'CleanMeterHW' -ErrorAction SilentlyContinue\n\
+         if ($svc.Status -ne 'Running') {{ Start-Service 'CleanMeterHW' }}",
+        exe_str.replace('\'', "''")
+    );
+
+    let script_path = std::env::temp_dir().join("cleanmeter_hw_setup.ps1");
+    std::fs::write(&script_path, &script)
+        .map_err(|e| format!("Failed to write setup script: {}", e))?;
+
+    let script_str = script_path.to_string_lossy().to_string();
+    std::process::Command::new("powershell")
+        .args([
+            "-WindowStyle", "Hidden",
+            "-Command",
+            &format!("Start-Process powershell -Verb RunAs -ArgumentList '-ExecutionPolicy Bypass -File \"{}\"'", script_str),
+        ])
+        .spawn()
+        .map_err(|e| format!("Failed to launch elevated setup: {}", e))?;
+
+    Ok(())
 }

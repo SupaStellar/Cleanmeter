@@ -3,17 +3,17 @@
 <br />
 
 <p align="left">
-  <a href="https://github.com/Danil0v3s/CleanMeter/actions"><img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/Danil0v3s/CleanMeter/build.yml?style=flat-square"></a>
+  <a href="https://github.com/apyfz/CleanMeter/actions"><img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/apyfz/CleanMeter/build.yml?style=flat-square"></a>
   &nbsp;
   <a href="https://discord.gg/phqwe89cvE"><img alt="Discord" src="https://img.shields.io/discord/1297574228698337405?label=Discord&color=7289da&style=flat-square" /></a>
   &nbsp;
-  <a href="https://github.com/Danil0v3s/CleanMeter/graphs/contributors"><img alt="npm" src="https://img.shields.io/github/contributors-anon/Danil0v3s/CleanMeter?color=yellow&style=flat-square"/></a>
+  <a href="https://github.com/apyfz/CleanMeter/graphs/contributors"><img alt="npm" src="https://img.shields.io/github/contributors-anon/apyfz/CleanMeter?color=yellow&style=flat-square"/></a>
   &nbsp;
-  <a href="https://github.com/Danil0v3s/CleanMeter/releases/latest"><img alt="GitHub Release" src="https://img.shields.io/github/v/release/Danil0v3s/CleanMeter"></a>
+  <a href="https://github.com/apyfz/CleanMeter/releases/latest"><img alt="GitHub Release" src="https://img.shields.io/github/v/release/apyfz/CleanMeter"></a>
 </p>
 <hr/>
 <h4>
-<a target="_blank" href="https://ko-fi.com/danil0v3s" rel="dofollow"><strong>Donate via ko-fi</strong></a>&nbsp;·&nbsp;<a target="_blank" href="https://www.paypal.com/donate/?hosted_button_id=W2GU6AHGQUND8" rel="dofollow"><strong>Donate via PayPal</strong></a>&nbsp;·&nbsp;<a target="_blank" href="https://www.instagram.com/mars.designs" rel="dofollow"><strong>Follow our Designer</strong></a>
+<a target="_blank" href="https://github.com/apyfz" rel="dofollow"><strong>@apyfz on GitHub</strong></a>
 </h4>
 <hr/>
 

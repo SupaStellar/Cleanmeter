@@ -13,6 +13,8 @@
     "tauri:build": "tauri build"
   },
   "dependencies": {
+    "@fluentui/react-components": "^9.73.4",
+    "@fluentui/react-icons": "^2.0.321",
     "@tailwindcss/vite": "^4.2.1",
     "@tauri-apps/api": "^2.10.1",
     "@tauri-apps/cli": "^2.10.1",

@@ -42,6 +42,14 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             let _ = app.emit("hotkey", "toggle-overlay");
         }
         "quit" => {
+            // Kill HardwareMonitor child process before exiting
+            if let Some(mutex) = app.try_state::<std::sync::Mutex<Option<std::process::Child>>>() {
+                if let Ok(mut guard) = mutex.lock() {
+                    if let Some(mut child) = guard.take() {
+                        let _ = child.kill();
+                    }
+                }
+            }
             app.exit(0);
         }
         _ => {}

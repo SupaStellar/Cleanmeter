@@ -1,3 +1,4 @@
+import { Caption1, tokens } from "@fluentui/react-components";
 import { Collapsible } from "@/components/ui/Collapsible";
 import { StyleCard } from "@/components/ui/StyleCard";
 import { Checkbox } from "@/components/ui/Checkbox";
@@ -17,7 +18,14 @@ export function PositionGrid() {
   const updateSettings = useSettingsStore((s) => s.updateSettings);
 
   return (
-    <div className="rounded-xl bg-[var(--bg-raised)] p-4">
+    <div
+      style={{
+        background: tokens.colorNeutralBackground1,
+        borderRadius: 8,
+        border: `1px solid ${tokens.colorNeutralStroke2}`,
+        padding: "12px 20px",
+      }}
+    >
       <Collapsible title="Position">
         <div className="grid grid-cols-3 gap-3 mb-3">
           {positions.map((pos) => (
@@ -28,47 +36,121 @@ export function PositionGrid() {
               label={pos.label}
             >
               <div className={`w-full h-full flex p-2 ${pos.align}`}>
-                <div className="w-6 h-1.5 rounded-full bg-[var(--brand)] opacity-60" />
+                <div
+                  style={{
+                    width: 24,
+                    height: 6,
+                    borderRadius: 3,
+                    backgroundColor: tokens.colorBrandBackground,
+                    opacity: 0.6,
+                  }}
+                />
               </div>
             </StyleCard>
           ))}
         </div>
 
-        {/* Custom position */}
-        <div className="flex flex-col gap-2 mt-3">
+        <div className="flex flex-col gap-3" style={{ marginTop: 8 }}>
+          <div className="flex items-center gap-3">
+            <OffsetInput
+              label="X"
+              value={settings.positionX}
+              onChange={(v) => updateSettings({ positionX: v })}
+            />
+            <OffsetInput
+              label="Y"
+              value={settings.positionY}
+              onChange={(v) => updateSettings({ positionY: v })}
+            />
+          </div>
           <Checkbox
             label="Lock position"
             checked={settings.isPositionLocked}
             onChange={(v) => updateSettings({ isPositionLocked: v })}
           />
-          {!settings.isPositionLocked && (
-            <div className="flex gap-3 ml-7">
-              <div className="flex items-center gap-2 flex-1">
-                <label className="text-xs text-[var(--text-paragraph)]">X</label>
-                <input
-                  type="number"
-                  value={settings.positionX}
-                  onChange={(e) =>
-                    updateSettings({ positionX: parseInt(e.target.value) || 0, positionIndex: 6 })
-                  }
-                  className="w-full h-8 px-2 text-sm rounded border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-heading)] outline-none"
-                />
-              </div>
-              <div className="flex items-center gap-2 flex-1">
-                <label className="text-xs text-[var(--text-paragraph)]">Y</label>
-                <input
-                  type="number"
-                  value={settings.positionY}
-                  onChange={(e) =>
-                    updateSettings({ positionY: parseInt(e.target.value) || 0, positionIndex: 6 })
-                  }
-                  className="w-full h-8 px-2 text-sm rounded border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-heading)] outline-none"
-                />
-              </div>
-            </div>
-          )}
         </div>
       </Collapsible>
+    </div>
+  );
+}
+
+function OffsetInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  const step = 10;
+  return (
+    <div className="flex items-center gap-2" style={{ flex: 1, minWidth: 0 }}>
+      <Caption1 style={{ fontWeight: 600, flexShrink: 0 }}>{label}</Caption1>
+      <div
+        className="flex items-center"
+        style={{
+          flex: 1,
+          minWidth: 0,
+          height: 28,
+          borderRadius: 4,
+          border: `1px solid ${tokens.colorNeutralStroke1}`,
+          background: tokens.colorNeutralBackground1,
+          overflow: "hidden",
+        }}
+      >
+        <button
+          onClick={() => onChange(value - step)}
+          style={{
+            width: 28,
+            height: "100%",
+            border: "none",
+            background: "transparent",
+            color: tokens.colorNeutralForeground2,
+            cursor: "pointer",
+            fontSize: 14,
+            fontWeight: 600,
+            flexShrink: 0,
+          }}
+        >
+          −
+        </button>
+        <input
+          type="number"
+          value={value}
+          onChange={(e) => onChange(parseInt(e.target.value) || 0)}
+          style={{
+            flex: 1,
+            minWidth: 0,
+            height: "100%",
+            border: "none",
+            background: "transparent",
+            color: tokens.colorNeutralForeground1,
+            fontSize: 12,
+            fontFamily: "inherit",
+            textAlign: "center",
+            outline: "none",
+            MozAppearance: "textfield",
+            appearance: "textfield",
+          } as React.CSSProperties}
+        />
+        <button
+          onClick={() => onChange(value + step)}
+          style={{
+            width: 28,
+            height: "100%",
+            border: "none",
+            background: "transparent",
+            color: tokens.colorNeutralForeground2,
+            cursor: "pointer",
+            fontSize: 14,
+            fontWeight: 600,
+            flexShrink: 0,
+          }}
+        >
+          +
+        </button>
+      </div>
     </div>
   );
 }

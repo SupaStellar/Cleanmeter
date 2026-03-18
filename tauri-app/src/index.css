@@ -1,21 +1,8 @@
 @import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
 
 :root {
-  /* Gray palette */
-  --gray-25: #fafafa;
-  --gray-50: #f5f5f6;
-  --gray-100: #f0f1f1;
-  --gray-200: #e4e5e7;
-  --gray-300: #cecfd2;
-  --gray-400: #9b9da5;
-  --gray-500: #71747e;
-  --gray-600: #61646c;
-  --gray-700: #474a52;
-  --gray-800: #1f242f;
-  --gray-900: #161b26;
-  --gray-950: #0c111d;
-
-  /* Status */
+  /* Status colors (kept for overlay and boundary colors) */
   --green-100: #dcfae6;
   --green-500: #17b26a;
   --green-700: #067647;
@@ -26,61 +13,21 @@
   --purple-500: #7c3aed;
   --cyan-400: #22d3ee;
 
-  /* Light theme (default) */
-  --bg-surface: var(--gray-100);
-  --bg-raised: #ffffff;
-  --bg-overlay: #ffffff;
-  --bg-sunken: var(--gray-300);
-  --brand: var(--gray-950);
-  --brand-subtle: var(--gray-800);
-
-  --text-heading: var(--gray-950);
-  --text-paragraph: var(--gray-600);
-  --text-paragraph2: var(--gray-500);
-  --text-disabled: var(--gray-400);
-  --text-inverse: #ffffff;
-
-  --icon-bold: var(--gray-800);
-  --icon-subtle: var(--gray-600);
-  --icon-disabled: var(--gray-400);
-
-  --border: var(--gray-200);
-  --border-strong: var(--gray-300);
-
   --color-success: var(--green-700);
   --color-warning: var(--yellow-700);
   --color-danger: var(--red-700);
 
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Inter", "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
   font-size: 14px;
-  line-height: 1.4;
-  color: var(--text-heading);
-  background-color: var(--bg-surface);
+  line-height: 20px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   user-select: none;
   -webkit-user-select: none;
 }
 
 [data-theme="dark"] {
-  --bg-surface: var(--gray-950);
-  --bg-raised: var(--gray-800);
-  --bg-overlay: var(--gray-800);
-  --bg-sunken: var(--gray-600);
-  --brand: var(--gray-25);
-  --brand-subtle: var(--gray-50);
-
-  --text-heading: var(--gray-25);
-  --text-paragraph: var(--gray-500);
-  --text-paragraph2: var(--gray-600);
-  --text-disabled: var(--gray-600);
-  --text-inverse: var(--gray-950);
-
-  --icon-bold: var(--gray-200);
-  --icon-subtle: var(--gray-400);
-  --icon-disabled: var(--gray-600);
-
-  --border: var(--gray-700);
-  --border-strong: var(--gray-600);
-
   --color-success: var(--green-100);
   --color-warning: var(--yellow-400);
   --color-danger: var(--red-600);
@@ -97,18 +44,34 @@ body {
   overflow: hidden;
 }
 
+/* Windows 11 style overlay scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--gray-300);
-  border-radius: 3px;
+  background: rgba(128, 128, 128, 0.4);
+  border-radius: 4px;
 }
-[data-theme="dark"] ::-webkit-scrollbar-thumb {
-  background: var(--gray-600);
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(128, 128, 128, 0.6);
+}
+
+/* Hide number input spinners */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* Hide Fluent bottom accent border on inputs */
+.fui-Input::after {
+  display: none !important;
 }
 
 [data-tauri-drag-region] {
@@ -117,3 +80,17 @@ body {
 [data-tauri-drag-region]:active {
   cursor: grabbing;
 }
+
+/* WinUI card style */
+.winui-card {
+  border-radius: 8px;
+  padding: 16px 20px;
+  border: 1px solid var(--fui-colorNeutralStroke2, rgba(0, 0, 0, 0.06));
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+/* Override Fluent Provider background */
+.fui-FluentProvider {
+  background-color: transparent !important;
+}
+

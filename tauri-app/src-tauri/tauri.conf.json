@@ -28,15 +28,16 @@
         "label": "overlay",
         "title": "",
         "url": "/overlay.html",
-        "width": 1280,
-        "height": 80,
+        "width": 1920,
+        "height": 200,
         "resizable": false,
         "decorations": false,
         "transparent": true,
         "alwaysOnTop": true,
         "skipTaskbar": true,
         "visible": false,
-        "focus": false
+        "focus": false,
+        "shadow": false
       }
     ],
     "trayIcon": {
@@ -64,17 +65,13 @@
         "installMode": "currentUser"
       }
     },
-    "resources": []
-  },
-  "plugins": {
-    "updater": {
-      "endpoints": [
-        "https://github.com/Danil0v3s/CleanMeter/releases/latest/download/latest.json"
-      ],
-      "dialog": false
-    },
-    "global-shortcut": {
-      "shortcuts": []
+    "resources": {
+      "../../HardwareMonitor/HardwareMonitor/bin/Release/net8.0/win-x64/publish/*.exe": "./",
+      "../../HardwareMonitor/HardwareMonitor/bin/Release/net8.0/win-x64/publish/*.dll": "./",
+      "../../HardwareMonitor/HardwareMonitor/bin/Release/net8.0/win-x64/publish/*.sys": "./",
+      "../../HardwareMonitor/HardwareMonitor/bin/Release/net8.0/win-x64/publish/*.json": "./",
+      "../../HardwareMonitor/HardwareMonitor/bin/Release/net8.0/win-x64/publish/*.txt": "./"
     }
-  }
+  },
+  "plugins": {}
 }

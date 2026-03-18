@@ -25,22 +25,24 @@ export function FpsSection({ isHorizontal }: FpsSectionProps) {
         (s) => s.name.toLowerCase().includes("fps") || s.name.toLowerCase().includes("framerate")
       );
 
-  const fpsValue = fpsSensor?.value ?? 0;
+  // Clamp FPS to a sane range — PresentMon can spike on single-frame anomalies
+  const rawFps = fpsSensor?.value ?? 0;
+  const fpsValue = rawFps > 500 ? 0 : rawFps;
   const lastFrametime = frametimeHistory.length > 0 ? frametimeHistory[frametimeHistory.length - 1] : 0;
 
   return (
     <Pill title="FPS" isHorizontal={isHorizontal}>
       {framerate.isEnabled && (
-        <span className="text-base font-medium text-white tabular-nums">
+        <span className="text-xs font-medium text-white tabular-nums">
           {formatValue(fpsValue)}
         </span>
       )}
-      {frametime.isEnabled && frametimeHistory.length > 1 && (
+      {frametime.isEnabled && frametimeHistory.length > 2 && (
         <>
           <FrametimeGraph
             history={frametimeHistory}
-            width={isHorizontal ? 100 : 120}
-            height={isHorizontal ? 45 : 30}
+            width={isHorizontal ? 60 : 80}
+            height={isHorizontal ? 20 : 24}
           />
           <span className="text-xs text-white/60 tabular-nums">
             {formatValue(lastFrametime, 1)}ms

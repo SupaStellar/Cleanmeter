@@ -75,8 +75,8 @@ export function NetSection({ isHorizontal }: NetSectionProps) {
         <NetGraph
           downHistory={downHistory}
           upHistory={upHistory}
-          width={isHorizontal ? 100 : 120}
-          height={isHorizontal ? 45 : 30}
+          width={isHorizontal ? 60 : 80}
+          height={isHorizontal ? 20 : 24}
         />
       )}
     </Pill>

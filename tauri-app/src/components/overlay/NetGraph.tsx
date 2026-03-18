@@ -35,10 +35,10 @@ export function NetGraph({ downHistory, upHistory, width, height }: NetGraphProp
     const maxVal = Math.max(...allValues, 1);
 
     if (downHistory.length > 1) {
-      drawLine(ctx, downHistory, maxVal, width, height, "#22d3ee");
+      drawLine(ctx, downHistory, maxVal, width, height, "white");
     }
     if (upHistory.length > 1) {
-      drawLine(ctx, upHistory, maxVal, width, height, "#7c3aed");
+      drawLine(ctx, upHistory, maxVal, width, height, "white");
     }
   }, [downHistory, upHistory, width, height]);
 

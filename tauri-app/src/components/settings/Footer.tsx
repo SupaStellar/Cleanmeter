@@ -1,56 +1,58 @@
-import { Button } from "@/components/ui/Button";
+import { Button, Caption1, Link, tokens } from "@fluentui/react-components";
 import { useSettingsStore } from "@/stores/settings-store";
-import { open } from "@tauri-apps/plugin-shell";
+import { isBrowser } from "@/lib/tauri";
+
+function openUrl(url: string) {
+  if (isBrowser) {
+    window.open(url, "_blank");
+  } else {
+    import("@tauri-apps/plugin-shell").then((m) => m.open(url));
+  }
+}
 
 export function Footer() {
   const appVersion = useSettingsStore((s) => s.appVersion);
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2" style={{ marginTop: 4 }}>
       <Button
-        variant="outlined"
-        onClick={() => open("https://github.com/Danil0v3s/CleanMeter")}
-        className="w-full"
+        appearance="outline"
+        onClick={() => openUrl("https://github.com/Danil0v3s/CleanMeter")}
+        style={{ width: "100%" }}
       >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z" />
-        </svg>
         Check the latest build
       </Button>
 
-      <div className="flex gap-3">
+      <div className="flex gap-2">
         <Button
-          variant="outlined"
-          onClick={() => open("https://discord.gg/phqwe89cvE")}
-          className="flex-1"
+          appearance="outline"
+          onClick={() => openUrl("https://discord.gg/phqwe89cvE")}
+          style={{ flex: 1 }}
         >
           Discord
         </Button>
         <Button
-          variant="outlined"
-          onClick={() => open("https://ko-fi.com/danil0v3s")}
-          className="flex-1"
+          appearance="outline"
+          onClick={() => openUrl("https://ko-fi.com/danil0v3s")}
+          style={{ flex: 1 }}
         >
           Ko-fi
         </Button>
       </div>
 
-      <div className="flex items-center justify-between py-2 text-[10px] text-[var(--text-paragraph)]">
-        <span>v{appVersion}</span>
-        <div className="flex gap-2">
-          <button
-            onClick={() => open("https://github.com/Danil0v3s")}
-            className="hover:text-[var(--text-heading)] transition-colors underline"
-          >
+      <div
+        className="flex items-center justify-between"
+        style={{ padding: "6px 0", color: tokens.colorNeutralForeground4 }}
+      >
+        <Caption1>v{appVersion}</Caption1>
+        <div className="flex gap-2 items-center">
+          <Link onClick={() => openUrl("https://github.com/Danil0v3s")} style={{ fontSize: 11 }}>
             Danil0v3s
-          </button>
-          <span>&middot;</span>
-          <button
-            onClick={() => open("https://www.instagram.com/mars.designs")}
-            className="hover:text-[var(--text-heading)] transition-colors underline"
-          >
+          </Link>
+          <Caption1>&middot;</Caption1>
+          <Link onClick={() => openUrl("https://www.instagram.com/mars.designs")} style={{ fontSize: 11 }}>
             Mars
-          </button>
+          </Link>
         </div>
       </div>
     </div>

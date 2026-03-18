@@ -8,14 +8,150 @@ import type {
   GraphSensorConfig,
   Boundaries,
   AppPreferences,
+  Sensor,
+  Hardware,
 } from "@/lib/types";
-import { DEFAULT_SETTINGS } from "@/lib/types";
+import { DEFAULT_SETTINGS, HardwareType, SensorType } from "@/lib/types";
 import * as tauri from "@/lib/tauri";
+
+function findBest(
+  sensors: Sensor[],
+  hardwares: Hardware[],
+  hwTypes: HardwareType[],
+  sensorType: SensorType,
+  prefer: string[]
+): string {
+  const hwIds = new Set(
+    hardwares.filter((h) => hwTypes.includes(h.hardwareType)).map((h) => h.identifier)
+  );
+  const candidates = sensors.filter(
+    (s) => hwIds.has(s.hardwareIdentifier) && s.sensorType === sensorType
+  );
+  if (candidates.length === 0) return "";
+  for (const keyword of prefer) {
+    const match = candidates.find((s) =>
+      s.name.toLowerCase().includes(keyword.toLowerCase())
+    );
+    if (match) return match.identifier;
+  }
+  return candidates[0].identifier;
+}
+
+function autoSelectSensors(
+  data: HardwareMonitorData,
+  settings: OverlaySettings
+): Partial<OverlaySettings["sensors"]> | null {
+  const { sensors, hardwares } = data;
+  const patch: Partial<OverlaySettings["sensors"]> = {};
+  let changed = false;
+
+  const cpuHw = [HardwareType.Cpu];
+  const gpuHw = [HardwareType.GpuNvidia, HardwareType.GpuAmd, HardwareType.GpuIntel];
+  const netHw = [HardwareType.Network];
+
+  const tryFill = (
+    key: SensorKey,
+    hwTypes: HardwareType[],
+    sType: SensorType,
+    prefer: string[]
+  ) => {
+    const current = settings.sensors[key];
+    if (!current.customReadingId) {
+      const id = findBest(sensors, hardwares, hwTypes, sType, prefer);
+      if (id) {
+        patch[key] = { ...current, customReadingId: id } as any;
+        changed = true;
+      }
+    }
+  };
+
+  tryFill("cpuUsage", cpuHw, SensorType.Load, ["CPU Total", "CPU Package", "CPU"]);
+  tryFill("cpuTemp", cpuHw, SensorType.Temperature, ["CPU Package", "CPU Core", "CPU"]);
+  tryFill("cpuConsumption", cpuHw, SensorType.Power, ["CPU Package", "CPU"]);
+  tryFill("gpuUsage", gpuHw, SensorType.Load, ["GPU Core", "D3D 3D", "GPU"]);
+  tryFill("gpuTemp", gpuHw, SensorType.Temperature, ["GPU Core", "GPU"]);
+  tryFill("vramUsage", gpuHw, SensorType.Load, ["GPU Memory", "Memory"]);
+  tryFill("totalVramUsed", gpuHw, SensorType.SmallData, ["GPU Memory Used", "Memory Used", "VRAM"]);
+  tryFill("gpuConsumption", gpuHw, SensorType.Power, ["GPU Package", "GPU Power", "GPU"]);
+  tryFill("ramUsage", [HardwareType.Memory], SensorType.Load, ["Memory Used", "Memory"]);
+  // For network, pick the most active non-virtual adapter
+  if (!settings.sensors.downRate.customReadingId || !settings.sensors.upRate.customReadingId) {
+    const netHwIds = new Set(
+      hardwares.filter((h) => h.hardwareType === HardwareType.Network).map((h) => h.identifier)
+    );
+    const netSensors = sensors.filter((s) => netHwIds.has(s.hardwareIdentifier) && s.sensorType === SensorType.Throughput);
+    const nicTotals: Record<string, number> = {};
+    for (const s of netSensors) nicTotals[s.hardwareIdentifier] = (nicTotals[s.hardwareIdentifier] ?? 0) + s.value;
+    const sortedNics = Object.entries(nicTotals).sort((a, b) => {
+      const nameA = (hardwares.find((h) => h.identifier === a[0])?.name ?? "").toLowerCase();
+      const nameB = (hardwares.find((h) => h.identifier === b[0])?.name ?? "").toLowerCase();
+      const virtualA = nameA.includes("bluetooth") || nameA.includes("local area") || nameA.includes("loopback");
+      const virtualB = nameB.includes("bluetooth") || nameB.includes("local area") || nameB.includes("loopback");
+      if (virtualA !== virtualB) return virtualA ? 1 : -1;
+      return b[1] - a[1];
+    });
+    if (sortedNics.length > 0) {
+      const bestNicId = sortedNics[0][0];
+      const nicSensors = netSensors.filter((s) => s.hardwareIdentifier === bestNicId);
+      if (!settings.sensors.downRate.customReadingId) {
+        const s = nicSensors.find((s) => s.name.toLowerCase().includes("download") || s.name.toLowerCase().includes("down"));
+        if (s) { patch["downRate"] = { ...settings.sensors.downRate, customReadingId: s.identifier }; changed = true; }
+      }
+      if (!settings.sensors.upRate.customReadingId) {
+        const s = nicSensors.find((s) => s.name.toLowerCase().includes("upload") || s.name.toLowerCase().includes("up"));
+        if (s) { patch["upRate"] = { ...settings.sensors.upRate, customReadingId: s.identifier }; changed = true; }
+      }
+    }
+  }
+
+  // Frametime — from PresentMon (hardware identifier contains "presentmon")
+  const frametimeSensor = sensors.find(
+    (s) =>
+      !settings.sensors.frametime.customReadingId &&
+      (s.name.toLowerCase().includes("frametime") ||
+        s.identifier.toLowerCase().includes("frametime"))
+  );
+  if (frametimeSensor) {
+    patch["frametime"] = {
+      ...settings.sensors.frametime,
+      customReadingId: frametimeSensor.identifier,
+    };
+    changed = true;
+  }
+
+  // Framerate
+  const framerateSensor = sensors.find(
+    (s) =>
+      !settings.sensors.framerate.customReadingId &&
+      (s.name.toLowerCase().includes("display") ||
+        s.name.toLowerCase().includes("fps") ||
+        s.identifier.toLowerCase().includes("displayed") ||
+        s.identifier.toLowerCase().includes("framerate"))
+  );
+  if (framerateSensor) {
+    patch["framerate"] = {
+      ...settings.sensors.framerate,
+      customReadingId: framerateSensor.identifier,
+    };
+    changed = true;
+  }
+
+  return changed ? patch : null;
+}
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 function debouncedSave(settings: OverlaySettings) {
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => tauri.saveSettings(settings), 300);
+}
+
+async function moveOverlayToMonitor(settings: OverlaySettings) {
+  const monitors = await tauri.getMonitors();
+  if (!monitors || monitors.length === 0) return;
+  const monitor = monitors[settings.selectedDisplayIndex] ?? monitors[0];
+  // Move window to the monitor's origin and resize to fill it
+  tauri.setOverlayPosition(monitor.x, monitor.y);
+  tauri.setOverlaySize(monitor.width, monitor.height);
 }
 
 interface SettingsStore {
@@ -68,9 +204,17 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   loadSettings: async () => {
     try {
       const settings = await tauri.getSettings();
-      set({ settings });
+      if (settings) {
+        set({ settings });
+        tauri.setOverlayClickThrough(settings.isPositionLocked);
+        moveOverlayToMonitor(settings);
+      } else {
+        tauri.setOverlayClickThrough(false);
+        moveOverlayToMonitor(DEFAULT_SETTINGS);
+      }
     } catch {
-      // Use defaults
+      // Use defaults — overlay starts as draggable
+      tauri.setOverlayClickThrough(false);
     }
   },
 
@@ -80,10 +224,8 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     debouncedSave(newSettings);
 
     // Handle side effects
-    if (patch.isHorizontal !== undefined) {
-      const width = patch.isHorizontal ? 1280 : 350;
-      const height = patch.isHorizontal ? 80 : 1280;
-      tauri.setOverlaySize(width, height);
+    if (patch.isHorizontal !== undefined || patch.selectedDisplayIndex !== undefined) {
+      moveOverlayToMonitor(newSettings);
     }
     if (patch.isPositionLocked !== undefined) {
       tauri.setOverlayClickThrough(patch.isPositionLocked);
@@ -134,7 +276,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   loadPreferences: async () => {
     try {
       const preferences = await tauri.getPreferences();
-      set({ preferences });
+      if (preferences) set({ preferences });
     } catch {
       // Use defaults
     }
@@ -146,7 +288,18 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     tauri.savePreferences(newPrefs);
   },
 
-  setSensorData: (data) => set({ sensorData: data }),
+  setSensorData: (data) => {
+    const state = get();
+    set({ sensorData: data });
+    // Auto-select sensor IDs the first time data arrives (if any are still empty)
+    const patch = autoSelectSensors(data, state.settings);
+    if (patch) {
+      const newSensors = { ...state.settings.sensors, ...patch };
+      const newSettings = { ...state.settings, sensors: newSensors };
+      set({ settings: newSettings });
+      debouncedSave(newSettings);
+    }
+  },
   setPresentMonApps: (apps) => set({ presentMonApps: apps }),
   setPipeStatus: (status) => set({ pipeStatus: status }),
 
@@ -164,7 +317,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   loadAppVersion: async () => {
     try {
       const version = await tauri.getAppVersion();
-      set({ appVersion: version });
+      if (version) set({ appVersion: version });
     } catch {
       // Keep default
     }

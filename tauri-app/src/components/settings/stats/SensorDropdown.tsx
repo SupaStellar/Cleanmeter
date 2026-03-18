@@ -20,7 +20,9 @@ export function SensorDropdown({
   const matchingSensors = sensors.filter((s) => s.sensorType === sensorType);
 
   const options = matchingSensors.map((sensor) => {
-    const hw = hardwares.find((h) => h.identifier === sensor.hardwareIdentifier);
+    const hw = hardwares.find(
+      (h) => h.identifier === sensor.hardwareIdentifier
+    );
     const hwName = hw?.name ?? "Unknown";
     return {
       value: sensor.identifier,

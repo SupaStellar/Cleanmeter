@@ -1,4 +1,7 @@
-import { cn } from "@/lib/utils";
+import {
+  Checkbox as FluentCheckbox,
+  type CheckboxOnChangeData,
+} from "@fluentui/react-components";
 
 interface CheckboxProps {
   checked: boolean;
@@ -15,41 +18,19 @@ export function Checkbox({
   disabled,
   trailing,
 }: CheckboxProps) {
+  const handleChange = (_: unknown, data: CheckboxOnChangeData) => {
+    onChange(data.checked === true);
+  };
+
   return (
-    <label
-      className={cn(
-        "flex items-center gap-2 cursor-pointer py-1",
-        disabled && "opacity-50 cursor-not-allowed"
-      )}
-    >
-      <div
-        onClick={(e) => {
-          e.preventDefault();
-          if (!disabled) onChange(!checked);
-        }}
-        className={cn(
-          "flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors",
-          checked
-            ? "bg-[var(--brand)] border-[var(--brand)]"
-            : "border-[var(--border-strong)] bg-transparent"
-        )}
-      >
-        {checked && (
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path
-              d="M10 3L4.5 8.5L2 6"
-              stroke="var(--text-inverse)"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        )}
-      </div>
-      <span className="text-sm text-[var(--text-heading)] flex-1">
-        {label}
-      </span>
-      {trailing}
-    </label>
+    <div className="flex items-center gap-1 py-0.5">
+      <FluentCheckbox
+        checked={checked}
+        onChange={handleChange}
+        label={label}
+        disabled={disabled}
+      />
+      {trailing && <div className="ml-auto">{trailing}</div>}
+    </div>
   );
 }

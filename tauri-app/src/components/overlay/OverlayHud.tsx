@@ -1,5 +1,4 @@
 import { useSettingsStore } from "@/stores/settings-store";
-import { cn } from "@/lib/utils";
 import { FpsSection } from "./FpsSection";
 import { GpuSection } from "./GpuSection";
 import { CpuSection } from "./CpuSection";
@@ -12,13 +11,28 @@ export function OverlayHud() {
 
   return (
     <div
-      className={cn(
-        "flex gap-2 p-4",
-        isHorizontal
-          ? "flex-row items-center h-full rounded-full bg-black/36"
-          : "flex-col rounded-xl bg-black/36 w-full"
-      )}
-      style={{ opacity: settings.opacity }}
+      data-tauri-drag-region
+      style={{
+        display: "flex",
+        gap: 8,
+        padding: 6,
+        opacity: settings.opacity,
+        border: "1px solid rgba(255,255,255,0.08)",
+        ...(isHorizontal
+          ? {
+              flexDirection: "row" as const,
+              alignItems: "center",
+              width: "fit-content",
+              borderRadius: 9999,
+              background: "rgba(30,30,30,0.7)",
+            }
+          : {
+              flexDirection: "column" as const,
+              borderRadius: 12,
+              background: "rgba(30,30,30,0.7)",
+              width: "100%",
+            }),
+      }}
     >
       <FpsSection isHorizontal={isHorizontal} />
       <GpuSection isHorizontal={isHorizontal} />

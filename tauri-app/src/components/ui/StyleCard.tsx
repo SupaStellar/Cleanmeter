@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { Caption1, tokens } from "@fluentui/react-components";
 
 interface StyleCardProps {
   selected: boolean;
@@ -14,28 +14,38 @@ export function StyleCard({
   children,
 }: StyleCardProps) {
   return (
-    <button onClick={onClick} className="flex flex-col gap-2 flex-1 min-w-0">
+    <button
+      onClick={onClick}
+      className="flex flex-col items-center gap-1.5 flex-1 min-w-0"
+      style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+    >
       <div
-        className={cn(
-          "aspect-video w-full rounded-lg flex items-center justify-center transition-all",
-          "bg-[var(--bg-sunken)]",
-          selected
-            ? "border-2 border-[var(--brand)]"
-            : "border border-[var(--border)]"
-        )}
+        style={{
+          width: "100%",
+          aspectRatio: "16/9",
+          borderRadius: 6,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: tokens.colorNeutralBackground3,
+          border: selected
+            ? `2px solid ${tokens.colorBrandStroke1}`
+            : `1px solid ${tokens.colorNeutralStroke2}`,
+          transition: "border-color 100ms ease",
+        }}
       >
         {children}
       </div>
-      <span
-        className={cn(
-          "text-xs text-center w-full",
-          selected
-            ? "text-[var(--text-heading)] font-medium"
-            : "text-[var(--text-paragraph)]"
-        )}
+      <Caption1
+        style={{
+          color: selected
+            ? tokens.colorNeutralForeground1
+            : tokens.colorNeutralForeground3,
+          fontWeight: selected ? 600 : 400,
+        }}
       >
         {label}
-      </span>
+      </Caption1>
     </button>
   );
 }

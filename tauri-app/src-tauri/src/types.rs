@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[repr(u16)]
@@ -24,7 +25,7 @@ impl TryFrom<u16> for Command {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize_repr, Deserialize_repr, PartialEq)]
 #[repr(u32)]
 pub enum HardwareType {
     Motherboard = 0,
@@ -64,7 +65,7 @@ impl From<u32> for HardwareType {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize_repr, Deserialize_repr, PartialEq)]
 #[repr(u32)]
 pub enum SensorType {
     Voltage = 0,
@@ -256,6 +257,8 @@ impl Default for SensorsConfig {
     }
 }
 
+fn default_pill_opacity() -> f32 { 0.3 }
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OverlaySettings {
     #[serde(rename = "isDarkTheme")]
@@ -277,6 +280,8 @@ pub struct OverlaySettings {
     #[serde(rename = "isPositionLocked")]
     pub is_position_locked: bool,
     pub opacity: f32,
+    #[serde(rename = "pillOpacity", default = "default_pill_opacity")]
+    pub pill_opacity: f32,
     #[serde(rename = "pollingRate")]
     pub polling_rate: u64,
     #[serde(rename = "isLoggingEnabled")]
@@ -297,6 +302,7 @@ impl Default for OverlaySettings {
             position_y: 0,
             is_position_locked: true,
             opacity: 1.0,
+            pill_opacity: 0.3,
             polling_rate: 500,
             is_logging_enabled: false,
             sensors: SensorsConfig::default(),

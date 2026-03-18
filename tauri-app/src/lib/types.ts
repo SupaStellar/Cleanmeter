@@ -81,6 +81,7 @@ export interface OverlaySettings {
   positionY: number;
   isPositionLocked: boolean;
   opacity: number;
+  pillOpacity: number;
   pollingRate: number;
   isLoggingEnabled: boolean;
   sensors: SensorsConfig;
@@ -130,7 +131,7 @@ export type SensorKey = keyof SensorsConfig;
 export const POLLING_RATES = [33, 50, 100, 250, 300, 350, 400, 500] as const;
 
 export const DEFAULT_SETTINGS: OverlaySettings = {
-  isDarkTheme: false,
+  isDarkTheme: true,
   isHorizontal: true,
   positionIndex: 0,
   selectedDisplayIndex: 0,
@@ -138,8 +139,9 @@ export const DEFAULT_SETTINGS: OverlaySettings = {
   progressType: "circular",
   positionX: 0,
   positionY: 0,
-  isPositionLocked: true,
+  isPositionLocked: false,
   opacity: 1.0,
+  pillOpacity: 0.3,
   pollingRate: 500,
   isLoggingEnabled: false,
   sensors: {

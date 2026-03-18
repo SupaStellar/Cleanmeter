@@ -6,7 +6,7 @@ import { MonitorSelect } from "./MonitorSelect";
 
 export function StyleTab() {
   return (
-    <div className="flex flex-col gap-4 p-4 overflow-y-auto h-full">
+    <div className="flex flex-col overflow-y-auto h-full" style={{ padding: 16, gap: 16 }}>
       <PositionGrid />
       <OrientationPicker />
       <OpacitySlider />

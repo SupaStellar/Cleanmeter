@@ -1,63 +1,99 @@
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import {
+  Button,
+  Body1Strong,
+  tokens,
+} from "@fluentui/react-components";
+import {
+  PanelLeftExpand20Regular,
+  Subtract16Regular,
+  Dismiss16Regular,
+} from "@fluentui/react-icons";
+import { useSettingsStore } from "@/stores/settings-store";
+import { isBrowser } from "@/lib/tauri";
+
+const appWindowPromise = isBrowser
+  ? Promise.resolve({ minimize: () => {}, hide: () => {} })
+  : import("@tauri-apps/api/window").then((m) => m.getCurrentWindow());
 
 export function TopBar() {
-  const appWindow = getCurrentWindow();
+  const overlayVisible = useSettingsStore((s) => s.overlayVisible);
+  const toggleOverlay = useSettingsStore((s) => s.toggleOverlay);
 
   return (
     <div
       data-tauri-drag-region
-      className="flex items-center justify-between h-[57px] px-4 border-b-2 border-[var(--border)]"
+      className="flex items-center justify-between px-4"
+      style={{
+        height: 40,
+        background: tokens.colorNeutralBackground1,
+        borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+      }}
     >
-      <div className="flex items-center gap-2" data-tauri-drag-region>
-        {/* Logo */}
-        <svg width="25" height="25" viewBox="0 0 25 25" fill="none">
-          <rect width="25" height="25" rx="6" fill="var(--brand)" />
-          <text
-            x="12.5"
-            y="17"
-            textAnchor="middle"
-            fill="var(--text-inverse)"
-            fontSize="14"
-            fontWeight="600"
-            fontFamily="Inter, sans-serif"
-          >
-            C
-          </text>
+      <div className="flex items-center gap-3" data-tauri-drag-region>
+        <svg width="18" height="8" viewBox="0 0 603 230" fill="none">
+          <path d="M229.167 114.584C229.167 177.866 177.866 229.167 114.584 229.167C51.3008 229.167 0 177.866 0 114.584C0 51.3008 51.3008 0 114.584 0C177.866 0 229.167 51.3008 229.167 114.584ZM31.7579 114.584C31.7579 160.327 68.8402 197.409 114.584 197.409C160.327 197.409 197.409 160.327 197.409 114.584C197.409 68.8402 160.327 31.7579 114.584 31.7579C68.8402 31.7579 31.7579 68.8402 31.7579 114.584Z" fill="#17B26A"/>
+          <path d="M419.633 68.4272C434.504 46.3099 459.76 31.7579 488.416 31.7579C534.159 31.7579 571.241 68.8402 571.241 114.584C571.241 160.327 534.159 197.409 488.416 197.409C459.922 197.409 434.789 183.021 419.886 161.114C415.713 171.8 410.13 181.781 403.366 190.826C403.292 190.925 403.217 191.024 403.143 191.122C424.12 214.477 454.552 229.167 488.416 229.167C551.699 229.167 602.999 177.866 602.999 114.584C602.999 51.3008 551.699 0 488.416 0C454.328 0 423.716 14.8855 402.727 38.511C409.619 47.5683 415.318 57.5828 419.59 68.3199C419.604 68.3556 419.619 68.3914 419.633 68.4272Z" fill="#F04438"/>
+          <path d="M232.764 68.3587C247.641 46.2799 272.875 31.7579 301.501 31.7579C347.245 31.7579 384.327 68.8402 384.327 114.584C384.327 160.327 347.245 197.409 301.501 197.409C273.037 197.409 247.927 183.051 233.018 161.182C228.848 171.843 223.275 181.8 216.524 190.826C216.439 190.94 216.354 191.053 216.268 191.167C237.244 214.496 267.659 229.167 301.501 229.167C364.784 229.167 416.085 177.866 416.085 114.584C416.085 51.3008 364.784 0 301.501 0C267.434 0 236.84 14.8669 215.852 38.4666C215.868 38.4875 215.883 38.5085 215.899 38.5294C222.248 46.8757 227.584 56.0343 231.724 65.822C232.08 66.663 232.427 67.5086 232.764 68.3587Z" fill="#FEC84B"/>
         </svg>
-        <span className="text-base font-medium text-[var(--text-heading)]">
+        <Body1Strong style={{ fontSize: 12, color: tokens.colorNeutralForeground1 }}>
           CleanMeter
-        </span>
+        </Body1Strong>
       </div>
-      <div className="flex items-center gap-1">
-        {/* Minimize */}
+      <div className="flex items-center">
+        <Button
+          appearance={overlayVisible ? "primary" : "subtle"}
+          size="small"
+          icon={<PanelLeftExpand20Regular />}
+          onClick={toggleOverlay}
+          title="Toggle overlay (Ctrl+F10)"
+          style={{ marginRight: 8 }}
+        >
+          {overlayVisible ? "Hide" : "Show"} Overlay
+        </Button>
         <button
-          onClick={() => appWindow.minimize()}
-          className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--bg-surface)] transition-colors"
+          onClick={() => appWindowPromise.then((w) => w.minimize())}
           title="Minimize"
+          style={{
+            width: 46,
+            height: 40,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            color: tokens.colorNeutralForeground2,
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = tokens.colorNeutralBackground1Hover)}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
         >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path
-              d="M2 7H12"
-              stroke="var(--icon-subtle)"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
-          </svg>
+          <Subtract16Regular />
         </button>
-        {/* Close (minimize to tray) */}
         <button
-          onClick={() => appWindow.hide()}
-          className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--bg-surface)] transition-colors"
-          title="Closing will minimize to the Tray"
+          onClick={() => appWindowPromise.then((w) => w.hide())}
+          title="Close to tray"
+          style={{
+            width: 46,
+            height: 40,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            color: tokens.colorNeutralForeground2,
+            borderRadius: "0 0 0 0",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "#c42b1c";
+            e.currentTarget.style.color = "white";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.color = tokens.colorNeutralForeground2;
+          }}
         >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path
-              d="M2 2L12 12M12 2L2 12"
-              stroke="var(--icon-subtle)"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
-          </svg>
+          <Dismiss16Regular />
         </button>
       </div>
     </div>

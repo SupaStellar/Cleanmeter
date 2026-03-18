@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { tokens } from "@fluentui/react-components";
+import { Settings16Regular } from "@fluentui/react-icons";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { SensorSection } from "@/components/ui/SensorSection";
 import { BoundaryInput } from "@/components/ui/BoundaryInput";
@@ -9,6 +12,77 @@ import type { Hardware, Sensor } from "@/lib/types";
 interface GpuSectionProps {
   sensors: Sensor[];
   hardwares: Hardware[];
+}
+
+function SensorRow({
+  label,
+  checked,
+  onToggle,
+  sensorType,
+  sensors,
+  hardwares,
+  customReadingId,
+  onSensorChange,
+  boundaries,
+  onBoundaryChange,
+  unit,
+}: {
+  label: string;
+  checked: boolean;
+  onToggle: (v: boolean) => void;
+  sensorType?: SensorType;
+  sensors: Sensor[];
+  hardwares: Hardware[];
+  customReadingId?: string;
+  onSensorChange?: (v: string) => void;
+  boundaries?: { low: number; medium: number; high: number };
+  onBoundaryChange?: (b: { low: number; medium: number; high: number }) => void;
+  unit?: string;
+}) {
+  const [showDetails, setShowDetails] = useState(false);
+  const hasDetails = sensorType && onSensorChange;
+
+  return (
+    <>
+      <div className="flex items-center justify-between">
+        <Checkbox label={label} checked={checked} onChange={onToggle} />
+        {checked && hasDetails && (
+          <button
+            onClick={() => setShowDetails(!showDetails)}
+            style={{
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              padding: 4,
+              borderRadius: 4,
+              color: showDetails ? tokens.colorBrandForeground1 : tokens.colorNeutralForeground3,
+            }}
+            title="Sensor settings"
+          >
+            <Settings16Regular />
+          </button>
+        )}
+      </div>
+      {checked && hasDetails && showDetails && (
+        <>
+          <SensorDropdown
+            sensorType={sensorType!}
+            sensors={sensors}
+            hardwares={hardwares}
+            value={customReadingId ?? ""}
+            onChange={onSensorChange!}
+          />
+          {boundaries && onBoundaryChange && unit && (
+            <BoundaryInput
+              boundaries={boundaries}
+              onChange={onBoundaryChange}
+              unit={unit}
+            />
+          )}
+        </>
+      )}
+    </>
+  );
 }
 
 export function GpuSection({ sensors, hardwares }: GpuSectionProps) {
@@ -38,88 +112,58 @@ export function GpuSection({ sensors, hardwares }: GpuSectionProps) {
         updateSensor("gpuConsumption", { isEnabled: enabled });
       }}
     >
-      <Checkbox
+      <SensorRow
         label="GPU Usage"
         checked={gpuUsage.isEnabled}
-        onChange={(v) => updateSensor("gpuUsage", { isEnabled: v })}
+        onToggle={(v) => updateSensor("gpuUsage", { isEnabled: v })}
+        sensorType={SensorType.Load}
+        sensors={sensors}
+        hardwares={hardwares}
+        customReadingId={gpuUsage.customReadingId}
+        onSensorChange={(v) => updateGraphSensor("gpuUsage", { customReadingId: v })}
+        boundaries={gpuUsage.boundaries}
+        onBoundaryChange={(b) => updateBoundary("gpuUsage", b)}
+        unit="%"
       />
-      {gpuUsage.isEnabled && (
-        <>
-          <SensorDropdown
-            sensorType={SensorType.Load}
-            sensors={sensors}
-            hardwares={hardwares}
-            value={gpuUsage.customReadingId}
-            onChange={(v) =>
-              updateGraphSensor("gpuUsage", { customReadingId: v })
-            }
-          />
-          <BoundaryInput
-            boundaries={gpuUsage.boundaries}
-            onChange={(b) => updateBoundary("gpuUsage", b)}
-            unit="%"
-          />
-        </>
-      )}
-
-      <Checkbox
+      <SensorRow
         label="GPU Temp"
         checked={gpuTemp.isEnabled}
-        onChange={(v) => updateSensor("gpuTemp", { isEnabled: v })}
+        onToggle={(v) => updateSensor("gpuTemp", { isEnabled: v })}
+        sensorType={SensorType.Temperature}
+        sensors={sensors}
+        hardwares={hardwares}
+        customReadingId={gpuTemp.customReadingId}
+        onSensorChange={(v) => updateGraphSensor("gpuTemp", { customReadingId: v })}
+        boundaries={gpuTemp.boundaries}
+        onBoundaryChange={(b) => updateBoundary("gpuTemp", b)}
+        unit="°"
       />
-      {gpuTemp.isEnabled && (
-        <>
-          <SensorDropdown
-            sensorType={SensorType.Temperature}
-            sensors={sensors}
-            hardwares={hardwares}
-            value={gpuTemp.customReadingId}
-            onChange={(v) =>
-              updateGraphSensor("gpuTemp", { customReadingId: v })
-            }
-          />
-          <BoundaryInput
-            boundaries={gpuTemp.boundaries}
-            onChange={(b) => updateBoundary("gpuTemp", b)}
-            unit="°"
-          />
-        </>
-      )}
-
-      <Checkbox
+      <SensorRow
         label="VRAM Usage"
         checked={vramUsage.isEnabled}
-        onChange={(v) => updateSensor("vramUsage", { isEnabled: v })}
+        onToggle={(v) => updateSensor("vramUsage", { isEnabled: v })}
+        sensorType={SensorType.Load}
+        sensors={sensors}
+        hardwares={hardwares}
+        customReadingId={vramUsage.customReadingId}
+        onSensorChange={(v) => updateGraphSensor("vramUsage", { customReadingId: v })}
+        boundaries={vramUsage.boundaries}
+        onBoundaryChange={(b) => updateBoundary("vramUsage", b)}
+        unit="%"
       />
-      {vramUsage.isEnabled && (
-        <>
-          <SensorDropdown
-            sensorType={SensorType.Load}
-            sensors={sensors}
-            hardwares={hardwares}
-            value={vramUsage.customReadingId}
-            onChange={(v) =>
-              updateGraphSensor("vramUsage", { customReadingId: v })
-            }
-          />
-          <BoundaryInput
-            boundaries={vramUsage.boundaries}
-            onChange={(b) => updateBoundary("vramUsage", b)}
-            unit="%"
-          />
-        </>
-      )}
-
-      <Checkbox
+      <SensorRow
         label="Total VRAM Used"
         checked={totalVramUsed.isEnabled}
-        onChange={(v) => updateSensor("totalVramUsed", { isEnabled: v })}
+        onToggle={(v) => updateSensor("totalVramUsed", { isEnabled: v })}
+        sensors={sensors}
+        hardwares={hardwares}
       />
-
-      <Checkbox
+      <SensorRow
         label="GPU Power"
         checked={gpuConsumption.isEnabled}
-        onChange={(v) => updateSensor("gpuConsumption", { isEnabled: v })}
+        onToggle={(v) => updateSensor("gpuConsumption", { isEnabled: v })}
+        sensors={sensors}
+        hardwares={hardwares}
       />
     </SensorSection>
   );

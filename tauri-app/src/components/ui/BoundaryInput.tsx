@@ -1,3 +1,4 @@
+import { Caption1, tokens } from "@fluentui/react-components";
 import type { Boundaries } from "@/lib/types";
 
 interface BoundaryInputProps {
@@ -12,70 +13,80 @@ export function BoundaryInput({
   unit,
 }: BoundaryInputProps) {
   return (
-    <div className="mt-2 ml-7">
-      <div className="flex gap-4 border-l-2 border-[var(--border)] pl-4 py-2">
-        <BoundaryColumn
-          color="var(--color-success)"
+    <div style={{ marginTop: 8, marginLeft: 32, overflow: "hidden" }}>
+      <div className="flex items-center" style={{ gap: 10, paddingTop: 4, paddingBottom: 4 }}>
+        <BoundaryField
+          color={tokens.colorPaletteGreenForeground1}
           label="Low"
           value={boundaries.low}
           onChange={(v) => onChange({ ...boundaries, low: v })}
-          unit={unit}
         />
-        <BoundaryColumn
-          color="var(--color-warning)"
-          label="Medium"
+        <BoundaryField
+          color={tokens.colorPaletteYellowForeground1}
+          label="Med"
           value={boundaries.medium}
           onChange={(v) => onChange({ ...boundaries, medium: v })}
-          unit={unit}
         />
-        <BoundaryColumn
-          color="var(--color-danger)"
+        <BoundaryField
+          color={tokens.colorPaletteRedForeground1}
           label="High"
           value={boundaries.high}
           onChange={(v) => onChange({ ...boundaries, high: v })}
-          unit={unit}
         />
+        <Caption1 style={{ flexShrink: 0, color: tokens.colorNeutralForeground4 }}>
+          {unit}
+        </Caption1>
       </div>
-      <p className="text-[10px] text-[var(--text-paragraph)] mt-1 ml-4">
-        Colors are visible only when the graph is enabled in the style settings
-      </p>
+      <Caption1
+        style={{
+          display: "block",
+          marginTop: 4,
+          color: tokens.colorNeutralForeground4,
+        }}
+      >
+        Colors apply when graph is enabled in Style
+      </Caption1>
     </div>
   );
 }
 
-function BoundaryColumn({
+function BoundaryField({
   color,
   label,
   value,
   onChange,
-  unit,
 }: {
   color: string;
   label: string;
   value: number;
   onChange: (v: number) => void;
-  unit: string;
 }) {
   return (
-    <div className="flex flex-col gap-1 flex-1">
-      <div className="flex items-center gap-1.5">
-        <div
-          className="w-2 h-2 rounded-full"
-          style={{ backgroundColor: color }}
-        />
-        <span className="text-[10px] font-medium text-[var(--text-paragraph)]">
-          {label}
-        </span>
-      </div>
-      <div className="flex items-center gap-1">
-        <input
-          type="number"
-          value={value}
-          onChange={(e) => onChange(parseInt(e.target.value) || 0)}
-          className="w-full h-7 px-2 text-xs rounded border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-heading)] outline-none focus:border-[var(--brand)]"
-        />
-        <span className="text-[10px] text-[var(--text-disabled)]">{unit}</span>
-      </div>
+    <div
+      className="flex items-center flex-1 min-w-0"
+      style={{ gap: 6 }}
+    >
+      <Caption1 style={{ fontWeight: 600, flexShrink: 0, color }}>{label}</Caption1>
+      <input
+        type="number"
+        value={value}
+        onChange={(e) => onChange(parseInt(e.target.value) || 0)}
+        style={{
+          flex: 1,
+          minWidth: 0,
+          height: 26,
+          padding: "0 6px",
+          borderRadius: 4,
+          border: `1px solid ${tokens.colorNeutralStroke1}`,
+          background: tokens.colorNeutralBackground1,
+          color: tokens.colorNeutralForeground1,
+          fontSize: 13,
+          fontFamily: "inherit",
+          outline: "none",
+          MozAppearance: "textfield",
+          appearance: "textfield",
+        } as React.CSSProperties}
+      />
     </div>
   );
 }

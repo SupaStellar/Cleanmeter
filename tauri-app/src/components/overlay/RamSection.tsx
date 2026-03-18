@@ -45,16 +45,16 @@ export function RamSection({ isHorizontal }: RamSectionProps) {
         <Progress
           value={ramPercent}
           max={100}
-          label={formatValue(ramUsedGB, 1)}
-          unit="GB"
+          label={formatValue(ramPercent, 0)}
+          unit="%"
           boundaries={ramUsage.boundaries}
         />
       ) : (
         <div className="flex items-baseline gap-0.5">
           <span className="text-xs font-medium text-white tabular-nums">
-            {formatValue(ramUsedGB, 1)}
+            {ramUsedGB > 0 ? formatValue(ramUsedGB, 1) : formatValue(ramPercent, 0)}
           </span>
-          <span className="text-[9px] text-white/50">GB</span>
+          <span className="text-[9px] text-white/50">{ramUsedGB > 0 ? "GB" : "%"}</span>
         </div>
       )}
     </Pill>

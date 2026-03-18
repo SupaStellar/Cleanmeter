@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { useSettingsStore } from "@/stores/settings-store";
 
 interface PillProps {
   title: string;
@@ -7,24 +7,47 @@ interface PillProps {
 }
 
 export function Pill({ title, isHorizontal, children }: PillProps) {
+  const pillOpacity = useSettingsStore((s) => s.settings.pillOpacity ?? 0.3);
+
   if (isHorizontal) {
     return (
-      <div className="flex items-center gap-2 bg-black/30 rounded-full h-full min-w-[80px] px-4 py-1">
-        <span className="text-[10px] font-semibold text-white/60 uppercase tracking-wider">
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          background: `rgba(0,0,0,${pillOpacity})`,
+          borderRadius: 9999,
+          padding: "4px 12px",
+          minHeight: 32,
+          flexShrink: 0,
+          whiteSpace: "nowrap",
+        }}
+      >
+        <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
           {title}
         </span>
-        <div className="flex items-center gap-2">{children}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>{children}</div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-1 bg-black/30 rounded-lg p-3">
-      <div className="flex items-center gap-2">
-        <span className="text-[10px] font-semibold text-white/60 uppercase tracking-wider">
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 4,
+        background: `rgba(0,0,0,${pillOpacity})`,
+        borderRadius: 8,
+        padding: 12,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
           {title}
         </span>
-        <div className="flex items-center gap-2 flex-1">{children}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>{children}</div>
       </div>
     </div>
   );

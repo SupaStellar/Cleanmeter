@@ -1,5 +1,10 @@
-import { useState, useRef, useEffect } from "react";
-import { cn } from "@/lib/utils";
+import {
+  Dropdown,
+  Option,
+  Label,
+  Caption1,
+  type OptionOnSelectData,
+} from "@fluentui/react-components";
 
 interface SelectOption {
   value: string;
@@ -23,80 +28,33 @@ export function Select({
   label,
   disclaimer,
 }: SelectProps) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
   const selected = options.find((o) => o.value === value);
 
+  const handleSelect = (_: unknown, data: OptionOnSelectData) => {
+    if (data.optionValue) {
+      onChange(data.optionValue);
+    }
+  };
+
   return (
-    <div ref={ref} className="relative">
-      {label && (
-        <span className="text-xs font-medium text-[var(--text-paragraph)] mb-1 block">
-          {label}
-        </span>
-      )}
-      <button
-        onClick={() => setOpen(!open)}
-        className={cn(
-          "flex items-center justify-between w-full h-10 px-3 rounded-lg",
-          "border border-[var(--border)] bg-[var(--bg-raised)]",
-          "text-sm text-[var(--text-heading)]"
-        )}
+    <div className="flex flex-col gap-1">
+      {label && <Label size="small">{label}</Label>}
+      <Dropdown
+        value={selected?.label ?? ""}
+        selectedOptions={value ? [value] : []}
+        onOptionSelect={handleSelect}
+        placeholder={placeholder}
+        appearance="filled-lighter"
+        style={{ minWidth: 0, border: `1px solid var(--colorNeutralStroke1)`, borderRadius: 4 }}
       >
-        <span className={!selected ? "text-[var(--text-disabled)]" : ""}>
-          {selected?.label ?? placeholder}
-        </span>
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 16 16"
-          fill="none"
-          className={cn("transition-transform", open && "rotate-180")}
-        >
-          <path
-            d="M4 6L8 10L12 6"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
+        {options.map((option) => (
+          <Option key={option.value} value={option.value}>
+            {option.label}
+          </Option>
+        ))}
+      </Dropdown>
       {disclaimer && (
-        <p className="text-[10px] text-[var(--text-paragraph)] mt-1">
-          {disclaimer}
-        </p>
-      )}
-      {open && (
-        <div className="absolute z-50 top-full left-0 w-full mt-1 py-1 rounded-lg border border-[var(--border)] bg-[var(--bg-raised)] shadow-lg max-h-48 overflow-y-auto">
-          {options.map((option) => (
-            <button
-              key={option.value}
-              onClick={() => {
-                onChange(option.value);
-                setOpen(false);
-              }}
-              className={cn(
-                "w-full text-left px-3 py-2 text-sm hover:bg-[var(--bg-surface)] transition-colors",
-                option.value === value
-                  ? "text-[var(--brand)] font-medium"
-                  : "text-[var(--text-heading)]"
-              )}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
+        <Caption1 style={{ opacity: 0.7 }}>{disclaimer}</Caption1>
       )}
     </div>
   );

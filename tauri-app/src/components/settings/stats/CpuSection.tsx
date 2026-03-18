@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { tokens } from "@fluentui/react-components";
+import { Settings16Regular } from "@fluentui/react-icons";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { SensorSection } from "@/components/ui/SensorSection";
 import { BoundaryInput } from "@/components/ui/BoundaryInput";
@@ -9,6 +12,77 @@ import type { Hardware, Sensor } from "@/lib/types";
 interface CpuSectionProps {
   sensors: Sensor[];
   hardwares: Hardware[];
+}
+
+function SensorRow({
+  label,
+  checked,
+  onToggle,
+  sensorType,
+  sensors,
+  hardwares,
+  customReadingId,
+  onSensorChange,
+  boundaries,
+  onBoundaryChange,
+  unit,
+}: {
+  label: string;
+  checked: boolean;
+  onToggle: (v: boolean) => void;
+  sensorType?: SensorType;
+  sensors: Sensor[];
+  hardwares: Hardware[];
+  customReadingId?: string;
+  onSensorChange?: (v: string) => void;
+  boundaries?: { low: number; medium: number; high: number };
+  onBoundaryChange?: (b: { low: number; medium: number; high: number }) => void;
+  unit?: string;
+}) {
+  const [showDetails, setShowDetails] = useState(false);
+  const hasDetails = sensorType && onSensorChange;
+
+  return (
+    <>
+      <div className="flex items-center justify-between">
+        <Checkbox label={label} checked={checked} onChange={onToggle} />
+        {checked && hasDetails && (
+          <button
+            onClick={() => setShowDetails(!showDetails)}
+            style={{
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              padding: 4,
+              borderRadius: 4,
+              color: showDetails ? tokens.colorBrandForeground1 : tokens.colorNeutralForeground3,
+            }}
+            title="Sensor settings"
+          >
+            <Settings16Regular />
+          </button>
+        )}
+      </div>
+      {checked && hasDetails && showDetails && (
+        <>
+          <SensorDropdown
+            sensorType={sensorType!}
+            sensors={sensors}
+            hardwares={hardwares}
+            value={customReadingId ?? ""}
+            onChange={onSensorChange!}
+          />
+          {boundaries && onBoundaryChange && unit && (
+            <BoundaryInput
+              boundaries={boundaries}
+              onChange={onBoundaryChange}
+              unit={unit}
+            />
+          )}
+        </>
+      )}
+    </>
+  );
 }
 
 export function CpuSection({ sensors, hardwares }: CpuSectionProps) {
@@ -31,58 +105,38 @@ export function CpuSection({ sensors, hardwares }: CpuSectionProps) {
         updateSensor("cpuConsumption", { isEnabled: enabled });
       }}
     >
-      <Checkbox
+      <SensorRow
         label="CPU Usage"
         checked={cpuUsage.isEnabled}
-        onChange={(v) => updateSensor("cpuUsage", { isEnabled: v })}
+        onToggle={(v) => updateSensor("cpuUsage", { isEnabled: v })}
+        sensorType={SensorType.Load}
+        sensors={sensors}
+        hardwares={hardwares}
+        customReadingId={cpuUsage.customReadingId}
+        onSensorChange={(v) => updateGraphSensor("cpuUsage", { customReadingId: v })}
+        boundaries={cpuUsage.boundaries}
+        onBoundaryChange={(b) => updateBoundary("cpuUsage", b)}
+        unit="%"
       />
-      {cpuUsage.isEnabled && (
-        <>
-          <SensorDropdown
-            sensorType={SensorType.Load}
-            sensors={sensors}
-            hardwares={hardwares}
-            value={cpuUsage.customReadingId}
-            onChange={(v) =>
-              updateGraphSensor("cpuUsage", { customReadingId: v })
-            }
-          />
-          <BoundaryInput
-            boundaries={cpuUsage.boundaries}
-            onChange={(b) => updateBoundary("cpuUsage", b)}
-            unit="%"
-          />
-        </>
-      )}
-
-      <Checkbox
+      <SensorRow
         label="CPU Temp"
         checked={cpuTemp.isEnabled}
-        onChange={(v) => updateSensor("cpuTemp", { isEnabled: v })}
+        onToggle={(v) => updateSensor("cpuTemp", { isEnabled: v })}
+        sensorType={SensorType.Temperature}
+        sensors={sensors}
+        hardwares={hardwares}
+        customReadingId={cpuTemp.customReadingId}
+        onSensorChange={(v) => updateGraphSensor("cpuTemp", { customReadingId: v })}
+        boundaries={cpuTemp.boundaries}
+        onBoundaryChange={(b) => updateBoundary("cpuTemp", b)}
+        unit="°"
       />
-      {cpuTemp.isEnabled && (
-        <>
-          <SensorDropdown
-            sensorType={SensorType.Temperature}
-            sensors={sensors}
-            hardwares={hardwares}
-            value={cpuTemp.customReadingId}
-            onChange={(v) =>
-              updateGraphSensor("cpuTemp", { customReadingId: v })
-            }
-          />
-          <BoundaryInput
-            boundaries={cpuTemp.boundaries}
-            onChange={(b) => updateBoundary("cpuTemp", b)}
-            unit="°"
-          />
-        </>
-      )}
-
-      <Checkbox
+      <SensorRow
         label="CPU Power"
         checked={cpuConsumption.isEnabled}
-        onChange={(v) => updateSensor("cpuConsumption", { isEnabled: v })}
+        onToggle={(v) => updateSensor("cpuConsumption", { isEnabled: v })}
+        sensors={sensors}
+        hardwares={hardwares}
       />
     </SensorSection>
   );

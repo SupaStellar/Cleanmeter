@@ -42,6 +42,35 @@ public class MonitorPoller(
 
         _computer.Open();
         _computer.Accept(new UpdateVisitor());
+
+        // Log discovered hardware and sensor counts for diagnostics
+        int hwCount = 0, sensorCount = 0;
+        foreach (var hw in _computer.Hardware)
+        {
+            hwCount++;
+            sensorCount += hw.Sensors.Length;
+            logger.LogInformation("Hardware: {Name} ({Type}) - {Count} sensors", hw.Name, hw.HardwareType, hw.Sensors.Length);
+            foreach (var sub in hw.SubHardware)
+            {
+                hwCount++;
+                sensorCount += sub.Sensors.Length;
+                logger.LogInformation("  SubHardware: {Name} - {Count} sensors", sub.Name, sub.Sensors.Length);
+            }
+        }
+        logger.LogInformation("Total hardware: {HW}, sensors: {Sensors}", hwCount, sensorCount);
+
+        // Log first few sensor values to check if readings are non-zero
+        int logged = 0;
+        foreach (var hw in _computer.Hardware)
+        {
+            foreach (var s in hw.Sensors)
+            {
+                if (logged++ < 10)
+                    logger.LogInformation("  Sample sensor: {HW} / {Name} ({Type}) = {Value}", hw.Name, s.Name, s.SensorType, s.Value);
+            }
+            if (logged >= 10) break;
+        }
+
         _presentMonPoller.Start(stoppingToken);
         _presentMonPoller.OnUpdateApps += SendPresentMonAppsToClients;
         _socketHost.StartServer();

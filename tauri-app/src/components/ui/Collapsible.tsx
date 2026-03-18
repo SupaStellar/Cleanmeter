@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { cn } from "@/lib/utils";
+import { Body1Strong, tokens } from "@fluentui/react-components";
+import { ChevronDown20Regular } from "@fluentui/react-icons";
 
 interface CollapsibleProps {
   title: string;
@@ -18,31 +19,25 @@ export function Collapsible({
     <div>
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center justify-between w-full py-2"
+        className="flex items-center justify-between w-full"
+        style={{
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          padding: "4px 0",
+          color: tokens.colorNeutralForeground1,
+        }}
       >
-        <span className="text-xs font-semibold tracking-wider text-[var(--text-paragraph)] uppercase">
-          {title}
-        </span>
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 16 16"
-          fill="none"
-          className={cn(
-            "text-[var(--icon-subtle)] transition-transform",
-            open ? "rotate-0" : "-rotate-90"
-          )}
-        >
-          <path
-            d="M4 6L8 10L12 6"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+        <Body1Strong>{title}</Body1Strong>
+        <ChevronDown20Regular
+          style={{
+            color: tokens.colorNeutralForeground3,
+            transition: "transform 150ms ease",
+            transform: open ? "rotate(0deg)" : "rotate(-90deg)",
+          }}
+        />
       </button>
-      {open && <div className="pb-4">{children}</div>}
+      {open && <div style={{ paddingTop: 8, paddingBottom: 4 }}>{children}</div>}
     </div>
   );
 }

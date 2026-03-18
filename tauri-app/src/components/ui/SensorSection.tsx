@@ -1,3 +1,4 @@
+import { Body1Strong, tokens } from "@fluentui/react-components";
 import { Switch } from "./Switch";
 
 interface SensorSectionProps {
@@ -14,14 +15,19 @@ export function SensorSection({
   children,
 }: SensorSectionProps) {
   return (
-    <div className="rounded-xl bg-[var(--bg-raised)] p-4">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-semibold tracking-wider text-[var(--text-paragraph)] uppercase">
-          {title}
-        </span>
+    <div
+      style={{
+        background: tokens.colorNeutralBackground1,
+        borderRadius: 8,
+        border: `1px solid ${tokens.colorNeutralStroke2}`,
+        padding: "16px 20px",
+      }}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <Body1Strong>{title}</Body1Strong>
         <Switch checked={enabled} onChange={onToggle} />
       </div>
-      {enabled && <div className="flex flex-col gap-1">{children}</div>}
+      {enabled && <div className="flex flex-col gap-0.5 mt-1">{children}</div>}
     </div>
   );
 }

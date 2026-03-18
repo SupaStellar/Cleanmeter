@@ -1,3 +1,4 @@
+import { tokens } from "@fluentui/react-components";
 import { Collapsible } from "@/components/ui/Collapsible";
 import { StyleCard } from "@/components/ui/StyleCard";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -7,7 +8,14 @@ export function OrientationPicker() {
   const updateSettings = useSettingsStore((s) => s.updateSettings);
 
   return (
-    <div className="rounded-xl bg-[var(--bg-raised)] p-4">
+    <div
+      style={{
+        background: tokens.colorNeutralBackground1,
+        borderRadius: 8,
+        border: `1px solid ${tokens.colorNeutralStroke2}`,
+        padding: "12px 20px",
+      }}
+    >
       <Collapsible title="Orientation">
         <div className="flex gap-3">
           <StyleCard
@@ -15,18 +23,30 @@ export function OrientationPicker() {
             onClick={() => updateSettings({ isHorizontal: true })}
             label="Horizontal"
           >
-            <div className="flex items-center justify-center w-full h-full">
-              <div className="w-3/4 h-2 rounded-full bg-[var(--brand)] opacity-60" />
-            </div>
+            <div
+              style={{
+                width: "75%",
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: tokens.colorBrandBackground,
+                opacity: 0.6,
+              }}
+            />
           </StyleCard>
           <StyleCard
             selected={!settings.isHorizontal}
             onClick={() => updateSettings({ isHorizontal: false })}
             label="Vertical"
           >
-            <div className="flex items-center justify-center w-full h-full">
-              <div className="w-2 h-3/4 rounded-full bg-[var(--brand)] opacity-60" />
-            </div>
+            <div
+              style={{
+                width: 8,
+                height: "75%",
+                borderRadius: 4,
+                backgroundColor: tokens.colorBrandBackground,
+                opacity: 0.6,
+              }}
+            />
           </StyleCard>
         </div>
       </Collapsible>

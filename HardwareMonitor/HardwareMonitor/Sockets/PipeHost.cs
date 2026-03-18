@@ -33,8 +33,8 @@ public class PipeHost(ILogger logger)
                     NamedPipeServerStream.MaxAllowedServerInstances,
                     PipeTransmissionMode.Byte,
                     PipeOptions.Asynchronous,
-                    4096, // inBufferSize
-                    4096  // outBufferSize
+                    4096,
+                    4096
                 );
 
                 logger.LogInformation("Waiting for client connection on pipe: {PipeName}", _pipeName);
