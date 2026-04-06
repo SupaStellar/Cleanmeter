@@ -35,11 +35,6 @@ A clean, minimal performance overlay for gamers. Monitor your system stats witho
 
 Download the latest installer from [Releases](https://github.com/apyfz/CleanMeter/releases/latest) and run it. The app requests admin access to read hardware sensors.
 
-## Current Limitations
-
-- Doesn't work with exclusive fullscreen (use borderless windowed)
-- FPS/frametime only updates while an app is actively rendering
-
 ## Tech Stack
 
 - **Frontend**: React + TypeScript (Tauri v2)
