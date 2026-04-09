@@ -16,10 +16,13 @@ type ProgressBarProps = Omit<React.ComponentProps<"div">, "onChange"> & {
   value?: number;
   /** Called with the snapped value (0–100) on click/drag */
   onChange?: (value: number) => void;
+  /** Accessible label for the slider */
+  "aria-label"?: string;
 };
 
-function ProgressBar({ className, value = 0, onChange, ...props }: ProgressBarProps) {
+function ProgressBar({ className, value = 0, onChange, "aria-label": ariaLabel, ...props }: ProgressBarProps) {
   const clamped = snap(Math.max(0, Math.min(100, value)));
+  const step = 100 / STEPS;
   const trackRef = React.useRef<HTMLDivElement>(null);
 
   const resolveValue = React.useCallback(
@@ -52,6 +55,33 @@ function ProgressBar({ className, value = 0, onChange, ...props }: ProgressBarPr
     [resolveValue],
   );
 
+  const handleKeyDown = React.useCallback(
+    (e: React.KeyboardEvent) => {
+      let next: number | null = null;
+      switch (e.key) {
+        case "ArrowRight":
+        case "ArrowUp":
+          next = snap(Math.min(100, clamped + step));
+          break;
+        case "ArrowLeft":
+        case "ArrowDown":
+          next = snap(Math.max(0, clamped - step));
+          break;
+        case "Home":
+          next = 0;
+          break;
+        case "End":
+          next = 100;
+          break;
+      }
+      if (next !== null) {
+        e.preventDefault();
+        onChange?.(next);
+      }
+    },
+    [clamped, step, onChange],
+  );
+
   return (
     <div
       className={cn("flex flex-col gap-[var(--spacingS)] w-full", className)}
@@ -65,9 +95,11 @@ function ProgressBar({ className, value = 0, onChange, ...props }: ProgressBarPr
         aria-valuenow={clamped}
         aria-valuemin={0}
         aria-valuemax={100}
+        aria-label={ariaLabel}
         tabIndex={0}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
+        onKeyDown={handleKeyDown}
       >
         {/* Track */}
         <div className="absolute inset-0 rounded-[var(--cornerRound)] bg-[var(--bgSurfaceSunkenSubtle)]" />

@@ -126,7 +126,8 @@ type InputProps = Omit<React.ComponentProps<"input">, "prefix"> &
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, error, label, prefix, disabled, id, dotColor, ...props }, ref) => {
-    const inputId = id ?? React.useId();
+    const generatedId = React.useId();
+    const inputId = id ?? generatedId;
 
     return (
       <div className="flex flex-col gap-[var(--spacingXs)]">
