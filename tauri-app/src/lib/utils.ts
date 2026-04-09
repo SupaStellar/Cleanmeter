@@ -1,7 +1,23 @@
+import { type ClassValue, clsx } from "clsx";
+import { extendTailwindMerge, getDefaultConfig } from "tailwind-merge";
 import type { Boundaries, Sensor, SensorType } from "./types";
 
-export function cn(...classes: (string | false | null | undefined)[]): string {
-  return classes.filter(Boolean).join(" ");
+const isTypography = (v: string) => /^(heading|body|label|link|input|caption|readings)-/.test(v);
+
+const defaultTextColor = getDefaultConfig().classGroups["text-color"][0] as unknown as {
+  text: ((v: string) => boolean)[];
+};
+const textColorValidators = defaultTextColor.text.map((v) =>
+  typeof v === "function" ? (val: string) => !isTypography(val) && v(val) : v,
+);
+
+const twMerge = extendTailwindMerge<"typography">({
+  override: { classGroups: { "text-color": [{ text: textColorValidators }] } },
+  extend: { classGroups: { typography: [{ text: [isTypography] }] } },
+});
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
 }
 
 export function getBoundaryColor(

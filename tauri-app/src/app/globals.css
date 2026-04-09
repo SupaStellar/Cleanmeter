@@ -1,0 +1,215 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "./tokens.css";
+@import "./tokens-dark.css";
+@import "./tokens-typography.css";
+
+/* ============================================================
+   Semantic aliases
+   ============================================================ */
+:root {
+  --background: var(--bgSurface);
+  --foreground: var(--textHeading);
+
+  /* Shadow shorthands (composed from expanded sub-tokens) */
+  --shadow-card: 0px 4px 8px 0px var(--cardShadowColor);
+  --shadow-large: 0px 4px 24px 0px var(--largeColor);
+}
+
+/* ============================================================
+   @theme inline — map token CSS vars → Tailwind theme namespace
+   so utilities like bg-brand, text-heading, shadow-card work
+   ============================================================ */
+@theme inline {
+  /* --- Primitive colors --- */
+  --color-gray-25: var(--gray25);
+  --color-gray-50: var(--gray50);
+  --color-gray-100: var(--gray100);
+  --color-gray-200: var(--gray200);
+  --color-gray-300: var(--gray300);
+  --color-gray-400: var(--gray400);
+  --color-gray-500: var(--gray500);
+  --color-gray-600: var(--gray600);
+  --color-gray-700: var(--gray700);
+  --color-gray-800: var(--gray800);
+  --color-gray-900: var(--gray900);
+  --color-gray-950: var(--gray950);
+
+  --color-red-25: var(--red25);
+  --color-red-50: var(--red50);
+  --color-red-100: var(--red100);
+  --color-red-200: var(--red200);
+  --color-red-300: var(--red300);
+  --color-red-400: var(--red400);
+  --color-red-500: var(--red500);
+  --color-red-600: var(--red600);
+  --color-red-700: var(--red700);
+  --color-red-800: var(--red800);
+  --color-red-900: var(--red900);
+  --color-red-950: var(--red950);
+
+  --color-yellow-25: var(--yellow25);
+  --color-yellow-50: var(--yellow50);
+  --color-yellow-100: var(--yellow100);
+  --color-yellow-200: var(--yellow200);
+  --color-yellow-300: var(--yellow300);
+  --color-yellow-400: var(--yellow400);
+  --color-yellow-500: var(--yellow500);
+  --color-yellow-600: var(--yellow600);
+  --color-yellow-700: var(--yellow700);
+  --color-yellow-800: var(--yellow800);
+  --color-yellow-900: var(--yellow900);
+  --color-yellow-950: var(--yellow950);
+
+  --color-green-25: var(--green25);
+  --color-green-50: var(--green50);
+  --color-green-100: var(--green100);
+  --color-green-200: var(--green200);
+  --color-green-300: var(--green300);
+  --color-green-400: var(--green400);
+  --color-green-500: var(--green500);
+  --color-green-600: var(--green600);
+  --color-green-700: var(--green700);
+  --color-green-800: var(--green800);
+  --color-green-900: var(--green900);
+  --color-green-950: var(--green950);
+
+  --color-emerald-25: var(--emerald25);
+  --color-emerald-50: var(--emerald50);
+  --color-emerald-100: var(--emerald100);
+  --color-emerald-200: var(--emerald200);
+  --color-emerald-300: var(--emerald300);
+  --color-emerald-400: var(--emerald400);
+  --color-emerald-500: var(--emerald500);
+  --color-emerald-600: var(--emerald600);
+  --color-emerald-700: var(--emerald700);
+  --color-emerald-800: var(--emerald800);
+  --color-emerald-900: var(--emerald900);
+  --color-emerald-950: var(--emerald950);
+
+  --color-purple-25: var(--purple25);
+  --color-purple-50: var(--purple50);
+  --color-purple-100: var(--purple100);
+  --color-purple-200: var(--purple200);
+  --color-purple-300: var(--purple300);
+  --color-purple-400: var(--purple400);
+  --color-purple-500: var(--purple500);
+  --color-purple-600: var(--purple600);
+  --color-purple-700: var(--purple700);
+  --color-purple-800: var(--purple800);
+  --color-purple-900: var(--purple900);
+  --color-purple-950: var(--purple950);
+
+  --color-white: var(--plainWhite);
+
+  /* --- Semantic text colors --- */
+  --color-text-heading: var(--textHeading);
+  --color-text-sub-heading: var(--textSubHeading);
+  --color-text-paragraph-1: var(--textParagraph1);
+  --color-text-paragraph-2: var(--textParagraph2);
+  --color-text-disabled: var(--textDisabled);
+  --color-text-disabled-lighter: var(--textDisabledLighter);
+  --color-text-inverse: var(--textInverse);
+  --color-text-inverse-subtle: var(--textInverseSubtle);
+  --color-text-inverse-subtler: var(--textInverseSubtler);
+  --color-text-success: var(--textSuccess);
+  --color-text-danger: var(--textDanger);
+  --color-text-warning: var(--textWarning);
+
+  /* --- Semantic background colors --- */
+  --color-bg-surface: var(--bgSurface);
+  --color-bg-surface-raised: var(--bgSurfaceRaised);
+  --color-bg-surface-overlay: var(--bgSurfaceOverlay);
+  --color-bg-surface-sunken: var(--bgSurfaceSunken);
+  --color-bg-surface-sunken-subtle: var(--bgSurfaceSunkenSubtle);
+  --color-bg-surface-sunken-subtler: var(--bgSurfaceSunkenSubtler);
+  --color-bg-brand: var(--bgBrand);
+  --color-bg-brand-hover: var(--bgBrandHover);
+  --color-bg-brand-active: var(--bgBrandActive);
+  --color-bg-brand-subtle: var(--bgBrandSubtle);
+  --color-bg-success: var(--bgSuccess);
+  --color-bg-success-hover: var(--bgSuccessHover);
+  --color-bg-success-active: var(--bgSuccessActive);
+  --color-bg-success-subtler: var(--bgSuccessSubtler);
+  --color-bg-danger: var(--bgDanger);
+  --color-bg-danger-hover: var(--bgDangerHover);
+  --color-bg-danger-active: var(--bgDangerActive);
+  --color-bg-danger-subtler: var(--bgDangerSubtler);
+  --color-bg-warning: var(--bgWarning);
+  --color-bg-warning-hover: var(--bgWarningHover);
+  --color-bg-warning-active: var(--bgWarningActive);
+  --color-bg-warning-subtler: var(--bgWarningSubtler);
+  --color-bg-logo: var(--bgLogo);
+
+  /* --- Semantic icon colors --- */
+  --color-icon-bolder: var(--iconBolder);
+  --color-icon-bolder-hover: var(--iconBolderHover);
+  --color-icon-bolder-active: var(--iconBolderActive);
+  --color-icon-bold: var(--iconBold);
+  --color-icon-bold-hover: var(--iconBoldHover);
+  --color-icon-bold-active: var(--iconBoldActive);
+  --color-icon-subtler: var(--iconSubtler);
+  --color-icon-subtler-hover: var(--iconSubtlerHover);
+  --color-icon-subtler-active: var(--iconSubtlerActive);
+  --color-icon-subtle: var(--iconSubtle);
+  --color-icon-subtle-hover: var(--iconSubtleHover);
+  --color-icon-subtle-active: var(--iconSublteActive);
+  --color-icon-disabled: var(--iconDisabled);
+  --color-icon-inverse: var(--iconInverse);
+  --color-icon-inverse-hover: var(--iconInverseHover);
+  --color-icon-inverse-active: var(--iconInverseActive);
+  --color-icon-success: var(--iconSuccess);
+  --color-icon-danger: var(--iconDanger);
+  --color-icon-warning: var(--iconWarning);
+
+  /* --- Semantic border colors --- */
+  --color-border-subtler: var(--borderSubtler);
+  --color-border-subtle: var(--borderSubtle);
+  --color-border-bold: var(--borderBold);
+  --color-border-bolder: var(--borderBolder);
+  --color-border-brand: var(--borderBrand);
+  --color-border-brand-subtle: var(--borderBrandSubtle);
+  --color-border-success: var(--borderSuccess);
+  --color-border-success-darker: var(--borderSuccessDarker);
+  --color-border-danger: var(--borderDanger);
+  --color-border-warning: var(--borderWarning);
+  --color-border-inverse: var(--borderInverse);
+
+  /* --- Shadows --- */
+  --shadow-card: var(--shadow-card);
+  --shadow-large: var(--shadow-large);
+
+  /* --- Spacing --- */
+  --spacing-xxxxs: var(--spacingXxxxs);
+  --spacing-xxxs: var(--spacingXxxs);
+  --spacing-xxs: var(--spacingXxs);
+  --spacing-xs: var(--spacingXs);
+  --spacing-sx: var(--spacingSx);
+  --spacing-s: var(--spacingS);
+  --spacing-m: var(--spacingM);
+  --spacing-l: var(--spacingL);
+  --spacing-xl: var(--spacingXl);
+  --spacing-xxl: var(--spacingXxl);
+  --spacing-xxxl: var(--spacingXxxl);
+
+  /* --- Border radius --- */
+  --radius-s: var(--cornerS);
+  --radius-m: var(--cornerM);
+  --radius-l: var(--cornerL);
+  --radius-xl: var(--cornerXl);
+  --radius-xxl: var(--cornerXxl);
+  --radius-xxxl: var(--cornerXxxl);
+  --radius-round: var(--cornerRound);
+
+  /* --- Font family --- */
+  --font-inter: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ============================================================
+   Base styles
+   ============================================================ */
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}

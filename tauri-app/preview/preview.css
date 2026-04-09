@@ -1,0 +1,74 @@
+@import "../src/app/globals.css";
+@source ".";
+
+body {
+  margin: 0;
+  font-family: "Inter", "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.preview-root {
+  min-height: 100vh;
+  background: var(--bgSurface);
+  padding: var(--spacingXl);
+  transition: background 0.2s;
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacingXl);
+}
+
+.preview-theme-toggle {
+  padding: var(--spacingXs) var(--spacingM);
+  border-radius: var(--cornerM);
+  border: 1px solid var(--borderBolder);
+  background: var(--bgSurfaceRaised);
+  color: var(--textHeading);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.preview-theme-toggle:hover {
+  border-color: var(--borderBrand);
+}
+
+.preview-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacingXxl);
+}
+
+.preview-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacingM);
+  padding: var(--spacingL);
+  border-radius: var(--cornerL);
+  border: 1px solid var(--borderSubtle);
+  background: var(--bgSurfaceRaised);
+}
+
+.preview-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--spacingL);
+}
+
+.preview-cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacingXs);
+  width: 220px;
+}
+
+.preview-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--textParagraph2);
+}

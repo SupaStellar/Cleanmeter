@@ -1,0 +1,11 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+@import "../src/app/globals.css";
+@source "../src";
+
+body,
+.docs-story,
+.sb-story {
+  background-color: var(--bgSurface) !important;
+  color: var(--textHeading);
+  transition: background-color 0.2s, color 0.2s;
+}

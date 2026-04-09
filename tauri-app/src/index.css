@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import "./app/globals.css";
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
 
 :root {
@@ -33,10 +33,12 @@
   --color-danger: var(--red-600);
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
 }
 
 body {
@@ -93,4 +95,3 @@ input[type="number"] {
 .fui-FluentProvider {
   background-color: transparent !important;
 }
-

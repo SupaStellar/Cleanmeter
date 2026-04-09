@@ -142,6 +142,12 @@ gradle-app.setting
 
 # End of https://www.toptal.com/developers/gitignore/api/gradle,intellij+iml,kotlin
 
+# Storybook
+storybook-static/
+
+# Token build artifacts
+tauri-app/src/tokens/.build/
+
 obj/
 bin/
 /shelf/
@@ -156,3 +162,4 @@ bin/
 # Datasource local storage ignored files
 /dataSources/
 /dataSources.local.xml
+

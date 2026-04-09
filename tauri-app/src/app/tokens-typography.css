@@ -1,0 +1,219 @@
+.text-caption-xs {
+  font-family: var(--captionXsFontfamily);
+  font-weight: var(--captionXsFontweight);
+  font-size: var(--captionXsFontsize);
+  line-height: calc(var(--captionXsLineheight) * 1px);
+  letter-spacing: var(--captionXsLetterspacing);
+  text-transform: var(--captionXsTextcase);
+  text-decoration: var(--captionXsTextdecoration);
+}
+
+.text-caption-s {
+  font-family: var(--captionSFontfamily);
+  font-weight: var(--captionSFontweight);
+  font-size: var(--captionSFontsize);
+  line-height: calc(var(--captionSLineheight) * 1px);
+  letter-spacing: var(--captionSLetterspacing);
+  text-transform: var(--captionSTextcase);
+  text-decoration: var(--captionSTextdecoration);
+}
+
+.text-caption-m {
+  font-family: var(--captionMFontfamily);
+  font-weight: var(--captionMFontweight);
+  font-size: var(--captionMFontsize);
+  line-height: calc(var(--captionMLineheight) * 1px);
+  letter-spacing: var(--captionMLetterspacing);
+  text-transform: var(--captionMTextcase);
+  text-decoration: var(--captionMTextdecoration);
+}
+
+.text-caption-l {
+  font-family: var(--captionLFontfamily);
+  font-weight: var(--captionLFontweight);
+  font-size: var(--captionLFontsize);
+  line-height: calc(var(--captionLLineheight) * 1px);
+  letter-spacing: var(--captionLLetterspacing);
+  text-transform: var(--captionLTextcase);
+  text-decoration: var(--captionLTextdecoration);
+}
+
+.text-readings10-semi-bold {
+  font-family: var(--readings10SemiBoldFontfamily);
+  font-weight: var(--readings10SemiBoldFontweight);
+  font-size: var(--readings10SemiBoldFontsize);
+  line-height: calc(var(--readings10SemiBoldLineheight) * 1px);
+  letter-spacing: var(--readings10SemiBoldLetterspacing);
+  text-transform: var(--readings10SemiBoldTextcase);
+  text-decoration: var(--readings10SemiBoldTextdecoration);
+}
+
+.text-readings12-medium {
+  font-family: var(--readings12MediumFontfamily);
+  font-weight: var(--readings12MediumFontweight);
+  font-size: var(--readings12MediumFontsize);
+  line-height: calc(var(--readings12MediumLineheight) * 1px);
+  letter-spacing: var(--readings12MediumLetterspacing);
+  text-transform: var(--readings12MediumTextcase);
+  text-decoration: var(--readings12MediumTextdecoration);
+}
+
+.text-readings12-semi-bold {
+  font-family: var(--readings12SemiBoldFontfamily);
+  font-weight: var(--readings12SemiBoldFontweight);
+  font-size: var(--readings12SemiBoldFontsize);
+  line-height: calc(var(--readings12SemiBoldLineheight) * 1px);
+  letter-spacing: var(--readings12SemiBoldLetterspacing);
+  text-transform: var(--readings12SemiBoldTextcase);
+  text-decoration: var(--readings12SemiBoldTextdecoration);
+}
+
+.text-readings13-medium {
+  font-family: var(--readings13MediumFontfamily);
+  font-weight: var(--readings13MediumFontweight);
+  font-size: var(--readings13MediumFontsize);
+  line-height: calc(var(--readings13MediumLineheight) * 1px);
+  letter-spacing: var(--readings13MediumLetterspacing);
+  text-transform: var(--readings13MediumTextcase);
+  text-decoration: var(--readings13MediumTextdecoration);
+}
+
+.text-readings14-regular {
+  font-family: var(--readings14RegularFontfamily);
+  font-weight: var(--readings14RegularFontweight);
+  font-size: var(--readings14RegularFontsize);
+  line-height: calc(var(--readings14RegularLineheight) * 1px);
+  letter-spacing: var(--readings14RegularLetterspacing);
+  text-transform: var(--readings14RegularTextcase);
+  text-decoration: var(--readings14RegularTextdecoration);
+}
+
+.text-readings14-medium {
+  font-family: var(--readings14MediumFontfamily);
+  font-weight: var(--readings14MediumFontweight);
+  font-size: var(--readings14MediumFontsize);
+  line-height: calc(var(--readings14MediumLineheight) * 1px);
+  letter-spacing: var(--readings14MediumLetterspacing);
+  text-transform: var(--readings14MediumTextcase);
+  text-decoration: var(--readings14MediumTextdecoration);
+}
+
+.text-readings14-semi-bold {
+  font-family: var(--readings14SemiBoldFontfamily);
+  font-weight: var(--readings14SemiBoldFontweight);
+  font-size: var(--readings14SemiBoldFontsize);
+  line-height: calc(var(--readings14SemiBoldLineheight) * 1px);
+  letter-spacing: var(--readings14SemiBoldLetterspacing);
+  text-transform: var(--readings14SemiBoldTextcase);
+  text-decoration: var(--readings14SemiBoldTextdecoration);
+}
+
+.text-readings16-regular {
+  font-family: var(--readings16RegularFontfamily);
+  font-weight: var(--readings16RegularFontweight);
+  font-size: var(--readings16RegularFontsize);
+  line-height: calc(var(--readings16RegularLineheight) * 1px);
+  letter-spacing: var(--readings16RegularLetterspacing);
+  text-transform: var(--readings16RegularTextcase);
+  text-decoration: var(--readings16RegularTextdecoration);
+}
+
+.text-readings16-medium {
+  font-family: var(--readings16MediumFontfamily);
+  font-weight: var(--readings16MediumFontweight);
+  font-size: var(--readings16MediumFontsize);
+  line-height: calc(var(--readings16MediumLineheight) * 1px);
+  letter-spacing: var(--readings16MediumLetterspacing);
+  text-transform: var(--readings16MediumTextcase);
+  text-decoration: var(--readings16MediumTextdecoration);
+}
+
+.text-readings16-semi-bold {
+  font-family: var(--readings16SemiBoldFontfamily);
+  font-weight: var(--readings16SemiBoldFontweight);
+  font-size: var(--readings16SemiBoldFontsize);
+  line-height: calc(var(--readings16SemiBoldLineheight) * 1px);
+  letter-spacing: var(--readings16SemiBoldLetterspacing);
+  text-transform: var(--readings16SemiBoldTextcase);
+  text-decoration: var(--readings16SemiBoldTextdecoration);
+}
+
+.text-readings18-regular {
+  font-family: var(--readings18RegularFontfamily);
+  font-weight: var(--readings18RegularFontweight);
+  font-size: var(--readings18RegularFontsize);
+  line-height: calc(var(--readings18RegularLineheight) * 1px);
+  letter-spacing: var(--readings18RegularLetterspacing);
+  text-transform: var(--readings18RegularTextcase);
+  text-decoration: var(--readings18RegularTextdecoration);
+}
+
+.text-readings24-regular {
+  font-family: var(--readings24RegularFontfamily);
+  font-weight: var(--readings24RegularFontweight);
+  font-size: var(--readings24RegularFontsize);
+  line-height: calc(var(--readings24RegularLineheight) * 1px);
+  letter-spacing: var(--readings24RegularLetterspacing);
+  text-transform: var(--readings24RegularTextcase);
+  text-decoration: var(--readings24RegularTextdecoration);
+}
+
+.text-label-sm-medium {
+  font-family: var(--labelSmMediumFontfamily);
+  font-weight: var(--labelSmMediumFontweight);
+  font-size: var(--labelSmMediumFontsize);
+  line-height: calc(var(--labelSmMediumLineheight) * 1px);
+  letter-spacing: var(--labelSmMediumLetterspacing);
+  text-transform: var(--labelSmMediumTextcase);
+  text-decoration: var(--labelSmMediumTextdecoration);
+}
+
+.text-label-md-regular {
+  font-family: var(--labelMdRegularFontfamily);
+  font-weight: var(--labelMdRegularFontweight);
+  font-size: var(--labelMdRegularFontsize);
+  line-height: calc(var(--labelMdRegularLineheight) * 1px);
+  letter-spacing: var(--labelMdRegularLetterspacing);
+  text-transform: var(--labelMdRegularTextcase);
+  text-decoration: var(--labelMdRegularTextdecoration);
+}
+
+.text-body-sm-regular {
+  font-family: var(--bodySmRegularFontfamily);
+  font-weight: var(--bodySmRegularFontweight);
+  font-size: var(--bodySmRegularFontsize);
+  line-height: calc(var(--bodySmRegularLineheight) * 1px);
+  letter-spacing: var(--bodySmRegularLetterspacing);
+  text-transform: var(--bodySmRegularTextcase);
+  text-decoration: var(--bodySmRegularTextdecoration);
+}
+
+.text-body-sm-medium {
+  font-family: var(--bodySmMediumFontfamily);
+  font-weight: var(--bodySmMediumFontweight);
+  font-size: var(--bodySmMediumFontsize);
+  line-height: calc(var(--bodySmMediumLineheight) * 1px);
+  letter-spacing: var(--bodySmMediumLetterspacing);
+  text-transform: var(--bodySmMediumTextcase);
+  text-decoration: var(--bodySmMediumTextdecoration);
+}
+
+.text-body-md-medium {
+  font-family: var(--bodyMdMediumFontfamily);
+  font-weight: var(--bodyMdMediumFontweight);
+  font-size: var(--bodyMdMediumFontsize);
+  line-height: calc(var(--bodyMdMediumLineheight) * 1px);
+  letter-spacing: var(--bodyMdMediumLetterspacing);
+  text-transform: var(--bodyMdMediumTextcase);
+  text-decoration: var(--bodyMdMediumTextdecoration);
+}
+
+.text-heading-h1 {
+  font-family: var(--headingH1Fontfamily);
+  font-weight: var(--headingH1Fontweight);
+  font-size: var(--headingH1Fontsize);
+  line-height: calc(var(--headingH1Lineheight) * 1px);
+  letter-spacing: var(--headingH1Letterspacing);
+  text-transform: var(--headingH1Textcase);
+  text-decoration: var(--headingH1Textdecoration);
+}
