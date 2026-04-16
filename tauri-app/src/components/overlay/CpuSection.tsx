@@ -32,23 +32,41 @@ export function CpuSection({ isHorizontal }: CpuSectionProps) {
 
   return (
     <Pill title="CPU" isHorizontal={isHorizontal}>
-      {cpuTemp.isEnabled && showProgress && (
-        <Progress
-          value={cpuTempVal}
-          max={100}
-          label={formatValue(cpuTempVal)}
-          unit="°C"
-          boundaries={cpuTemp.boundaries}
-        />
+      {cpuTemp.isEnabled && (
+        showProgress ? (
+          <Progress
+            value={cpuTempVal}
+            max={100}
+            label={formatValue(cpuTempVal)}
+            unit="°C"
+            boundaries={cpuTemp.boundaries}
+          />
+        ) : (
+          <div className="flex items-baseline gap-0.5">
+            <span style={{ fontSize: valueFontSize, fontWeight: 400, color: "var(--overlay-text)", fontFamily: "Inter", minWidth: "3em", textAlign: "right", display: "inline-block" }} className="tabular-nums">
+              {formatValue(cpuTempVal)}
+            </span>
+            <span style={{ fontSize: labelFontSize, fontWeight: 400, color: "var(--overlay-text-muted)" }}>°C</span>
+          </div>
+        )
       )}
-      {cpuUsage.isEnabled && showProgress && (
-        <Progress
-          value={cpuUsageVal}
-          max={100}
-          label={formatValue(cpuUsageVal)}
-          unit="%"
-          boundaries={cpuUsage.boundaries}
-        />
+      {cpuUsage.isEnabled && (
+        showProgress ? (
+          <Progress
+            value={cpuUsageVal}
+            max={100}
+            label={formatValue(cpuUsageVal)}
+            unit="%"
+            boundaries={cpuUsage.boundaries}
+          />
+        ) : (
+          <div className="flex items-baseline gap-0.5">
+            <span style={{ fontSize: valueFontSize, fontWeight: 400, color: "var(--overlay-text)", fontFamily: "Inter", minWidth: "3em", textAlign: "right", display: "inline-block" }} className="tabular-nums">
+              {formatValue(cpuUsageVal)}
+            </span>
+            <span style={{ fontSize: labelFontSize, fontWeight: 400, color: "var(--overlay-text-muted)" }}>%</span>
+          </div>
+        )
       )}
       {cpuConsumption.isEnabled && (
         <div className="flex items-baseline gap-0.5">
