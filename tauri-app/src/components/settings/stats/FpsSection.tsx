@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { Caption1, tokens } from "@fluentui/react-components";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { SensorSection } from "@/components/ui/SensorSection";
@@ -10,14 +11,22 @@ export function FpsSection() {
   const { framerate, frametime } = settings.sensors;
 
   const anyEnabled = framerate.isEnabled || frametime.isEnabled;
+  const prevState = useRef<{ framerate: boolean; frametime: boolean } | null>(null);
 
   return (
     <SensorSection
       title="FPS"
       enabled={anyEnabled}
       onToggle={(enabled) => {
-        updateSensor("framerate", { isEnabled: enabled });
-        updateSensor("frametime", { isEnabled: enabled });
+        if (!enabled) {
+          prevState.current = { framerate: framerate.isEnabled, frametime: frametime.isEnabled };
+          updateSensor("framerate", { isEnabled: false });
+          updateSensor("frametime", { isEnabled: false });
+        } else {
+          const prev = prevState.current;
+          updateSensor("framerate", { isEnabled: prev ? prev.framerate : true });
+          updateSensor("frametime", { isEnabled: prev ? prev.frametime : true });
+        }
       }}
     >
       <Checkbox

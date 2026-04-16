@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { SensorSection } from "@/components/ui/SensorSection";
 import { SensorDropdown } from "./SensorDropdown";
@@ -17,15 +18,24 @@ export function NetworkSection({ sensors, hardwares }: NetworkSectionProps) {
   const { downRate, upRate } = settings.sensors;
 
   const anyEnabled = downRate.isEnabled || upRate.isEnabled || settings.netGraph;
+  const prevState = useRef<{ downRate: boolean; upRate: boolean; netGraph: boolean } | null>(null);
 
   return (
     <SensorSection
       title="NETWORK"
       enabled={anyEnabled}
       onToggle={(enabled) => {
-        updateSensor("downRate", { isEnabled: enabled });
-        updateSensor("upRate", { isEnabled: enabled });
-        updateSettings({ netGraph: enabled });
+        if (!enabled) {
+          prevState.current = { downRate: downRate.isEnabled, upRate: upRate.isEnabled, netGraph: settings.netGraph };
+          updateSensor("downRate", { isEnabled: false });
+          updateSensor("upRate", { isEnabled: false });
+          updateSettings({ netGraph: false });
+        } else {
+          const prev = prevState.current;
+          updateSensor("downRate", { isEnabled: prev ? prev.downRate : true });
+          updateSensor("upRate", { isEnabled: prev ? prev.upRate : true });
+          updateSettings({ netGraph: prev ? prev.netGraph : false });
+        }
       }}
     >
       <Checkbox
