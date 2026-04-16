@@ -45,7 +45,7 @@ export function useFrametimeHistory(maxPoints = 30) {
     const frametime = sensorData.sensors.find(
       (s) => s.name.toLowerCase().includes("frametime") || s.identifier.toLowerCase().includes("frametime")
     );
-    if (frametime) {
+    if (frametime?.value != null) {
       const buf = bufferRef.current;
       buf.push(frametime.value);
       if (buf.length > maxPoints) buf.shift();
@@ -75,12 +75,12 @@ export function useNetworkHistory(maxPoints = 30) {
     );
 
     let changed = false;
-    if (down) {
+    if (down?.value != null) {
       downRef.current.push(down.value);
       if (downRef.current.length > maxPoints) downRef.current.shift();
       changed = true;
     }
-    if (up) {
+    if (up?.value != null) {
       upRef.current.push(up.value);
       if (upRef.current.length > maxPoints) upRef.current.shift();
       changed = true;
