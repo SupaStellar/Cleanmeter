@@ -1,8 +1,11 @@
-@import "./app/globals.css";
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+@import "tailwindcss";
+@import "tw-animate-css";
 
+@custom-variant dark (&:is([data-theme="dark"] *));
+
+/* ─── Design tokens (Figma: Software v2 / Light) ─── */
 :root {
-  /* Status colors (kept for overlay and boundary colors) */
+  /* Status colors (overlay/boundary) */
   --green-100: #dcfae6;
   --green-500: #17b26a;
   --green-700: #067647;
@@ -17,6 +20,36 @@
   --color-warning: var(--yellow-700);
   --color-danger: var(--red-700);
 
+  /* shadcn tokens mapped to Figma Software v2 / Light */
+  --background: #f0f1f1;         /* window shell bg */
+  --foreground: #0c111d;         /* primary text */
+  --card: #ffffff;               /* card bg */
+  --card-foreground: #0c111d;
+  --sub-card: #fafafa;           /* nested sub-card bg */
+  --popover: #ffffff;
+  --popover-foreground: #0c111d;
+  --primary: #0c111d;            /* buttons / active pills */
+  --primary-foreground: #ffffff;
+  --secondary: #ececed;          /* tab track, subtle surface */
+  --secondary-foreground: #0c111d;
+  --muted: #ececed;
+  --muted-foreground: #61646c;   /* secondary text */
+  --subtle-foreground: #94969c;  /* tertiary / hint text */
+  --accent: #ececed;
+  --accent-foreground: #0c111d;
+  --destructive: #d92d20;
+  --destructive-foreground: #ffffff;
+  --success: #079455;            /* toggle ON state */
+  --success-foreground: #ffffff;
+  --border: #cecfd2;
+  --divider: #ececed;            /* vertical divider line */
+  --input: #cecfd2;
+  --ring: #0c111d;
+  --switch-off: #171717;         /* neutral dark for unchecked switch */
+
+  /* radii */
+  --radius: 8px;
+
   font-family: "Inter", "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
   font-size: 14px;
   line-height: 20px;
@@ -28,40 +61,87 @@
 }
 
 [data-theme="dark"] {
-  --color-success: var(--green-500);
+  --background: #0a0a0a;         /* window shell bg (near black) */
+  --foreground: #f5f5f5;         /* primary text */
+  --card: #171717;               /* card bg */
+  --card-foreground: #f5f5f5;
+  --sub-card: #0f0f0f;           /* nested sub-card bg (darker than card) */
+  --popover: #171717;
+  --popover-foreground: #f5f5f5;
+  --primary: #f5f5f5;
+  --primary-foreground: #0a0a0a;
+  --secondary: #1f1f1f;          /* tab track */
+  --secondary-foreground: #f5f5f5;
+  --muted: #1f1f1f;
+  --muted-foreground: #a3a3a3;
+  --subtle-foreground: #737373;
+  --accent: #1f1f1f;
+  --accent-foreground: #f5f5f5;
+  --border: #262626;
+  --divider: #262626;
+  --input: #262626;
+  --ring: #f5f5f5;
+  --switch-off: #262626;
+
   --color-warning: var(--yellow-400);
   --color-danger: var(--red-600);
 }
 
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-sub-card: var(--sub-card);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-subtle-foreground: var(--subtle-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-border: var(--border);
+  --color-divider: var(--divider);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-switch-off: var(--switch-off);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
 @layer base {
   * {
-    margin: 0;
-    padding: 0;
     box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    overflow: hidden;
+    background: var(--background);
+    color: var(--foreground);
   }
 }
 
-body {
-  margin: 0;
-  overflow: hidden;
-}
-
-/* Windows 11 style overlay scrollbar */
+/* Hidden scrollbar — scroll still works */
 ::-webkit-scrollbar {
-  width: 4px;
+  width: 0;
+  height: 0;
+  display: none;
 }
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(128, 128, 128, 0.4);
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(128, 128, 128, 0.6);
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
-/* Hide number input spinners */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
@@ -71,7 +151,6 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
-/* Hide Fluent bottom accent border on inputs */
 .fui-Input::after {
   display: none !important;
 }
@@ -83,15 +162,6 @@ input[type="number"] {
   cursor: grabbing;
 }
 
-/* WinUI card style */
-.winui-card {
-  border-radius: 8px;
-  padding: 16px 20px;
-  border: 1px solid var(--fui-colorNeutralStroke2, rgba(0, 0, 0, 0.06));
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
-}
-
-/* Override Fluent Provider background */
 .fui-FluentProvider {
   background-color: transparent !important;
 }
