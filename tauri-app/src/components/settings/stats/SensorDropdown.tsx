@@ -26,7 +26,7 @@ export function SensorDropdown({
     const hwName = hw?.name ?? "Unknown";
     return {
       value: sensor.identifier,
-      label: `${hwName} > ${sensor.name} (${formatValue(sensor.value, 1)})`,
+      label: `${hwName} > ${sensor.name} (${formatValue(sensor.value ?? 0, 1)})`,
     };
   });
 

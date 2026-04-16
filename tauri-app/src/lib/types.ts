@@ -100,7 +100,7 @@ export interface Sensor {
   identifier: string;
   hardwareIdentifier: string;
   sensorType: SensorType;
-  value: number;
+  value: number | null | undefined;
 }
 
 export interface HardwareMonitorData {

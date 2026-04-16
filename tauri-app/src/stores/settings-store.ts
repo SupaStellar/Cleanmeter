@@ -81,7 +81,7 @@ function autoSelectSensors(
     );
     const netSensors = sensors.filter((s) => netHwIds.has(s.hardwareIdentifier) && s.sensorType === SensorType.Throughput);
     const nicTotals: Record<string, number> = {};
-    for (const s of netSensors) nicTotals[s.hardwareIdentifier] = (nicTotals[s.hardwareIdentifier] ?? 0) + s.value;
+    for (const s of netSensors) nicTotals[s.hardwareIdentifier] = (nicTotals[s.hardwareIdentifier] ?? 0) + (s.value ?? 0);
     const sortedNics = Object.entries(nicTotals).sort((a, b) => {
       const nameA = (hardwares.find((h) => h.identifier === a[0])?.name ?? "").toLowerCase();
       const nameB = (hardwares.find((h) => h.identifier === b[0])?.name ?? "").toLowerCase();
