@@ -1,8 +1,81 @@
-import { Body1Strong, tokens } from "@fluentui/react-components";
-import { StyleCard } from "@/components/ui/StyleCard";
-import { Switch } from "@/components/ui/Switch";
+import { SectionCard } from "@/components/settings/stats/SectionCard";
+import { cn } from "@/lib/utils";
 import { useSettingsStore } from "@/stores/settings-store";
-import type { ProgressType } from "@/lib/types";
+import type { GraphType, ProgressType } from "@/lib/types";
+
+/**
+ * SHOW GRAPH card. Matches Figma 2075:7833 — section switch + two option
+ * tiles (Ring / Bar). Icon on the left inside a 64×64 muted square, label
+ * on the right.
+ */
+
+function RingPreview() {
+  return (
+    <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden>
+      <circle cx="15" cy="15" r="12" fill="none" stroke="currentColor" strokeWidth="6" className="text-foreground/10" />
+      <circle
+        cx="15"
+        cy="15"
+        r="12"
+        fill="none"
+        stroke="var(--color-success)"
+        strokeWidth="6"
+        strokeDasharray="55 75"
+        strokeLinecap="round"
+        transform="rotate(-90 15 15)"
+      />
+    </svg>
+  );
+}
+
+function BarPreview() {
+  // 9 bars, top 4 muted, bottom 5 green. Matches Figma 2091:2570.
+  return (
+    <div className="flex flex-col gap-[2px]">
+      {Array.from({ length: 9 }, (_, i) => {
+        const filled = i >= 4;
+        return (
+          <div
+            key={i}
+            className={cn(
+              "h-[2px] w-[26px] rounded-full",
+              filled ? "bg-success" : "bg-foreground/10",
+            )}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function GraphTile({
+  selected,
+  onClick,
+  icon,
+  label,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex flex-1 items-center gap-3 rounded-[8px] bg-card p-1 text-left transition-colors",
+        "border border-border hover:border-foreground/40",
+        selected && "border-2 border-foreground p-[3px]",
+      )}
+    >
+      <span className="flex size-16 shrink-0 items-center justify-center rounded-[4px] bg-muted">
+        {icon}
+      </span>
+      <span className="text-[14px] font-medium text-foreground">{label}</span>
+    </button>
+  );
+}
 
 export function GraphTypePicker() {
   const settings = useSettingsStore((s) => s.settings);
@@ -11,60 +84,43 @@ export function GraphTypePicker() {
   const isEnabled = settings.progressType !== "none";
 
   const handleToggle = (enabled: boolean) => {
-    updateSettings({ progressType: enabled ? "circular" : "none" });
+    if (enabled) {
+      // Re-enable with the user's previously chosen graph type (default ring).
+      const type: ProgressType = settings.graphType === "bar" ? "bar" : "circular";
+      updateSettings({ progressType: type });
+    } else {
+      updateSettings({ progressType: "none" });
+    }
   };
 
-  const setType = (type: ProgressType) => {
-    updateSettings({ progressType: type });
+  const setType = (type: GraphType) => {
+    updateSettings({
+      graphType: type,
+      progressType: type === "ring" ? "circular" : "bar",
+    });
   };
+
+  const currentType: GraphType =
+    settings.progressType === "bar" ? "bar" : "ring";
 
   return (
-    <div
-      style={{
-        background: tokens.colorNeutralBackground1,
-        borderRadius: 8,
-        border: `1px solid ${tokens.colorNeutralStroke2}`,
-        padding: "16px 20px",
-      }}
-    >
-      <div className="flex items-center justify-between" style={{ marginBottom: isEnabled ? 12 : 0 }}>
-        <Body1Strong>Graph</Body1Strong>
-        <Switch checked={isEnabled} onChange={handleToggle} />
-      </div>
+    <SectionCard title="Show graph" enabled={isEnabled} onToggle={handleToggle}>
       {isEnabled && (
         <div className="flex gap-3">
-          <StyleCard
-            selected={settings.progressType === "circular"}
-            onClick={() => setType("circular")}
-            label="Ring"
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="10" stroke={tokens.colorNeutralStroke2} strokeWidth="3" />
-              <circle cx="12" cy="12" r="10" stroke={tokens.colorBrandBackground} strokeWidth="3" strokeDasharray="47 63" strokeLinecap="round" transform="rotate(-90 12 12)" opacity="0.7" />
-            </svg>
-          </StyleCard>
-          <StyleCard
-            selected={settings.progressType === "bar"}
+          <GraphTile
+            selected={currentType === "ring"}
+            onClick={() => setType("ring")}
+            icon={<RingPreview />}
+            label="Ring graph"
+          />
+          <GraphTile
+            selected={currentType === "bar"}
             onClick={() => setType("bar")}
-            label="Bar"
-          >
-            <div className="flex flex-col gap-0.5">
-              {Array.from({ length: 10 }, (_, i) => (
-                <div
-                  key={i}
-                  style={{
-                    width: 24,
-                    height: 3,
-                    borderRadius: 1,
-                    backgroundColor: i < 7 ? tokens.colorBrandBackground : tokens.colorNeutralStroke2,
-                    opacity: i < 7 ? 0.7 : 1,
-                  }}
-                />
-              )).reverse()}
-            </div>
-          </StyleCard>
+            icon={<BarPreview />}
+            label="Bar graph"
+          />
         </div>
       )}
-    </div>
+    </SectionCard>
   );
 }
