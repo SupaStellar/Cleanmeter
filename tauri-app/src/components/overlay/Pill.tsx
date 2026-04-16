@@ -10,7 +10,7 @@ interface PillProps {
 export function Pill({ title, isHorizontal, children, tooltip }: PillProps) {
   const pillOpacity = useSettingsStore((s) => s.settings.pillOpacity ?? 0.3);
   const labelSize = useSettingsStore((s) => s.settings.fontSizeLabel ?? 12);
-  const dark = useSettingsStore((s) => s.settings.isDarkTheme !== false);
+  const dark = useSettingsStore((s) => !s.settings.isMeterLight);
 
   const pillBg = dark ? `rgba(0,0,0,${pillOpacity})` : `rgba(255,255,255,${pillOpacity})`;
   const labelColor = dark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.5)";

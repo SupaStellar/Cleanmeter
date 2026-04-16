@@ -8,7 +8,7 @@ import { NetSection } from "./NetSection";
 export function OverlayHud() {
   const settings = useSettingsStore((s) => s.settings);
   const isHorizontal = settings.isHorizontal;
-  const dark = settings.isDarkTheme !== false;
+  const dark = !settings.isMeterLight;
   const bg = dark ? "rgba(30,30,30,0.7)" : "rgba(255,255,255,0.7)";
   const border = dark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.08)";
 

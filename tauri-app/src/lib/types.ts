@@ -72,6 +72,7 @@ export interface SensorsConfig {
 
 export interface OverlaySettings {
   isDarkTheme: boolean;
+  isMeterLight: boolean;
   isHorizontal: boolean;
   positionIndex: number;
   selectedDisplayIndex: number;
@@ -134,6 +135,7 @@ export const POLLING_RATES = [33, 50, 100, 250, 300, 350, 400, 500] as const;
 
 export const DEFAULT_SETTINGS: OverlaySettings = {
   isDarkTheme: true,
+  isMeterLight: false,
   isHorizontal: true,
   positionIndex: 0,
   selectedDisplayIndex: 0,

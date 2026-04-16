@@ -93,6 +93,16 @@ export function AppSettingsTab() {
             </svg>
           </StyleCard>
         </div>
+        <div style={{ marginTop: 12 }}>
+          <Checkbox
+            label="Light meter"
+            checked={settings.isMeterLight}
+            onChange={(v) => updateSettings({ isMeterLight: v })}
+          />
+          <Caption1 style={{ color: tokens.colorNeutralForeground4, display: "block", marginTop: 4 }}>
+            Use a light-colored overlay meter, independent of the app theme.
+          </Caption1>
+        </div>
       </Section>
 
       <Section title="Recording">
