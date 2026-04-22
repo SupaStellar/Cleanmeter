@@ -23,8 +23,9 @@
         "minHeight": 400,
         "center": true,
         "resizable": true,
+        "maximizable": false,
         "decorations": false,
-        "visible": true,
+        "visible": false,
         "transparent": false
       },
       {

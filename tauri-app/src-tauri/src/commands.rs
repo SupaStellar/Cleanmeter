@@ -1,9 +1,29 @@
+use std::io::Write;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::mpsc;
 
 use crate::pipe_client::PipeCommand;
 use crate::settings::SettingsManager;
 use crate::types::{AppPreferences, MonitorInfo, OverlaySettings};
+
+#[tauri::command]
+pub fn ui_debug_log(msg: String) {
+    let path = std::env::temp_dir().join("cleanmeter-ui.log");
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+    {
+        let _ = writeln!(f, "[{}ms] {}", now_ms(), msg);
+    }
+}
+
+fn now_ms() -> u128 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0)
+}
 
 pub struct PipeCommandSender(pub mpsc::Sender<PipeCommand>);
 

@@ -17,7 +17,7 @@ export function ProgressRing({
   unit,
   boundaries,
 }: ProgressRingProps) {
-  const valueFontSize = useSettingsStore((s) => s.settings.fontSizeValue ?? 24);
+  const valueFontSize = useSettingsStore((s) => s.settings.fontSizeValue ?? 12);
   const labelFontSize = useSettingsStore((s) => s.settings.fontSizeLabel ?? 12);
   const percentage = Math.min(value / max, 1);
   const radius = 10;

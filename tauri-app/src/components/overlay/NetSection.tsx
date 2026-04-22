@@ -14,7 +14,7 @@ export function NetSection({ isHorizontal }: NetSectionProps) {
   const { downHistory, upHistory } = useNetworkHistory();
   const sensors = sensorData?.sensors ?? [];
 
-  const valueFontSize = settings.fontSizeValue ?? 24;
+  const valueFontSize = settings.fontSizeValue ?? 12;
   const { downRate, upRate } = settings.sensors;
   const showNetGraph = settings.netGraph;
 

@@ -258,7 +258,7 @@ impl Default for SensorsConfig {
 }
 
 fn default_pill_opacity() -> f32 { 0.3 }
-fn default_font_size_value() -> f32 { 24.0 }
+fn default_font_size_value() -> f32 { 12.0 }
 fn default_font_size_label() -> f32 { 12.0 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -309,7 +309,7 @@ impl Default for OverlaySettings {
             is_position_locked: true,
             opacity: 1.0,
             pill_opacity: 0.3,
-            font_size_value: 24.0,
+            font_size_value: 12.0,
             font_size_label: 12.0,
             polling_rate: 500,
             is_logging_enabled: false,

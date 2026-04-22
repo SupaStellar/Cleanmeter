@@ -13,7 +13,7 @@ export function CpuSection({ isHorizontal }: CpuSectionProps) {
   const sensorData = useSettingsStore((s) => s.sensorData);
   const sensors = sensorData?.sensors ?? [];
 
-  const valueFontSize = settings.fontSizeValue ?? 24;
+  const valueFontSize = settings.fontSizeValue ?? 12;
   const labelFontSize = settings.fontSizeLabel ?? 12;
   const { cpuTemp, cpuUsage, cpuConsumption } = settings.sensors;
   const progressType = settings.progressType;

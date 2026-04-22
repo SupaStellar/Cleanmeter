@@ -15,7 +15,7 @@ export function FpsSection({ isHorizontal }: FpsSectionProps) {
   const frametimeHistory = useFrametimeHistory();
   const sensors = sensorData?.sensors ?? [];
 
-  const valueFontSize = settings.fontSizeValue ?? 24;
+  const valueFontSize = settings.fontSizeValue ?? 12;
   const labelFontSize = settings.fontSizeLabel ?? 12;
   const { framerate, frametime } = settings.sensors;
   if (!framerate.isEnabled && !frametime.isEnabled) return null;

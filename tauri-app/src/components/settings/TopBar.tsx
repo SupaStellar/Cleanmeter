@@ -2,9 +2,56 @@ import { Minus, X } from "lucide-react";
 import { isBrowser } from "@/lib/tauri";
 import { cn } from "@/lib/utils";
 
-const appWindowPromise = isBrowser
+const DEFAULT_HEIGHT = 900;
+
+type Monitor = {
+  size: { width: number; height: number };
+  position: { x: number; y: number };
+  scaleFactor: number;
+} | null;
+
+type AppWin = {
+  minimize: () => unknown;
+  hide: () => unknown;
+  startDragging?: () => unknown;
+  setSize?: (size: unknown) => Promise<void>;
+  innerSize?: () => Promise<{ width: number; height: number; toLogical?: (s: number) => unknown }>;
+  currentMonitor?: () => Promise<Monitor>;
+};
+
+// Eagerly cache the window + LogicalSize so dragging/resizing can be invoked
+// synchronously inside DOM events. An async .then() inside mousedown fires
+// after the event has ended and Tauri refuses to act on it.
+let cachedWindow: AppWin | null = null;
+let LogicalSizeCtor: (new (w: number, h: number) => unknown) | null = null;
+if (!isBrowser) {
+  import("@tauri-apps/api/window").then((m) => {
+    cachedWindow = m.getCurrentWindow() as unknown as AppWin;
+  });
+  import("@tauri-apps/api/dpi").then((m) => {
+    LogicalSizeCtor = m.LogicalSize as unknown as new (
+      w: number,
+      h: number,
+    ) => unknown;
+  });
+}
+
+const appWindowPromise: Promise<AppWin> = isBrowser
   ? Promise.resolve({ minimize: () => {}, hide: () => {} })
-  : import("@tauri-apps/api/window").then((m) => m.getCurrentWindow());
+  : import("@tauri-apps/api/window").then(
+      (m) => m.getCurrentWindow() as unknown as AppWin,
+    );
+
+/** Write to %TEMP%\cleanmeter-ui.log via a Rust command (unrestricted FS access). */
+async function debugLog(msg: string) {
+  if (isBrowser) return;
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    await invoke("ui_debug_log", { msg });
+  } catch {
+    // ignore
+  }
+}
 
 function ChromeButton({
   onClick,
@@ -53,14 +100,64 @@ function CleanmeterLogo() {
 }
 
 export function TopBar() {
+  // Defer startDragging() until the mouse actually moves. Calling it on
+  // mousedown would make Windows swallow the mouseup event, breaking the
+  // click → click → dblclick sequence the browser needs for onDoubleClick.
+  // So: track mousedown, wait for movement > 4px, THEN initiate drag.
+  // A pure click (no movement) releases normally and dblclick can fire.
+  const onMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    if ((e.target as HTMLElement).closest("button")) return;
+    void debugLog(`mousedown detail=${e.detail} at (${e.clientX},${e.clientY})`);
+    const startX = e.clientX;
+    const startY = e.clientY;
+
+    const onMove = (ev: MouseEvent) => {
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      if (dx * dx + dy * dy > 16) {
+        cleanup();
+        if (cachedWindow && typeof cachedWindow.startDragging === "function") {
+          cachedWindow.startDragging();
+        }
+      }
+    };
+    const onUp = () => cleanup();
+    const cleanup = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+  const onDoubleClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const w = cachedWindow;
+    if (!w || !LogicalSizeCtor || !w.setSize) return;
+    try {
+      // Use browser's screen.availHeight (logical pixels, taskbar excluded).
+      // Tauri's currentMonitor() returns null in admin-elevated webview here.
+      const availH = Math.max(window.screen.availHeight, 400);
+      const currentH = window.innerHeight; // logical pixels in webview
+      const nearFull = currentH >= availH - 100;
+      const targetH = nearFull ? DEFAULT_HEIGHT : availH - 40;
+      void debugLog(
+        `dblclick availH=${availH} curH=${currentH} targetH=${targetH}`,
+      );
+      await w.setSize(new LogicalSizeCtor(651, targetH));
+    } catch (err) {
+      void debugLog(`dblclick err: ${String(err)}`);
+    }
+  };
   return (
     <div
-      data-tauri-drag-region
-      className="flex h-[52px] shrink-0 items-center justify-between border-b border-border bg-background px-6"
+      onMouseDown={onMouseDown}
+      onDoubleClick={onDoubleClick}
+      className="flex h-[52px] shrink-0 cursor-grab items-center justify-between border-b border-border bg-background px-6 active:cursor-grabbing"
     >
       <div
         className="flex items-center gap-2.5"
-        data-tauri-drag-region
       >
         <CleanmeterLogo />
         <span className="text-base font-medium text-foreground">Cleanmeter</span>
