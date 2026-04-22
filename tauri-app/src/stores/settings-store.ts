@@ -213,7 +213,10 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
           sensors: { ...DEFAULT_SETTINGS.sensors, ...(saved.sensors ?? {}) },
         };
         set({ settings });
-        tauri.setOverlayClickThrough(settings.isPositionLocked);
+        // Click-through must be OFF whenever the user wants to drag the HUD.
+        // Older installs could have a stale isPositionLocked: true that would
+        // silently disable mouse input on the overlay window.
+        tauri.setOverlayClickThrough(!settings.useCustomPosition && settings.isPositionLocked);
         moveOverlayToMonitor(settings);
       } else {
         tauri.setOverlayClickThrough(false);
@@ -234,8 +237,12 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     if (patch.isHorizontal !== undefined || patch.selectedDisplayIndex !== undefined) {
       moveOverlayToMonitor(newSettings);
     }
-    if (patch.isPositionLocked !== undefined) {
-      tauri.setOverlayClickThrough(patch.isPositionLocked);
+    if (patch.isPositionLocked !== undefined || patch.useCustomPosition !== undefined) {
+      // Custom position mode always needs mouse input for dragging, so force
+      // click-through off. Otherwise fall back to the explicit lock flag.
+      const shouldIgnoreCursor =
+        !newSettings.useCustomPosition && newSettings.isPositionLocked;
+      tauri.setOverlayClickThrough(shouldIgnoreCursor);
     }
     if (patch.opacity !== undefined) {
       tauri.setOverlayOpacity(patch.opacity);
