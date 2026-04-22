@@ -49,9 +49,9 @@ export default function OverlayApp() {
 
   const settings = useSettingsStore((s) => s.settings);
   const idx = settings.positionIndex;
+  const useCustom = settings.useCustomPosition;
 
-  // CSS-based positioning: 0=TL, 1=TC, 2=TR, 3=BL, 4=BC, 5=BR, 6=custom
-  const isCustom = idx === 6;
+  // Preset flex alignment: 0=TL, 1=TC, 2=TR, 3=BL, 4=BC, 5=BR
   const alignMap: Record<number, React.CSSProperties> = {
     0: { alignItems: "flex-start", justifyContent: "flex-start" },
     1: { alignItems: "flex-start", justifyContent: "center" },
@@ -64,19 +64,28 @@ export default function OverlayApp() {
   const offsetX = settings.positionX || 0;
   const offsetY = settings.positionY || 0;
 
-  const containerStyle: React.CSSProperties = {
-    width: "100vw",
-    height: "100vh",
-    background: "transparent",
-    padding: 8,
-    boxSizing: "border-box",
-    display: "flex",
-    ...alignMap[idx],
-  };
+  // In custom mode, the HUD is absolutely placed at (positionX, positionY).
+  // Otherwise the flex container pins it to the chosen preset corner.
+  const containerStyle: React.CSSProperties = useCustom
+    ? {
+        width: "100vw",
+        height: "100vh",
+        background: "transparent",
+        position: "relative",
+      }
+    : {
+        width: "100vw",
+        height: "100vh",
+        background: "transparent",
+        padding: 8,
+        boxSizing: "border-box",
+        display: "flex",
+        ...alignMap[idx],
+      };
 
-  const hudStyle: React.CSSProperties = {
-    transform: `translate(${offsetX}px, ${offsetY}px)`,
-  };
+  const hudStyle: React.CSSProperties = useCustom
+    ? { position: "absolute", left: offsetX, top: offsetY }
+    : {};
 
   return (
     <div style={containerStyle}>

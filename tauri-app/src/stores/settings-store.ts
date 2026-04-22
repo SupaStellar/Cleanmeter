@@ -203,8 +203,15 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 
   loadSettings: async () => {
     try {
-      const settings = await tauri.getSettings();
-      if (settings) {
+      const saved = await tauri.getSettings();
+      if (saved) {
+        // Merge so any new fields added after this install still get defaults
+        // (e.g. themeMode, useCustomPosition, labelFontWeight).
+        const settings: OverlaySettings = {
+          ...DEFAULT_SETTINGS,
+          ...saved,
+          sensors: { ...DEFAULT_SETTINGS.sensors, ...(saved.sensors ?? {}) },
+        };
         set({ settings });
         tauri.setOverlayClickThrough(settings.isPositionLocked);
         moveOverlayToMonitor(settings);

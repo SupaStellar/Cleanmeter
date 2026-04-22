@@ -148,11 +148,11 @@ export const POLLING_RATES = [33, 50, 100, 250, 300, 350, 400, 500] as const;
 export const DEFAULT_SETTINGS: OverlaySettings = {
   isDarkTheme: false,
   isMeterLight: false,
-  themeMode: "system",
+  themeMode: "light",
   temperatureUnit: "C",
   isHorizontal: true,
   useCustomPosition: false,
-  positionIndex: 0,
+  positionIndex: 4,
   selectedDisplayIndex: 0,
   netGraph: false,
   progressType: "circular",

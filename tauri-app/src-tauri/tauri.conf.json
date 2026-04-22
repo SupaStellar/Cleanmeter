@@ -18,7 +18,10 @@
         "url": "/",
         "width": 651,
         "height": 900,
-        "resizable": false,
+        "minWidth": 651,
+        "maxWidth": 651,
+        "minHeight": 400,
+        "resizable": true,
         "decorations": false,
         "visible": true,
         "transparent": false
