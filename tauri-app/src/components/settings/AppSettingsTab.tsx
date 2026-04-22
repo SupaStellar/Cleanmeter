@@ -29,9 +29,9 @@ function openUrl(url: string) {
 // ─── Brand icons (matching Figma 2075:8854 / 8866 / 8875) ──────
 function GithubIcon() {
   return (
-    <svg viewBox="0 0 22 22" className="size-[22px]" aria-hidden="true">
+    <svg viewBox="0 0 22 22" className="size-[22px] text-foreground" aria-hidden="true">
       <path
-        fill="#24292F"
+        fill="currentColor"
         d="M11 1.5a9.5 9.5 0 0 0-3 18.51c.47.09.65-.2.65-.45 0-.22-.01-.8-.01-1.57-2.64.57-3.2-1.27-3.2-1.27-.43-1.1-1.05-1.39-1.05-1.39-.86-.59.07-.58.07-.58.95.07 1.45.98 1.45.98.85 1.45 2.22 1.03 2.76.79.09-.61.33-1.03.6-1.27-2.11-.24-4.33-1.05-4.33-4.68 0-1.03.37-1.88.97-2.54-.1-.24-.42-1.2.09-2.51 0 0 .8-.26 2.6.97a9.06 9.06 0 0 1 4.74 0c1.8-1.23 2.6-.97 2.6-.97.51 1.31.19 2.27.09 2.51.6.66.97 1.51.97 2.54 0 3.64-2.22 4.44-4.34 4.67.34.3.64.87.64 1.75 0 1.26-.01 2.28-.01 2.59 0 .25.17.55.66.45A9.5 9.5 0 0 0 11 1.5Z"
       />
     </svg>
@@ -162,6 +162,22 @@ export function AppSettingsTab() {
     setAutoStart(enabled).catch(() => setAutoStartState(!enabled));
   };
 
+  // Keep `isDarkTheme` in sync with the OS when themeMode is "system".
+  useEffect(() => {
+    if (settings.themeMode !== "system") return;
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const apply = (matches: boolean) => {
+      if (useSettingsStore.getState().settings.isDarkTheme !== matches) {
+        updateSettings({ isDarkTheme: matches });
+      }
+    };
+    apply(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => apply(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, [settings.themeMode, updateSettings]);
+
   const handleThemeMode = (mode: "light" | "dark" | "system") => {
     if (mode === "light") {
       updateSettings({ themeMode: "light", isDarkTheme: false });
@@ -170,7 +186,7 @@ export function AppSettingsTab() {
     } else {
       const prefersDark =
         typeof window !== "undefined" &&
-        window.matchMedia &&
+        !!window.matchMedia &&
         window.matchMedia("(prefers-color-scheme: dark)").matches;
       updateSettings({ themeMode: "system", isDarkTheme: prefersDark });
     }

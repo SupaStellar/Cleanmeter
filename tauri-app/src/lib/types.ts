@@ -96,6 +96,7 @@ export interface OverlaySettings {
   numberFontSize: number;
   numberLabelFontSize: number;
   fontWeight: number;
+  labelFontWeight: number;
   pollingRate: number;
   isLoggingEnabled: boolean;
   sensors: SensorsConfig;
@@ -166,6 +167,7 @@ export const DEFAULT_SETTINGS: OverlaySettings = {
   numberFontSize: 14,
   numberLabelFontSize: 10,
   fontWeight: 500,
+  labelFontWeight: 500,
   pollingRate: 500,
   isLoggingEnabled: false,
   sensors: {

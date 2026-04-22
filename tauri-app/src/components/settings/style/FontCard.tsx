@@ -13,11 +13,9 @@ import { useSettingsStore } from "@/stores/settings-store";
  *   Label  [size ▾]   [weight ▾]
  *   Stats  [size ▾]   [weight ▾]
  *
- * Addresses the "Add font size and weight options here" comment.
- * - "Label" row drives the sensor-label font (fontSizeLabel + fontWeight).
- * - "Stats" row drives the sensor-value font (fontSizeValue + fontWeight).
- * Weight is shared across label & stats in the underlying store
- * (fontWeight). We expose it on both rows for consistency with Figma.
+ * Each row has independent size and weight bindings:
+ *   Label → fontSizeLabel + labelFontWeight
+ *   Stats → fontSizeValue + fontWeight
  */
 
 const SIZE_OPTIONS = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32] as const;
@@ -96,8 +94,8 @@ export function FontCard() {
           label="Label"
           size={settings.fontSizeLabel}
           onSizeChange={(v) => updateSettings({ fontSizeLabel: v })}
-          weight={settings.fontWeight}
-          onWeightChange={(v) => updateSettings({ fontWeight: v })}
+          weight={settings.labelFontWeight}
+          onWeightChange={(v) => updateSettings({ labelFontWeight: v })}
         />
         <FontRow
           label="Stats"

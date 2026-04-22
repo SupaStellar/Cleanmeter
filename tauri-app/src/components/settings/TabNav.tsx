@@ -35,7 +35,7 @@ export function TabNav({ activeTab, onTabChange }: TabNavProps) {
             onClick={() => onTabChange(value)}
             className={cn(
               "flex h-10 flex-1 items-center justify-center gap-1 rounded-full text-base font-medium transition-colors",
-              "focus-visible:outline-none",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
               active
                 ? "bg-card text-foreground"
                 : "text-muted-foreground hover:text-foreground",

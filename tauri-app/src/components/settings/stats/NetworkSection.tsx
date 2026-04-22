@@ -19,7 +19,7 @@ export function NetworkSection({ sensors, hardwares }: Props) {
   const upRate = settings.sensors.upRate;
   const downRate = settings.sensors.downRate;
   const netGraph = settings.netGraph;
-  const anyEnabled = upRate.isEnabled || downRate.isEnabled;
+  const anyEnabled = upRate.isEnabled || downRate.isEnabled || netGraph;
   const prevState = useRef<{ downRate: boolean; upRate: boolean; netGraph: boolean } | null>(null);
 
   const netAdapters = hardwares.filter((h) => h.hardwareType === HardwareType.Network);
