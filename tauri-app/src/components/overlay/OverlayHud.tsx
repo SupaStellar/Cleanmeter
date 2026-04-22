@@ -14,7 +14,6 @@ export function OverlayHud() {
 
   return (
     <div
-      data-tauri-drag-region
       style={{
         display: "flex",
         gap: 8,

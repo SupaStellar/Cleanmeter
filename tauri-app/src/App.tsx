@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
-import { tokens } from "@fluentui/react-components";
 import { TopBar } from "@/components/settings/TopBar";
 import { TabNav, type SettingsTab } from "@/components/settings/TabNav";
 import { StatsTab } from "@/components/settings/stats/StatsTab";
 import { StyleTab } from "@/components/settings/style/StyleTab";
 import { AppSettingsTab } from "@/components/settings/AppSettingsTab";
-import { HelpTab } from "@/components/settings/HelpTab";
+import { AboutTab } from "@/components/settings/AboutTab";
 import { useSensorData } from "@/hooks/useSensorData";
 import { useHotkey } from "@/hooks/useHotkey";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -18,7 +17,6 @@ function MonitoringBanner() {
   const [dotnetMissing, setDotnetMissing] = useState(false);
 
   useEffect(() => {
-    // Wait 8 seconds after mount — if still no data, show the banner
     const timer = setTimeout(() => {
       if (!useSettingsStore.getState().sensorData) {
         setShowBanner(true);
@@ -30,7 +28,6 @@ function MonitoringBanner() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Hide banner once data starts flowing
   useEffect(() => {
     if (sensorData) setShowBanner(false);
   }, [sensorData]);
@@ -38,16 +35,7 @@ function MonitoringBanner() {
   if (!showBanner) return null;
 
   return (
-    <div
-      style={{
-        background: "#fef3cd",
-        color: "#856404",
-        padding: "10px 16px",
-        fontSize: 13,
-        lineHeight: 1.5,
-        borderBottom: "1px solid #ffc107",
-      }}
-    >
+    <div className="border-b border-yellow-400 bg-yellow-50 px-4 py-2.5 text-[13px] leading-snug text-yellow-900 dark:border-yellow-700 dark:bg-yellow-950 dark:text-yellow-200">
       <strong>Monitoring not connected.</strong>
       {dotnetMissing ? (
         <span>
@@ -56,7 +44,7 @@ function MonitoringBanner() {
             href="https://dotnet.microsoft.com/en-us/download/dotnet/8.0"
             target="_blank"
             rel="noreferrer"
-            style={{ color: "#0d6efd", textDecoration: "underline" }}
+            className="text-blue-600 underline dark:text-blue-400"
           >
             Download it here
           </a>
@@ -91,23 +79,22 @@ export default function App() {
   useEffect(() => {
     document.documentElement.setAttribute(
       "data-theme",
-      settings.isDarkTheme ? "dark" : "light"
+      settings.isDarkTheme ? "dark" : "light",
     );
   }, [settings.isDarkTheme]);
 
   return (
-    <div
-      className="flex flex-col h-screen w-screen"
-      style={{ background: tokens.colorNeutralBackground3 }}
-    >
+    <div className="mx-auto flex h-screen w-full max-w-[651px] flex-col overflow-hidden rounded-[12px] border border-foreground/10 bg-background text-foreground shadow-sm">
       <TopBar />
       <MonitoringBanner />
-      <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
-      <div className="flex-1 min-h-0">
-        {activeTab === "stats" && <StatsTab />}
-        {activeTab === "style" && <StyleTab />}
-        {activeTab === "settings" && <AppSettingsTab />}
-        {activeTab === "help" && <HelpTab />}
+      <div className="flex min-h-0 flex-1 flex-col gap-5 px-6 pb-6 pt-6">
+        <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {activeTab === "stats" && <StatsTab />}
+          {activeTab === "style" && <StyleTab />}
+          {activeTab === "settings" && <AppSettingsTab />}
+          {activeTab === "about" && <AboutTab />}
+        </div>
       </div>
     </div>
   );

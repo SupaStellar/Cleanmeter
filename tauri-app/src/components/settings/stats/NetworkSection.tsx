@@ -1,28 +1,52 @@
 import { useRef } from "react";
-import { Checkbox } from "@/components/ui/Checkbox";
-import { SensorSection } from "@/components/ui/SensorSection";
-import { SensorDropdown } from "./SensorDropdown";
+import { Info } from "lucide-react";
+import type { Sensor, Hardware } from "@/lib/types";
+import { HardwareType, SensorType } from "@/lib/types";
 import { useSettingsStore } from "@/stores/settings-store";
-import { SensorType } from "@/lib/types";
-import type { Hardware, Sensor } from "@/lib/types";
+import { Checkbox } from "@/components/shadcn/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/shadcn/radio-group";
+import { SectionCard } from "./SectionCard";
 
-interface NetworkSectionProps {
+interface Props {
   sensors: Sensor[];
   hardwares: Hardware[];
 }
 
-export function NetworkSection({ sensors, hardwares }: NetworkSectionProps) {
+export function NetworkSection({ sensors, hardwares }: Props) {
   const settings = useSettingsStore((s) => s.settings);
-  const updateSettings = useSettingsStore((s) => s.updateSettings);
   const updateSensor = useSettingsStore((s) => s.updateSensor);
-  const { downRate, upRate } = settings.sensors;
-
-  const anyEnabled = downRate.isEnabled || upRate.isEnabled || settings.netGraph;
+  const updateSettings = useSettingsStore((s) => s.updateSettings);
+  const upRate = settings.sensors.upRate;
+  const downRate = settings.sensors.downRate;
+  const netGraph = settings.netGraph;
+  const anyEnabled = upRate.isEnabled || downRate.isEnabled || netGraph;
   const prevState = useRef<{ downRate: boolean; upRate: boolean; netGraph: boolean } | null>(null);
 
+  const netAdapters = hardwares.filter((h) => h.hardwareType === HardwareType.Network);
+  const currentAdapterId =
+    getAdapterIdFromSensor(sensors, downRate.customReadingId) ??
+    getAdapterIdFromSensor(sensors, upRate.customReadingId) ??
+    netAdapters[0]?.identifier ??
+    "";
+
+  const selectAdapter = (adapterId: string) => {
+    const adapterSensors = sensors.filter(
+      (s) => s.hardwareIdentifier === adapterId && s.sensorType === SensorType.Throughput,
+    );
+    const down = adapterSensors.find(
+      (s) =>
+        s.name.toLowerCase().includes("download") || s.name.toLowerCase().includes("down"),
+    );
+    const up = adapterSensors.find(
+      (s) => s.name.toLowerCase().includes("upload") || s.name.toLowerCase().includes("up"),
+    );
+    if (down) updateSensor("downRate", { customReadingId: down.identifier });
+    if (up) updateSensor("upRate", { customReadingId: up.identifier });
+  };
+
   return (
-    <SensorSection
-      title="NETWORK"
+    <SectionCard
+      title="Network"
       enabled={anyEnabled}
       onToggle={(enabled) => {
         if (!enabled) {
@@ -38,41 +62,57 @@ export function NetworkSection({ sensors, hardwares }: NetworkSectionProps) {
         }
       }}
     >
-      <Checkbox
-        label="Download Rate"
-        checked={downRate.isEnabled}
-        onChange={(v) => updateSensor("downRate", { isEnabled: v })}
-      />
-      {downRate.isEnabled && (
-        <SensorDropdown
-          sensorType={SensorType.Throughput}
-          sensors={sensors}
-          hardwares={hardwares}
-          value={downRate.customReadingId}
-          onChange={(v) => updateSensor("downRate", { customReadingId: v })}
-        />
-      )}
+      <div className="flex flex-col gap-3">
+        {netAdapters.length > 0 && (
+          <RadioGroup value={currentAdapterId} onValueChange={selectAdapter}>
+            {netAdapters.map((h) => (
+              <label
+                key={h.identifier}
+                className="flex cursor-pointer items-center gap-2"
+              >
+                <RadioGroupItem value={h.identifier} />
+                <span className="text-[14px] font-medium text-foreground">{h.name}</span>
+              </label>
+            ))}
+          </RadioGroup>
+        )}
 
-      <Checkbox
-        label="Upload Rate"
-        checked={upRate.isEnabled}
-        onChange={(v) => updateSensor("upRate", { isEnabled: v })}
-      />
-      {upRate.isEnabled && (
-        <SensorDropdown
-          sensorType={SensorType.Throughput}
-          sensors={sensors}
-          hardwares={hardwares}
-          value={upRate.customReadingId}
-          onChange={(v) => updateSensor("upRate", { customReadingId: v })}
-        />
-      )}
+        <div className="flex flex-col gap-3 pl-6">
+          <label className="flex cursor-pointer items-center gap-2">
+            <Checkbox
+              checked={downRate.isEnabled}
+              onCheckedChange={(v) => updateSensor("downRate", { isEnabled: v === true })}
+            />
+            <span className="text-[14px] font-medium text-foreground">Receive Speed</span>
+          </label>
+          <label className="flex cursor-pointer items-center gap-2">
+            <Checkbox
+              checked={upRate.isEnabled}
+              onCheckedChange={(v) => updateSensor("upRate", { isEnabled: v === true })}
+            />
+            <span className="text-[14px] font-medium text-foreground">Send Speed</span>
+          </label>
+          <label className="flex cursor-pointer items-center gap-2">
+            <Checkbox
+              checked={netGraph}
+              onCheckedChange={(v) => updateSettings({ netGraph: v === true })}
+            />
+            <span className="text-[14px] font-medium text-foreground">Network Graph</span>
+          </label>
+        </div>
 
-      <Checkbox
-        label="Net Graph"
-        checked={settings.netGraph}
-        onChange={(v) => updateSettings({ netGraph: v })}
-      />
-    </SensorSection>
+        <div className="flex items-center gap-1">
+          <Info className="size-4 text-muted-foreground" strokeWidth={2} />
+          <span className="text-[12px] font-medium text-muted-foreground">
+            Network speed is represented in Kbps
+          </span>
+        </div>
+      </div>
+    </SectionCard>
   );
+}
+
+function getAdapterIdFromSensor(sensors: Sensor[], sensorId: string): string | undefined {
+  if (!sensorId) return undefined;
+  return sensors.find((s) => s.identifier === sensorId)?.hardwareIdentifier;
 }

@@ -1,170 +1,172 @@
-import { useState } from "react";
-import { tokens } from "@fluentui/react-components";
-import { Settings16Regular } from "@fluentui/react-icons";
-import { Checkbox } from "@/components/ui/Checkbox";
-import { SensorSection } from "@/components/ui/SensorSection";
-import { BoundaryInput } from "@/components/ui/BoundaryInput";
-import { SensorDropdown } from "./SensorDropdown";
+import { useRef } from "react";
+import type { Sensor, Hardware } from "@/lib/types";
+import { HardwareType, SensorType } from "@/lib/types";
 import { useSettingsStore } from "@/stores/settings-store";
-import { SensorType } from "@/lib/types";
-import type { Hardware, Sensor } from "@/lib/types";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shadcn/select";
+import { SectionCard, SubCollapsible } from "./SectionCard";
+import { TempRangeControl } from "./TempRangeControl";
 
-interface GpuSectionProps {
+interface Props {
   sensors: Sensor[];
   hardwares: Hardware[];
 }
 
-function SensorRow({
-  label,
-  checked,
-  onToggle,
-  sensorType,
-  sensors,
-  hardwares,
-  customReadingId,
-  onSensorChange,
-  boundaries,
-  onBoundaryChange,
-  unit,
-}: {
-  label: string;
-  checked: boolean;
-  onToggle: (v: boolean) => void;
-  sensorType?: SensorType;
-  sensors: Sensor[];
-  hardwares: Hardware[];
-  customReadingId?: string;
-  onSensorChange?: (v: string) => void;
-  boundaries?: { low: number; medium: number; high: number };
-  onBoundaryChange?: (b: { low: number; medium: number; high: number }) => void;
-  unit?: string;
-}) {
-  const [showDetails, setShowDetails] = useState(false);
-  const hasDetails = sensorType && onSensorChange;
+const GPU_HW_TYPES = [
+  HardwareType.GpuNvidia,
+  HardwareType.GpuAmd,
+  HardwareType.GpuIntel,
+];
+
+export function GpuSection({ sensors, hardwares }: Props) {
+  const settings = useSettingsStore((s) => s.settings);
+  const updateSensor = useSettingsStore((s) => s.updateSensor);
+  const updateBoundary = useSettingsStore((s) => s.updateBoundary);
+  const { gpuUsage, gpuTemp, vramUsage } = settings.sensors;
+
+  const gpuHwIds = new Set(
+    hardwares.filter((h) => GPU_HW_TYPES.includes(h.hardwareType)).map((h) => h.identifier),
+  );
+  const gpuLoadSensors = sensors.filter(
+    (s) => gpuHwIds.has(s.hardwareIdentifier) && s.sensorType === SensorType.Load,
+  );
+  const gpuTempSensors = sensors.filter(
+    (s) => gpuHwIds.has(s.hardwareIdentifier) && s.sensorType === SensorType.Temperature,
+  );
+  // VRAM usage is a load-type sensor whose name indicates memory.
+  const vramSensors = sensors.filter(
+    (s) =>
+      gpuHwIds.has(s.hardwareIdentifier) &&
+      s.sensorType === SensorType.Load &&
+      s.name.toLowerCase().includes("memory"),
+  );
+
+  const anyEnabled = gpuUsage.isEnabled || gpuTemp.isEnabled || vramUsage.isEnabled;
+
+  const prevState = useRef<{
+    gpuUsage: boolean;
+    gpuTemp: boolean;
+    vramUsage: boolean;
+  } | null>(null);
+
+  const handleMaster = (enabled: boolean) => {
+    if (!enabled) {
+      prevState.current = {
+        gpuUsage: gpuUsage.isEnabled,
+        gpuTemp: gpuTemp.isEnabled,
+        vramUsage: vramUsage.isEnabled,
+      };
+      updateSensor("gpuUsage", { isEnabled: false });
+      updateSensor("gpuTemp", { isEnabled: false });
+      updateSensor("vramUsage", { isEnabled: false });
+      // Clear removed-from-UI sensors so upgraders don't see ghost metrics.
+      updateSensor("totalVramUsed", { isEnabled: false });
+      updateSensor("gpuConsumption", { isEnabled: false });
+    } else {
+      const prev = prevState.current;
+      updateSensor("gpuUsage", { isEnabled: prev ? prev.gpuUsage : true });
+      updateSensor("gpuTemp", { isEnabled: prev ? prev.gpuTemp : true });
+      updateSensor("vramUsage", { isEnabled: prev ? prev.vramUsage : true });
+    }
+  };
 
   return (
-    <>
-      <div className="flex items-center justify-between">
-        <Checkbox label={label} checked={checked} onChange={onToggle} />
-        {checked && hasDetails && (
-          <button
-            onClick={() => setShowDetails(!showDetails)}
-            style={{
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              padding: 4,
-              borderRadius: 4,
-              color: showDetails ? tokens.colorBrandForeground1 : tokens.colorNeutralForeground3,
-            }}
-            title="Sensor settings"
-          >
-            <Settings16Regular />
-          </button>
-        )}
-      </div>
-      {checked && hasDetails && showDetails && (
-        <>
-          <SensorDropdown
-            sensorType={sensorType!}
-            sensors={sensors}
-            hardwares={hardwares}
-            value={customReadingId ?? ""}
-            onChange={onSensorChange!}
-          />
-          {boundaries && onBoundaryChange && unit && (
-            <BoundaryInput
-              boundaries={boundaries}
-              onChange={onBoundaryChange}
-              unit={unit}
+    <SectionCard title="GPU" enabled={anyEnabled} onToggle={handleMaster}>
+      <div className="flex flex-col gap-3">
+        <SubCollapsible
+          label="GPU Usage"
+          checked={gpuUsage.isEnabled}
+          onCheckedChange={(v) => updateSensor("gpuUsage", { isEnabled: v })}
+          defaultOpen
+        >
+          <div className="flex flex-col gap-4">
+            {gpuLoadSensors.length > 0 && (
+              <SensorSelect
+                value={gpuUsage.customReadingId}
+                options={gpuLoadSensors}
+                onChange={(v) => updateSensor("gpuUsage", { customReadingId: v })}
+              />
+            )}
+            <TempRangeControl
+              boundaries={gpuUsage.boundaries}
+              onChange={(b) => updateBoundary("gpuUsage", b)}
             />
-          )}
-        </>
-      )}
-    </>
+          </div>
+        </SubCollapsible>
+
+        <SubCollapsible
+          label="GPU Temperature"
+          checked={gpuTemp.isEnabled}
+          onCheckedChange={(v) => updateSensor("gpuTemp", { isEnabled: v })}
+        >
+          <div className="flex flex-col gap-4">
+            {gpuTempSensors.length > 0 && (
+              <SensorSelect
+                value={gpuTemp.customReadingId}
+                options={gpuTempSensors}
+                onChange={(v) => updateSensor("gpuTemp", { customReadingId: v })}
+              />
+            )}
+            <TempRangeControl
+              boundaries={gpuTemp.boundaries}
+              onChange={(b) => updateBoundary("gpuTemp", b)}
+            />
+          </div>
+        </SubCollapsible>
+
+        <SubCollapsible
+          label="VRAM Usage"
+          checked={vramUsage.isEnabled}
+          onCheckedChange={(v) => updateSensor("vramUsage", { isEnabled: v })}
+        >
+          <div className="flex flex-col gap-4">
+            {vramSensors.length > 0 && (
+              <SensorSelect
+                value={vramUsage.customReadingId}
+                options={vramSensors}
+                onChange={(v) => updateSensor("vramUsage", { customReadingId: v })}
+              />
+            )}
+            <TempRangeControl
+              boundaries={vramUsage.boundaries}
+              onChange={(b) => updateBoundary("vramUsage", b)}
+            />
+          </div>
+        </SubCollapsible>
+      </div>
+    </SectionCard>
   );
 }
 
-export function GpuSection({ sensors, hardwares }: GpuSectionProps) {
-  const settings = useSettingsStore((s) => s.settings);
-  const updateSensor = useSettingsStore((s) => s.updateSensor);
-  const updateGraphSensor = useSettingsStore((s) => s.updateGraphSensor);
-  const updateBoundary = useSettingsStore((s) => s.updateBoundary);
-  const { gpuUsage, gpuTemp, vramUsage, totalVramUsed, gpuConsumption } =
-    settings.sensors;
-
-  const anyEnabled =
-    gpuUsage.isEnabled ||
-    gpuTemp.isEnabled ||
-    vramUsage.isEnabled ||
-    totalVramUsed.isEnabled ||
-    gpuConsumption.isEnabled;
-
+function SensorSelect({
+  value,
+  options,
+  onChange,
+}: {
+  value: string;
+  options: Sensor[];
+  onChange: (v: string) => void;
+}) {
   return (
-    <SensorSection
-      title="GPU"
-      enabled={anyEnabled}
-      onToggle={(enabled) => {
-        updateSensor("gpuUsage", { isEnabled: enabled });
-        updateSensor("gpuTemp", { isEnabled: enabled });
-        updateSensor("vramUsage", { isEnabled: enabled });
-        updateSensor("totalVramUsed", { isEnabled: enabled });
-        updateSensor("gpuConsumption", { isEnabled: enabled });
-      }}
-    >
-      <SensorRow
-        label="GPU Usage"
-        checked={gpuUsage.isEnabled}
-        onToggle={(v) => updateSensor("gpuUsage", { isEnabled: v })}
-        sensorType={SensorType.Load}
-        sensors={sensors}
-        hardwares={hardwares}
-        customReadingId={gpuUsage.customReadingId}
-        onSensorChange={(v) => updateGraphSensor("gpuUsage", { customReadingId: v })}
-        boundaries={gpuUsage.boundaries}
-        onBoundaryChange={(b) => updateBoundary("gpuUsage", b)}
-        unit="%"
-      />
-      <SensorRow
-        label="GPU Temp"
-        checked={gpuTemp.isEnabled}
-        onToggle={(v) => updateSensor("gpuTemp", { isEnabled: v })}
-        sensorType={SensorType.Temperature}
-        sensors={sensors}
-        hardwares={hardwares}
-        customReadingId={gpuTemp.customReadingId}
-        onSensorChange={(v) => updateGraphSensor("gpuTemp", { customReadingId: v })}
-        boundaries={gpuTemp.boundaries}
-        onBoundaryChange={(b) => updateBoundary("gpuTemp", b)}
-        unit="°"
-      />
-      <SensorRow
-        label="VRAM Usage"
-        checked={vramUsage.isEnabled}
-        onToggle={(v) => updateSensor("vramUsage", { isEnabled: v })}
-        sensorType={SensorType.Load}
-        sensors={sensors}
-        hardwares={hardwares}
-        customReadingId={vramUsage.customReadingId}
-        onSensorChange={(v) => updateGraphSensor("vramUsage", { customReadingId: v })}
-        boundaries={vramUsage.boundaries}
-        onBoundaryChange={(b) => updateBoundary("vramUsage", b)}
-        unit="%"
-      />
-      <SensorRow
-        label="Total VRAM Used"
-        checked={totalVramUsed.isEnabled}
-        onToggle={(v) => updateSensor("totalVramUsed", { isEnabled: v })}
-        sensors={sensors}
-        hardwares={hardwares}
-      />
-      <SensorRow
-        label="GPU Power"
-        checked={gpuConsumption.isEnabled}
-        onToggle={(v) => updateSensor("gpuConsumption", { isEnabled: v })}
-        sensors={sensors}
-        hardwares={hardwares}
-      />
-    </SensorSection>
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className="h-10 rounded-[8px] bg-card text-[14px]">
+        <span className="flex items-center gap-2">
+          <span className="text-[14px] font-normal text-muted-foreground">Sensor:</span>
+          <SelectValue placeholder="Select" />
+        </span>
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((s) => (
+          <SelectItem key={s.identifier} value={s.identifier}>
+            {s.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

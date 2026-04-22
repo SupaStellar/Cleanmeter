@@ -13,7 +13,7 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
   const sensorData = useSettingsStore((s) => s.sensorData);
   const sensors = sensorData?.sensors ?? [];
 
-  const valueFontSize = settings.fontSizeValue ?? 24;
+  const valueFontSize = settings.fontSizeValue ?? 12;
   const labelFontSize = settings.fontSizeLabel ?? 12;
   const { gpuTemp, gpuUsage, vramUsage, totalVramUsed, gpuConsumption } =
     settings.sensors;

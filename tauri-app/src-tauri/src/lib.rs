@@ -84,6 +84,92 @@ pub fn run() {
         .setup(|app| {
             info!("CleanMeter starting up...");
 
+            // Force the settings window to spec size, centered on the primary
+            // monitor in physical pixels. Done in Rust so it lands correctly
+            // before the window is ever shown — Tauri's `center: true` config
+            // and JS-side `center()` were both being overridden by Windows
+            // restoring a stale position from prior runs.
+            if let Some(window) = app.get_webview_window("settings") {
+                let log_path = std::env::temp_dir().join("cleanmeter-window.log");
+                let mut log_lines: Vec<String> = vec![format!(
+                    "setup start @ {}",
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.as_secs())
+                        .unwrap_or(0)
+                )];
+
+                let monitor = window.primary_monitor().ok().flatten();
+                log_lines.push(format!("primary_monitor: {}", monitor.is_some()));
+
+                if let Some(m) = monitor {
+                    let m_size = m.size();
+                    let m_pos = m.position();
+                    let scale = m.scale_factor();
+                    log_lines.push(format!(
+                        "monitor: size={}x{} pos=({},{}) scale={}",
+                        m_size.width, m_size.height, m_pos.x, m_pos.y, scale
+                    ));
+
+                    let want_w: f64 = 651.0;
+                    let mut want_h: f64 = 900.0;
+                    let monitor_logical_h = m_size.height as f64 / scale;
+                    if want_h > monitor_logical_h - 80.0 {
+                        want_h = (monitor_logical_h - 80.0).max(400.0);
+                    }
+                    log_lines.push(format!("want: {}x{} logical", want_w, want_h));
+
+                    let _ = window.set_size(tauri::Size::Logical(
+                        tauri::LogicalSize::new(want_w, want_h),
+                    ));
+
+                    let phys_w = (want_w * scale) as i32;
+                    let phys_h = (want_h * scale) as i32;
+                    let x = m_pos.x + (m_size.width as i32 - phys_w) / 2;
+                    let y = m_pos.y + (m_size.height as i32 - phys_h) / 2;
+                    log_lines.push(format!("set_position: phys ({},{}) size {}x{}", x, y, phys_w, phys_h));
+
+                    let r = window.set_position(tauri::Position::Physical(
+                        tauri::PhysicalPosition::new(x, y),
+                    ));
+                    log_lines.push(format!("set_position result: {:?}", r));
+                } else {
+                    let _ = window.set_size(tauri::Size::Logical(
+                        tauri::LogicalSize::new(651.0, 900.0),
+                    ));
+                    let _ = window.center();
+                }
+                let _ = window.show();
+                let _ = window.set_focus();
+
+                if let Ok(pos) = window.outer_position() {
+                    log_lines.push(format!("t=0 after show outer_position: ({},{})", pos.x, pos.y));
+                }
+                if let Ok(size) = window.outer_size() {
+                    log_lines.push(format!("t=0 outer_size: {}x{}", size.width, size.height));
+                }
+
+                let _ = std::fs::write(&log_path, log_lines.join("\n"));
+
+                // Watch for position drift after show
+                let w2 = window.clone();
+                let lp2 = log_path.clone();
+                tauri::async_runtime::spawn(async move {
+                    for delay_ms in [300u64, 1000, 3000] {
+                        tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
+                        if let Ok(mut f) = std::fs::OpenOptions::new().append(true).open(&lp2) {
+                            use std::io::Write;
+                            if let Ok(pos) = w2.outer_position() {
+                                let _ = writeln!(f, "\nt={}ms outer_position: ({},{})", delay_ms, pos.x, pos.y);
+                            }
+                            if let Ok(size) = w2.outer_size() {
+                                let _ = writeln!(f, "t={}ms outer_size: {}x{}", delay_ms, size.width, size.height);
+                            }
+                        }
+                    }
+                });
+            }
+
             // Initialize settings manager
             let app_data_dir = app
                 .path()
@@ -176,75 +262,44 @@ pub fn run() {
                 });
             }
 
-            // Position settings window as a right-side panel (like Win11 notification panel)
+            // Handle settings window close → minimize to tray,
+            // and convert native maximize (double-click) into "full height"
+            // so the window never actually fullscreens.
             if let Some(settings_window) = app.get_webview_window("settings") {
-                if let Ok(Some(monitor)) = settings_window.primary_monitor() {
-                    let scale = monitor.scale_factor();
-                    let size = monitor.size();
-                    let panel_width = 420u32;
-                    // Use SystemParametersInfo to get work area (screen minus taskbar)
-                    #[cfg(windows)]
-                    {
-                        use windows::Win32::UI::WindowsAndMessaging::{
-                            SystemParametersInfoW, SPI_GETWORKAREA, SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS,
-                        };
-                        use windows::Win32::Foundation::RECT;
-                        let mut work_area = RECT::default();
-                        let _ = unsafe {
-                            SystemParametersInfoW(
-                                SPI_GETWORKAREA,
-                                0,
-                                Some(&mut work_area as *mut _ as *mut _),
-                                SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS(0),
-                            )
-                        };
-                        let wa_width = (work_area.right - work_area.left) as u32;
-                        let wa_height = (work_area.bottom - work_area.top) as u32;
-                        let wa_top = work_area.top;
-                        let wa_left = work_area.left;
-
-                        if wa_width > 0 && wa_height > 0 {
-                            let x = wa_left + wa_width as i32 - panel_width as i32;
-                            let y = wa_top;
-                            let _ = settings_window.set_position(tauri::Position::Physical(
-                                tauri::PhysicalPosition::new(x, y),
-                            ));
-                            let _ = settings_window.set_size(tauri::Size::Physical(
-                                tauri::PhysicalSize::new(panel_width, wa_height),
-                            ));
-                        } else {
-                            // Fallback: use monitor size
-                            let screen_w = (size.width as f64 / scale) as i32;
-                            let x = screen_w - panel_width as i32;
-                            let _ = settings_window.set_position(tauri::Position::Physical(
-                                tauri::PhysicalPosition::new(x, 0),
-                            ));
-                            let _ = settings_window.set_size(tauri::Size::Physical(
-                                tauri::PhysicalSize::new(panel_width, size.height),
-                            ));
-                        }
-                    }
-                    #[cfg(not(windows))]
-                    {
-                        let screen_w = (size.width as f64 / scale) as i32;
-                        let x = screen_w - panel_width as i32;
-                        let _ = settings_window.set_position(tauri::Position::Physical(
-                            tauri::PhysicalPosition::new(x, 0),
-                        ));
-                        let _ = settings_window.set_size(tauri::Size::Physical(
-                            tauri::PhysicalSize::new(panel_width, size.height),
-                        ));
-                    }
-                }
-
-                // Handle settings window close → minimize to tray
                 let app_handle3 = app.handle().clone();
+                let w_for_event = settings_window.clone();
                 settings_window.on_window_event(move |event| {
-                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                        api.prevent_close();
-                        if let Some(window) = app_handle3.get_webview_window("settings") {
-                            let _ = window.hide();
+                    match event {
+                        tauri::WindowEvent::CloseRequested { api, .. } => {
+                            api.prevent_close();
+                            if let Some(window) = app_handle3.get_webview_window("settings") {
+                                let _ = window.hide();
+                            }
                         }
+                        tauri::WindowEvent::Resized(_) => {
+                            if w_for_event.is_maximized().unwrap_or(false) {
+                                let _ = w_for_event.unmaximize();
+                                // Snap to full monitor height (minus taskbar) at 651 wide
+                                if let Ok(Some(m)) = w_for_event.current_monitor() {
+                                    let scale = m.scale_factor();
+                                    let m_size = m.size();
+                                    let m_pos = m.position();
+                                    let target_w: f64 = 651.0;
+                                    let target_h: f64 = (m_size.height as f64 / scale) - 40.0;
+                                    let _ = w_for_event.set_size(tauri::Size::Logical(
+                                        tauri::LogicalSize::new(target_w, target_h.max(400.0)),
+                                    ));
+                                    let phys_w = (target_w * scale) as i32;
+                                    let x = m_pos.x
+                                        + (m_size.width as i32 - phys_w) / 2;
+                                    let y = m_pos.y + (20.0 * scale) as i32;
+                                    let _ = w_for_event.set_position(tauri::Position::Physical(
+                                        tauri::PhysicalPosition::new(x, y),
+                                    ));
+                                }
+                            }
+                        }
+                        _ => {}
                     }
                 });
             }
@@ -272,6 +327,7 @@ pub fn run() {
             commands::get_app_version,
             commands::grant_admin_consent,
             commands::launch_hardware_monitor,
+            commands::ui_debug_log,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

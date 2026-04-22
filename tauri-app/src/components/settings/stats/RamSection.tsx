@@ -1,23 +1,29 @@
-import { Checkbox } from "@/components/ui/Checkbox";
-import { SensorSection } from "@/components/ui/SensorSection";
 import { useSettingsStore } from "@/stores/settings-store";
+import { SectionCard, SubCollapsible } from "./SectionCard";
+import { TempRangeControl } from "./TempRangeControl";
 
 export function RamSection() {
   const settings = useSettingsStore((s) => s.settings);
   const updateSensor = useSettingsStore((s) => s.updateSensor);
+  const updateBoundary = useSettingsStore((s) => s.updateBoundary);
   const { ramUsage } = settings.sensors;
 
   return (
-    <SensorSection
+    <SectionCard
       title="RAM"
       enabled={ramUsage.isEnabled}
-      onToggle={(enabled) => updateSensor("ramUsage", { isEnabled: enabled })}
+      onToggle={(v) => updateSensor("ramUsage", { isEnabled: v })}
     >
-      <Checkbox
+      <SubCollapsible
         label="RAM Usage"
         checked={ramUsage.isEnabled}
-        onChange={(v) => updateSensor("ramUsage", { isEnabled: v })}
-      />
-    </SensorSection>
+        onCheckedChange={(v) => updateSensor("ramUsage", { isEnabled: v })}
+      >
+        <TempRangeControl
+          boundaries={ramUsage.boundaries}
+          onChange={(b) => updateBoundary("ramUsage", b)}
+        />
+      </SubCollapsible>
+    </SectionCard>
   );
 }

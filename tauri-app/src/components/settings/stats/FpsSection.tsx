@@ -1,20 +1,26 @@
 import { useRef } from "react";
-import { Caption1, tokens } from "@fluentui/react-components";
-import { Checkbox } from "@/components/ui/Checkbox";
-import { SensorSection } from "@/components/ui/SensorSection";
-import { Select } from "@/components/ui/Select";
+import { Info } from "lucide-react";
+import { Checkbox } from "@/components/shadcn/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shadcn/select";
 import { useSettingsStore } from "@/stores/settings-store";
+import { SectionCard } from "./SectionCard";
+
 export function FpsSection() {
   const settings = useSettingsStore((s) => s.settings);
   const updateSensor = useSettingsStore((s) => s.updateSensor);
   const presentMonApps = useSettingsStore((s) => s.presentMonApps);
   const { framerate, frametime } = settings.sensors;
-
   const anyEnabled = framerate.isEnabled || frametime.isEnabled;
   const prevState = useRef<{ framerate: boolean; frametime: boolean } | null>(null);
 
   return (
-    <SensorSection
+    <SectionCard
       title="FPS"
       enabled={anyEnabled}
       onToggle={(enabled) => {
@@ -29,55 +35,54 @@ export function FpsSection() {
         }
       }}
     >
-      <Checkbox
-        label="Framerate"
-        checked={framerate.isEnabled}
-        onChange={(v) => updateSensor("framerate", { isEnabled: v })}
-      />
-      <Checkbox
-        label="Frametime"
-        checked={frametime.isEnabled}
-        onChange={(v) => updateSensor("frametime", { isEnabled: v })}
-      />
-      <Caption1
-        style={{
-          color: tokens.colorNeutralForeground4,
-          display: "block",
-          marginTop: 4,
-          lineHeight: 1.4,
-        }}
-      >
-        FPS, frametime, and the graph only update while an app is actively
-        rendering. A flat line on the graph means smooth performance, spikes
-        indicate stutters. Values may freeze when the tracked app is minimized
-        or closed.
-      </Caption1>
-      {presentMonApps.length > 0 && (
-        <div className="mt-2">
-          <Caption1
-            style={{
-              color: tokens.colorNeutralForeground4,
-              display: "block",
-              marginBottom: 4,
-            }}
-          >
-            Tracks the active app automatically. To monitor a specific app, select it below:
-          </Caption1>
-          <Select
-            label=""
-            value={framerate.customReadingId}
-            onChange={(v) => updateSensor("framerate", { customReadingId: v })}
-            options={[
-              { value: "", label: "Auto (active app)" },
-              ...presentMonApps.map((app) => ({
-                value: app,
-                label: app,
-              })),
-            ]}
-            placeholder="Auto (active app)"
+      <div className="flex flex-col gap-3">
+        <label className="flex cursor-pointer items-center gap-2">
+          <Checkbox
+            checked={framerate.isEnabled}
+            onCheckedChange={(v) => updateSensor("framerate", { isEnabled: v === true })}
           />
+          <span className="text-[14px] font-medium text-foreground">Frame count</span>
+        </label>
+        <label className="flex cursor-pointer items-center gap-2">
+          <Checkbox
+            checked={frametime.isEnabled}
+            onCheckedChange={(v) => updateSensor("frametime", { isEnabled: v === true })}
+          />
+          <span className="text-[14px] font-medium text-foreground">Frame time graph</span>
+        </label>
+      </div>
+
+      {presentMonApps.length > 0 && (
+        <div className="flex flex-col gap-3">
+          <Select
+            value={framerate.customReadingId || "__auto__"}
+            onValueChange={(v) =>
+              updateSensor("framerate", { customReadingId: v === "__auto__" ? "" : v })
+            }
+          >
+            <SelectTrigger className="h-10 rounded-[8px] text-[14px]">
+              <span className="flex items-center gap-2">
+                <span className="text-[14px] font-normal text-muted-foreground">Monitor app:</span>
+                <SelectValue placeholder="Auto" />
+              </span>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__auto__">Auto</SelectItem>
+              {presentMonApps.map((app) => (
+                <SelectItem key={app} value={app}>
+                  {app}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="flex items-center gap-1">
+            <Info className="size-4 text-muted-foreground" strokeWidth={2} />
+            <span className="text-[12px] font-medium text-muted-foreground">
+              Apps are auto updated every 10 seconds.
+            </span>
+          </div>
         </div>
       )}
-    </SensorSection>
+    </SectionCard>
   );
 }

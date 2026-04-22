@@ -70,14 +70,22 @@ export interface SensorsConfig {
   downRate: SensorConfig;
 }
 
+export type TemperatureUnit = "C" | "F";
+export type ThemeMode = "light" | "dark" | "system";
+export type GraphType = "ring" | "bar";
+
 export interface OverlaySettings {
   isDarkTheme: boolean;
   isMeterLight: boolean;
+  themeMode: ThemeMode;
+  temperatureUnit: TemperatureUnit;
   isHorizontal: boolean;
+  useCustomPosition: boolean;
   positionIndex: number;
   selectedDisplayIndex: number;
   netGraph: boolean;
   progressType: ProgressType;
+  graphType: GraphType;
   positionX: number;
   positionY: number;
   isPositionLocked: boolean;
@@ -85,6 +93,10 @@ export interface OverlaySettings {
   pillOpacity: number;
   fontSizeValue: number;
   fontSizeLabel: number;
+  numberFontSize: number;
+  numberLabelFontSize: number;
+  fontWeight: number;
+  labelFontWeight: number;
   pollingRate: number;
   isLoggingEnabled: boolean;
   sensors: SensorsConfig;
@@ -134,20 +146,28 @@ export type SensorKey = keyof SensorsConfig;
 export const POLLING_RATES = [33, 50, 100, 250, 300, 350, 400, 500] as const;
 
 export const DEFAULT_SETTINGS: OverlaySettings = {
-  isDarkTheme: true,
+  isDarkTheme: false,
   isMeterLight: false,
+  themeMode: "light",
+  temperatureUnit: "C",
   isHorizontal: true,
-  positionIndex: 0,
+  useCustomPosition: true,
+  positionIndex: 4,
   selectedDisplayIndex: 0,
   netGraph: false,
   progressType: "circular",
+  graphType: "ring",
   positionX: 0,
   positionY: 0,
   isPositionLocked: false,
   opacity: 1.0,
   pillOpacity: 0.3,
-  fontSizeValue: 24,
+  fontSizeValue: 12,
   fontSizeLabel: 12,
+  numberFontSize: 14,
+  numberLabelFontSize: 10,
+  fontWeight: 500,
+  labelFontWeight: 500,
   pollingRate: 500,
   isLoggingEnabled: false,
   sensors: {
