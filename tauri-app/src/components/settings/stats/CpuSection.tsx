@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import type { Sensor, Hardware } from "@/lib/types";
 import { SensorType, HardwareType } from "@/lib/types";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -33,9 +34,18 @@ export function CpuSection({ sensors, hardwares }: Props) {
     (s) => cpuHwIds.has(s.hardwareIdentifier) && s.sensorType === SensorType.Temperature,
   );
 
+  const prevState = useRef<{ cpuUsage: boolean; cpuTemp: boolean } | null>(null);
+
   const handleMaster = (enabled: boolean) => {
-    updateSensor("cpuUsage", { isEnabled: enabled });
-    updateSensor("cpuTemp", { isEnabled: enabled });
+    if (!enabled) {
+      prevState.current = { cpuUsage: cpuUsage.isEnabled, cpuTemp: cpuTemp.isEnabled };
+      updateSensor("cpuUsage", { isEnabled: false });
+      updateSensor("cpuTemp", { isEnabled: false });
+    } else {
+      const prev = prevState.current;
+      updateSensor("cpuUsage", { isEnabled: prev ? prev.cpuUsage : true });
+      updateSensor("cpuTemp", { isEnabled: prev ? prev.cpuTemp : true });
+    }
   };
 
   return (

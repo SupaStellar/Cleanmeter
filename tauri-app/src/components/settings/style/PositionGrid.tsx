@@ -92,11 +92,13 @@ export function PositionGrid() {
             <button
               key={p.index}
               type="button"
+              disabled={useCustomPosition}
               onClick={() => updateSettings({ positionIndex: p.index })}
               className={cn(
                 "flex h-14 items-center gap-3 rounded-[8px] bg-card p-1 text-left transition-colors",
                 "border border-border hover:border-foreground/40",
                 selected && "border-2 border-foreground p-[3px]",
+                "disabled:cursor-not-allowed",
               )}
             >
               <span className="relative size-12 shrink-0 rounded-[4px] bg-muted">

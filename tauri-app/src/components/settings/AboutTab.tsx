@@ -6,6 +6,9 @@ import {
   CollapsibleTrigger,
 } from "@/components/shadcn/collapsible";
 
+/** Set to a real URL to show the "Watch video" CTA; null/empty hides it. */
+const WATCH_VIDEO_URL: string | null = null;
+
 /**
  * About tab — matches Figma frame 2075:8887 ("Help" frame, tab renamed to About).
  * Three collapsible white cards:
@@ -92,20 +95,25 @@ function HowToSetupCard() {
         <Step n={3}>That&rsquo;s it! it should run flawlessly now :D</Step>
       </ol>
 
-      <div className="h-px w-full bg-divider" />
-
-      <div className="flex items-center justify-between gap-5">
-        <span className="text-[14px] font-medium text-muted-foreground">
-          Still don&rsquo;t understand? Watch a video to see how!
-        </span>
-        <a
-          href="#"
-          className="inline-flex h-11 items-center gap-1.5 rounded-full border border-border bg-card px-4 text-[14px] font-medium text-foreground transition-colors hover:bg-muted"
-        >
-          <Play className="size-5 fill-current" strokeWidth={0} />
-          <span>Watch video</span>
-        </a>
-      </div>
+      {WATCH_VIDEO_URL && (
+        <>
+          <div className="h-px w-full bg-divider" />
+          <div className="flex items-center justify-between gap-5">
+            <span className="text-[14px] font-medium text-muted-foreground">
+              Still don&rsquo;t understand? Watch a video to see how!
+            </span>
+            <a
+              href={WATCH_VIDEO_URL}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="inline-flex h-11 items-center gap-1.5 rounded-full border border-border bg-card px-4 text-[14px] font-medium text-foreground transition-colors hover:bg-muted"
+            >
+              <Play className="size-5 fill-current" strokeWidth={0} />
+              <span>Watch video</span>
+            </a>
+          </div>
+        </>
+      )}
     </CollapsibleCard>
   );
 }

@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import type { Sensor, Hardware } from "@/lib/types";
 import { HardwareType, SensorType } from "@/lib/types";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -47,10 +48,28 @@ export function GpuSection({ sensors, hardwares }: Props) {
 
   const anyEnabled = gpuUsage.isEnabled || gpuTemp.isEnabled || vramUsage.isEnabled;
 
+  const prevState = useRef<{
+    gpuUsage: boolean;
+    gpuTemp: boolean;
+    vramUsage: boolean;
+  } | null>(null);
+
   const handleMaster = (enabled: boolean) => {
-    updateSensor("gpuUsage", { isEnabled: enabled });
-    updateSensor("gpuTemp", { isEnabled: enabled });
-    updateSensor("vramUsage", { isEnabled: enabled });
+    if (!enabled) {
+      prevState.current = {
+        gpuUsage: gpuUsage.isEnabled,
+        gpuTemp: gpuTemp.isEnabled,
+        vramUsage: vramUsage.isEnabled,
+      };
+      updateSensor("gpuUsage", { isEnabled: false });
+      updateSensor("gpuTemp", { isEnabled: false });
+      updateSensor("vramUsage", { isEnabled: false });
+    } else {
+      const prev = prevState.current;
+      updateSensor("gpuUsage", { isEnabled: prev ? prev.gpuUsage : true });
+      updateSensor("gpuTemp", { isEnabled: prev ? prev.gpuTemp : true });
+      updateSensor("vramUsage", { isEnabled: prev ? prev.vramUsage : true });
+    }
   };
 
   return (
