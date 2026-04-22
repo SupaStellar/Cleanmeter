@@ -21,6 +21,7 @@
         "minWidth": 651,
         "maxWidth": 651,
         "minHeight": 400,
+        "center": true,
         "resizable": true,
         "decorations": false,
         "visible": true,
