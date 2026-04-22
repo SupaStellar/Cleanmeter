@@ -113,12 +113,18 @@ export default function OverlayApp() {
     };
   }, [useCustom, locked, updateSettings]);
 
+  // The container spans the whole monitor but must not swallow clicks in the
+  // transparent areas — otherwise games and windows underneath never see the
+  // mouse. pointerEvents: none on the container + auto on the HUD means only
+  // the visible HUD pixels capture input, regardless of Rust-level
+  // ignoreCursorEvents state.
   const containerStyle: React.CSSProperties = useCustom
     ? {
         width: "100vw",
         height: "100vh",
         background: "transparent",
         position: "relative",
+        pointerEvents: "none",
       }
     : {
         width: "100vw",
@@ -127,6 +133,7 @@ export default function OverlayApp() {
         padding: 8,
         boxSizing: "border-box",
         display: "flex",
+        pointerEvents: "none",
         ...alignMap[idx],
       };
 
@@ -137,8 +144,9 @@ export default function OverlayApp() {
         top: offsetY,
         cursor: locked ? "default" : "grab",
         userSelect: "none",
+        pointerEvents: "auto",
       }
-    : {};
+    : { pointerEvents: "auto" };
 
   return (
     <div style={containerStyle}>
