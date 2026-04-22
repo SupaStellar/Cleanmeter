@@ -2,7 +2,7 @@ import { Pill } from "./Pill";
 import { ProgressRing } from "./ProgressRing";
 import { ProgressBar } from "./ProgressBar";
 import { useSettingsStore } from "@/stores/settings-store";
-import { findSensorById, formatValue } from "@/lib/utils";
+import { findSensorById, formatValue, formatTemperature } from "@/lib/utils";
 
 interface GpuSectionProps {
   isHorizontal: boolean;
@@ -37,6 +37,8 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
   const vramUsedVal = findSensorById(sensors, totalVramUsed.customReadingId)?.value ?? 0;
   const gpuPowerVal = findSensorById(sensors, gpuConsumption.customReadingId)?.value ?? 0;
 
+  const temp = formatTemperature(gpuTempVal, settings.temperatureUnit);
+
   return (
     <Pill title="GPU" isHorizontal={isHorizontal}>
       {gpuTemp.isEnabled && (
@@ -44,16 +46,16 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
           <Progress
             value={gpuTempVal}
             max={100}
-            label={formatValue(gpuTempVal)}
-            unit="°C"
+            label={temp.label}
+            unit={temp.symbol}
             boundaries={gpuTemp.boundaries}
           />
         ) : (
           <div className="flex items-baseline gap-0.5">
             <span style={{ fontSize: valueFontSize, fontWeight: 400, color: "var(--overlay-text)", fontFamily: "Inter", minWidth: "3em", textAlign: "right", display: "inline-block" }} className="tabular-nums">
-              {formatValue(gpuTempVal)}
+              {temp.label}
             </span>
-            <span style={{ fontSize: labelFontSize, fontWeight: 400, color: "var(--overlay-text-muted)" }}>°C</span>
+            <span style={{ fontSize: labelFontSize, fontWeight: 400, color: "var(--overlay-text-muted)" }}>{temp.symbol}</span>
           </div>
         )
       )}

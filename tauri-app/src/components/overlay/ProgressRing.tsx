@@ -1,4 +1,4 @@
-import { getBoundaryColor, formatValue } from "@/lib/utils";
+import { getBoundaryColor } from "@/lib/utils";
 import type { Boundaries } from "@/lib/types";
 import { useSettingsStore } from "@/stores/settings-store";
 
@@ -54,7 +54,7 @@ export function ProgressRing({
       </svg>
       <div className="flex items-baseline gap-0.5">
         <span style={{ fontSize: valueFontSize, fontWeight: 400, color: "var(--overlay-text)", fontFamily: "Inter" }} className="tabular-nums">
-          {formatValue(value)}
+          {label}
         </span>
         <span style={{ fontSize: labelFontSize, fontWeight: 400, color: "var(--overlay-text-muted)" }}>{unit}</span>
       </div>

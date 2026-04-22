@@ -35,6 +35,14 @@ export function formatValue(value: number, decimals = 0): string {
   return value.toFixed(decimals);
 }
 
+export function formatTemperature(
+  celsius: number,
+  unit: "C" | "F",
+): { label: string; symbol: string } {
+  const display = unit === "F" ? celsius * 9 / 5 + 32 : celsius;
+  return { label: formatValue(display), symbol: unit === "F" ? "°F" : "°C" };
+}
+
 export function formatBytes(bytes: number): string {
   if (bytes >= 1073741824) return `${(bytes / 1073741824).toFixed(1)} GB`;
   if (bytes >= 1048576) return `${(bytes / 1048576).toFixed(1)} MB`;
