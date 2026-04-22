@@ -237,7 +237,7 @@ pub fn run() {
             use tauri_plugin_global_shortcut::GlobalShortcutExt;
             let app_handle = app.handle().clone();
 
-            app.global_shortcut().on_shortcut("Ctrl+F10", move |_app, _shortcut, _event| {
+            app.global_shortcut().on_shortcut("Ctrl+Alt+F10", move |_app, _shortcut, _event| {
                 let _ = app_handle.emit("hotkey", "toggle-overlay");
             })?;
 
