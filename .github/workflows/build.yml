@@ -57,9 +57,10 @@ jobs:
       - name: Build HardwareMonitor sidecar (Windows)
         if: matrix.platform == 'windows-latest'
         working-directory: HardwareMonitor/HardwareMonitor
-        run: dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true
+        # Use -p: not /p: — Git Bash on Windows path-mangles /p:... into a
+        # bogus path argument that dotnet treats as a project file (MSB1009).
+        run: dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
         shell: bash
-        continue-on-error: true
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
