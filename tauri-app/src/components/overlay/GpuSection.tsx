@@ -2,6 +2,7 @@ import { Pill } from "./Pill";
 import { ProgressRing } from "./ProgressRing";
 import { ProgressBar } from "./ProgressBar";
 import { useSettingsStore } from "@/stores/settings-store";
+import { SensorType } from "@/lib/types";
 import { findSensorById, formatValue, formatTemperature } from "@/lib/utils";
 
 interface GpuSectionProps {
@@ -34,7 +35,13 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
   const gpuTempVal = findSensorById(sensors, gpuTemp.customReadingId)?.value ?? 0;
   const gpuUsageVal = findSensorById(sensors, gpuUsage.customReadingId)?.value ?? 0;
   const vramUsageVal = findSensorById(sensors, vramUsage.customReadingId)?.value ?? 0;
-  const vramUsedVal = findSensorById(sensors, totalVramUsed.customReadingId)?.value ?? 0;
+  const vramUsedSensor = findSensorById(sensors, totalVramUsed.customReadingId);
+  // LibreHardwareMonitor's "GPU Memory Used" is SmallData (MB). Pass through
+  // when the user picked a Data-typed sensor that's already in GB.
+  const vramUsedVal =
+    vramUsedSensor?.sensorType === SensorType.SmallData
+      ? (vramUsedSensor.value ?? 0) / 1024
+      : vramUsedSensor?.value ?? 0;
   const gpuPowerVal = findSensorById(sensors, gpuConsumption.customReadingId)?.value ?? 0;
 
   const temp = formatTemperature(gpuTempVal, settings.temperatureUnit);

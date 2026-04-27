@@ -260,13 +260,33 @@ impl Default for SensorsConfig {
 fn default_pill_opacity() -> f32 { 0.3 }
 fn default_font_size_value() -> f32 { 12.0 }
 fn default_font_size_label() -> f32 { 12.0 }
+fn default_number_font_size() -> f32 { 14.0 }
+fn default_number_label_font_size() -> f32 { 10.0 }
+fn default_font_weight() -> u16 { 500 }
+fn default_temperature_unit() -> String { "C".to_string() }
+fn default_theme_mode() -> String { "light".to_string() }
+fn default_graph_type() -> String { "ring".to_string() }
+fn default_use_custom_position() -> bool { true }
 
+// Every field the TypeScript OverlaySettings interface defines must also live
+// here, or serde silently drops it during save_settings deserialization. The
+// overlay window then receives a stripped payload via the settings-changed
+// event and ends up with `undefined` for any field Rust doesn't know about —
+// which breaks F/C, custom-position drag, theme mode, etc.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OverlaySettings {
     #[serde(rename = "isDarkTheme")]
     pub is_dark_theme: bool,
+    #[serde(rename = "isMeterLight", default)]
+    pub is_meter_light: bool,
+    #[serde(rename = "themeMode", default = "default_theme_mode")]
+    pub theme_mode: String,
+    #[serde(rename = "temperatureUnit", default = "default_temperature_unit")]
+    pub temperature_unit: String,
     #[serde(rename = "isHorizontal")]
     pub is_horizontal: bool,
+    #[serde(rename = "useCustomPosition", default = "default_use_custom_position")]
+    pub use_custom_position: bool,
     #[serde(rename = "positionIndex")]
     pub position_index: u8,
     #[serde(rename = "selectedDisplayIndex")]
@@ -275,11 +295,13 @@ pub struct OverlaySettings {
     pub net_graph: bool,
     #[serde(rename = "progressType")]
     pub progress_type: ProgressType,
+    #[serde(rename = "graphType", default = "default_graph_type")]
+    pub graph_type: String,
     #[serde(rename = "positionX")]
     pub position_x: i32,
     #[serde(rename = "positionY")]
     pub position_y: i32,
-    #[serde(rename = "isPositionLocked")]
+    #[serde(rename = "isPositionLocked", default)]
     pub is_position_locked: bool,
     pub opacity: f32,
     #[serde(rename = "pillOpacity", default = "default_pill_opacity")]
@@ -288,6 +310,14 @@ pub struct OverlaySettings {
     pub font_size_value: f32,
     #[serde(rename = "fontSizeLabel", default = "default_font_size_label")]
     pub font_size_label: f32,
+    #[serde(rename = "numberFontSize", default = "default_number_font_size")]
+    pub number_font_size: f32,
+    #[serde(rename = "numberLabelFontSize", default = "default_number_label_font_size")]
+    pub number_label_font_size: f32,
+    #[serde(rename = "fontWeight", default = "default_font_weight")]
+    pub font_weight: u16,
+    #[serde(rename = "labelFontWeight", default = "default_font_weight")]
+    pub label_font_weight: u16,
     #[serde(rename = "pollingRate")]
     pub polling_rate: u64,
     #[serde(rename = "isLoggingEnabled")]
@@ -299,18 +329,27 @@ impl Default for OverlaySettings {
     fn default() -> Self {
         OverlaySettings {
             is_dark_theme: false,
+            is_meter_light: false,
+            theme_mode: "light".to_string(),
+            temperature_unit: "C".to_string(),
             is_horizontal: true,
+            use_custom_position: true,
             position_index: 0,
             selected_display_index: 0,
             net_graph: false,
             progress_type: ProgressType::Circular,
+            graph_type: "ring".to_string(),
             position_x: 0,
             position_y: 0,
-            is_position_locked: true,
+            is_position_locked: false,
             opacity: 1.0,
             pill_opacity: 0.3,
             font_size_value: 12.0,
             font_size_label: 12.0,
+            number_font_size: 14.0,
+            number_label_font_size: 10.0,
+            font_weight: 500,
+            label_font_weight: 500,
             polling_rate: 500,
             is_logging_enabled: false,
             sensors: SensorsConfig::default(),

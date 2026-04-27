@@ -72,8 +72,6 @@
     "resources": {
       "../../HardwareMonitor/HardwareMonitor/bin/Release/net8.0/win-x64/publish/*.exe": "./",
       "../../HardwareMonitor/HardwareMonitor/bin/Release/net8.0/win-x64/publish/*.dll": "./",
-      "../../HardwareMonitor/HardwareMonitor/bin/Release/net8.0/win-x64/publish/*.sys": "./",
-      "../../HardwareMonitor/HardwareMonitor/bin/Release/net8.0/win-x64/publish/*.json": "./",
       "../../HardwareMonitor/HardwareMonitor/bin/Release/net8.0/win-x64/publish/*.txt": "./"
     }
   },

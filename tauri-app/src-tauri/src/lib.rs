@@ -233,17 +233,23 @@ pub fn run() {
                 }
             }
 
-            // Register global shortcuts
-            use tauri_plugin_global_shortcut::GlobalShortcutExt;
+            // Register global shortcuts. Filter on Pressed — the callback fires
+            // on BOTH key-down and key-up by default, which caused the UI to
+            // toggle twice per physical press (visible hide-then-show flicker).
+            use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
             let app_handle = app.handle().clone();
 
-            app.global_shortcut().on_shortcut("Ctrl+Alt+F10", move |_app, _shortcut, _event| {
-                let _ = app_handle.emit("hotkey", "toggle-overlay");
+            app.global_shortcut().on_shortcut("Ctrl+Alt+F10", move |_app, _shortcut, event| {
+                if event.state() == ShortcutState::Pressed {
+                    let _ = app_handle.emit("hotkey", "toggle-overlay");
+                }
             })?;
 
             let app_handle2 = app.handle().clone();
-            app.global_shortcut().on_shortcut("Alt+F11", move |_app, _shortcut, _event| {
-                let _ = app_handle2.emit("hotkey", "toggle-recording");
+            app.global_shortcut().on_shortcut("Alt+F11", move |_app, _shortcut, event| {
+                if event.state() == ShortcutState::Pressed {
+                    let _ = app_handle2.emit("hotkey", "toggle-recording");
+                }
             })?;
 
             // Periodically reassert overlay always-on-top so games can't push it behind.
