@@ -62,6 +62,21 @@ jobs:
         run: dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
         shell: bash
 
+      - name: Stage PresentMon assets into publish folder (Windows)
+        if: matrix.platform == 'windows-latest'
+        # The csproj's CopyPresentMon target writes to $(TargetDir)/native/,
+        # not $(PublishDir)/. Tauri's resource globs read from publish/, so
+        # presentmon.exe + ignored-processes.txt must land there explicitly.
+        run: cp presentmon/* HardwareMonitor/HardwareMonitor/bin/Release/net8.0/win-x64/publish/
+        shell: bash
+
+      - name: List publish folder (Windows)
+        if: matrix.platform == 'windows-latest'
+        # Diagnostic — surfaces missing files (Tauri resource globs require
+        # *.exe / *.dll / *.txt to match) so future breakage is obvious.
+        run: ls -la HardwareMonitor/HardwareMonitor/bin/Release/net8.0/win-x64/publish/
+        shell: bash
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
