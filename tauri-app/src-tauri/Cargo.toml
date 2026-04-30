@@ -1,6 +1,6 @@
 [package]
 name = "cleanmeter"
-version = "2.1.1"
+version = "2.1.2"
 description = "Gaming performance overlay"
 authors = ["CleanMeter"]
 edition = "2021"
