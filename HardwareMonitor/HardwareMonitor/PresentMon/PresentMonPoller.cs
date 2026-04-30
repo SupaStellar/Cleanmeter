@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
+using System.Runtime.InteropServices;
 using LibreHardwareMonitor.Hardware;
 using Microsoft.Extensions.Logging;
 
@@ -26,6 +27,14 @@ public class PresentMonPoller(ILogger logger)
 
     private string _currentSelectedApp = NO_SELECTED_APP;
 
+    // Foreground-window-derived process name (e.g. "MyGame.exe"). Used as the
+    // implicit filter when the user picks "Auto" in the dropdown. Empty until
+    // the first poll resolves a process. Updated on a background timer so we
+    // don't pay the GetForegroundWindow + Process.GetProcessById cost on every
+    // PresentMon CSV row.
+    private const int FOREGROUND_POLL_MS = 500;
+    private volatile string _foregroundAppName = "";
+
     // Rolling 1-second timestamp windows for frame-rate aggregation.
     // Each PresentMon CSV row is one frame; counting how many landed in the
     // last 1000ms gives classic frames-per-second, matching Afterburner/RTSS.
@@ -37,6 +46,12 @@ public class PresentMonPoller(ILogger logger)
     private const int FPS_WINDOW_MS = 1000;
     private readonly ConcurrentQueue<long> _presentedTimestamps = new();
     private readonly ConcurrentQueue<long> _displayedTimestamps = new();
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
 
     public async void Start(CancellationToken stoppingToken)
     {
@@ -76,6 +91,7 @@ public class PresentMonPoller(ILogger logger)
         _process.BeginErrorReadLine();
 
         _ = ClearCurrentAppsAsync(stoppingToken);
+        _ = PollForegroundAsync(stoppingToken);
         await _process.WaitForExitAsync(stoppingToken);
     }
 
@@ -86,39 +102,48 @@ public class PresentMonPoller(ILogger logger)
 
     private void ParseData(string? argsData)
     {
-        string[] parts;
-        if (argsData != null)
+        if (argsData == null) return;
+        var parts = argsData.Split(",");
+        if (parts.Length < 18) return;
+        CurrentApps.Add(parts[0]);
+
+        // Determine which app's frames count for the rolling window.
+        // - Manual selection: filter by exactly that app.
+        // - Auto (NO_SELECTED_APP): filter by the current foreground process.
+        //   This is what makes Auto actually auto-detect — without it, every
+        //   un-ignored process's frames would be summed into one count.
+        // If neither yields an app (foreground unresolved at startup), drop
+        // the row rather than aggregate everything.
+        var activeApp = _currentSelectedApp != NO_SELECTED_APP
+            ? _currentSelectedApp
+            : _foregroundAppName;
+
+        if (string.IsNullOrEmpty(activeApp) || activeApp != parts[0])
         {
-            parts = argsData.Split(",");
-            CurrentApps.Add(parts[0]);
-
-            if (_currentSelectedApp != NO_SELECTED_APP && _currentSelectedApp != parts[0])
-            {
-                return;
-            }
-
-            if (float.TryParse(parts[9], NumberStyles.Any, _cultureInfo, out var frametime))
-            {
-                Frametime.Value = frametime;
-            }
-
-            var nowMs = Environment.TickCount64;
-
-            // Every CSV row is a present event — count them over 1000ms.
-            _presentedTimestamps.Enqueue(nowMs);
-            TrimWindow(_presentedTimestamps, nowMs);
-            Presented.Value = _presentedTimestamps.Count;
-
-            // Only count as a displayed frame when the scan-out interval is
-            // non-zero (dropped frames report 0 here).
-            if (float.TryParse(parts[17], NumberStyles.Any, _cultureInfo, out var displayed)
-                && displayed > 0)
-            {
-                _displayedTimestamps.Enqueue(nowMs);
-            }
-            TrimWindow(_displayedTimestamps, nowMs);
-            Displayed.Value = _displayedTimestamps.Count;
+            return;
         }
+
+        if (float.TryParse(parts[9], NumberStyles.Any, _cultureInfo, out var frametime))
+        {
+            Frametime.Value = frametime;
+        }
+
+        var nowMs = Environment.TickCount64;
+
+        // Every CSV row is a present event — count them over 1000ms.
+        _presentedTimestamps.Enqueue(nowMs);
+        TrimWindow(_presentedTimestamps, nowMs);
+        Presented.Value = _presentedTimestamps.Count;
+
+        // Only count as a displayed frame when the scan-out interval is
+        // non-zero (dropped frames report 0 here).
+        if (float.TryParse(parts[17], NumberStyles.Any, _cultureInfo, out var displayed)
+            && displayed > 0)
+        {
+            _displayedTimestamps.Enqueue(nowMs);
+        }
+        TrimWindow(_displayedTimestamps, nowMs);
+        Displayed.Value = _displayedTimestamps.Count;
     }
 
     private static void TrimWindow(ConcurrentQueue<long> q, long nowMs)
@@ -172,5 +197,63 @@ public class PresentMonPoller(ILogger logger)
         OnUpdateApps?.Invoke();
         CurrentApps.Clear();
         _ = ClearCurrentAppsAsync(cancellationToken);
+    }
+
+    // Tracks the current foreground process name. PresentMon emits process
+    // names with the .exe suffix (e.g. "MyGame.exe"), so we match that format.
+    // When the foreground app changes while in Auto mode, the rolling window
+    // is cleared so the prior app's frames don't inflate the new app's count
+    // for the first second. Polled rather than hooked because SetWinEventHook
+    // requires a message pump, which this background service doesn't have.
+    private async Task PollForegroundAsync(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                var newName = "";
+                var hwnd = GetForegroundWindow();
+                if (hwnd != IntPtr.Zero)
+                {
+                    GetWindowThreadProcessId(hwnd, out var pid);
+                    if (pid != 0)
+                    {
+                        try
+                        {
+                            using var proc = Process.GetProcessById((int)pid);
+                            newName = proc.ProcessName + ".exe";
+                        }
+                        catch
+                        {
+                            // Process exited between the handle lookup and
+                            // here, or is inaccessible — leave newName empty.
+                        }
+                    }
+                }
+
+                if (newName != _foregroundAppName)
+                {
+                    _foregroundAppName = newName;
+                    if (_currentSelectedApp == NO_SELECTED_APP)
+                    {
+                        _presentedTimestamps.Clear();
+                        _displayedTimestamps.Clear();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Foreground poll failed");
+            }
+
+            try
+            {
+                await Task.Delay(FOREGROUND_POLL_MS, cancellationToken);
+            }
+            catch (TaskCanceledException)
+            {
+                break;
+            }
+        }
     }
 }

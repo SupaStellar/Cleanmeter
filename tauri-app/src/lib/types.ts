@@ -54,8 +54,16 @@ export interface GraphSensorConfig extends SensorConfig {
   boundaries: Boundaries;
 }
 
+// Framerate carries an extra targetAppName: the PresentMon app to filter on
+// (e.g. "MyGame.exe", or "" for Auto = foreground window). This is decoupled
+// from customReadingId, which still names the sensor identifier the overlay
+// reads its FPS value from (e.g. "/presentmon/displayed").
+export interface FramerateSensorConfig extends SensorConfig {
+  targetAppName: string;
+}
+
 export interface SensorsConfig {
-  framerate: SensorConfig;
+  framerate: FramerateSensorConfig;
   frametime: SensorConfig;
   cpuTemp: GraphSensorConfig;
   cpuUsage: GraphSensorConfig;
@@ -171,7 +179,7 @@ export const DEFAULT_SETTINGS: OverlaySettings = {
   pollingRate: 500,
   isLoggingEnabled: false,
   sensors: {
-    framerate: { isEnabled: true, customReadingId: "" },
+    framerate: { isEnabled: true, customReadingId: "", targetAppName: "" },
     frametime: { isEnabled: true, customReadingId: "" },
     cpuTemp: { isEnabled: true, customReadingId: "", boundaries: { low: 60, medium: 80, high: 90 } },
     cpuUsage: { isEnabled: true, customReadingId: "", boundaries: { low: 60, medium: 80, high: 90 } },
