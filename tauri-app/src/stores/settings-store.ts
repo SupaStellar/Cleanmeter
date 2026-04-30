@@ -4,7 +4,7 @@ import type {
   HardwareMonitorData,
   PipeStatus,
   SensorKey,
-  SensorConfig,
+  FramerateSensorConfig,
   GraphSensorConfig,
   Boundaries,
   AppPreferences,
@@ -158,7 +158,13 @@ interface SettingsStore {
   // Settings actions
   loadSettings: () => Promise<void>;
   updateSettings: (patch: Partial<OverlaySettings>) => void;
-  updateSensor: (key: SensorKey, patch: Partial<SensorConfig>) => void;
+  // Generic over SensorKey so framerate's extra targetAppName field is
+  // accepted, while non-framerate keys still see only the base SensorConfig
+  // shape.
+  updateSensor: <K extends SensorKey>(
+    key: K,
+    patch: Partial<OverlaySettings["sensors"][K]>
+  ) => void;
   updateGraphSensor: (
     key: SensorKey,
     patch: Partial<GraphSensorConfig>
@@ -208,8 +214,27 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       if (settings.useCustomPosition && settings.isPositionLocked) {
         settings.isPositionLocked = false;
       }
+      // Migrate older builds that wrote the chosen PresentMon app into
+      // framerate.customReadingId. customReadingId is now strictly a sensor
+      // identifier (e.g. "/presentmon/displayed"); the chosen app lives in
+      // targetAppName. Sensor identifiers always start with "/", app names
+      // don't — so anything not starting with "/" is a stale app name.
+      const fr = settings.sensors.framerate;
+      if (fr.customReadingId && !fr.customReadingId.startsWith("/")) {
+        settings.sensors = {
+          ...settings.sensors,
+          framerate: {
+            ...fr,
+            targetAppName: fr.targetAppName || fr.customReadingId,
+            customReadingId: "",
+          },
+        };
+      }
       set({ settings });
       tauri.setOverlayClickThrough(!settings.useCustomPosition && settings.isPositionLocked);
+      // Push the persisted target-app to the C# poller so it starts in sync.
+      // Empty string means Auto (foreground-window detection on the C# side).
+      tauri.selectPresentMonApp(settings.sensors.framerate.targetAppName || "Auto");
     } catch {
       tauri.setOverlayClickThrough(false);
     }
@@ -244,6 +269,17 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     const newSettings = { ...settings, sensors: newSensors };
     set({ settings: newSettings });
     debouncedSave(newSettings);
+
+    // The framerate target-app filter has to be pushed to the C# poller
+    // immediately — saving to disk alone never reached it, which is why
+    // manual selection had no effect on FPS. Empty maps to "Auto"
+    // (foreground-window detection on the C# side).
+    if (key === "framerate") {
+      const framerate = patch as Partial<FramerateSensorConfig>;
+      if (framerate.targetAppName !== undefined) {
+        tauri.selectPresentMonApp(framerate.targetAppName || "Auto");
+      }
+    }
   },
 
   updateGraphSensor: (key, patch) => {
@@ -305,7 +341,17 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     }
   },
   setPresentMonApps: (apps) => set({ presentMonApps: apps }),
-  setPipeStatus: (status) => set({ pipeStatus: status }),
+  setPipeStatus: (status) => {
+    const wasConnected = get().pipeStatus.connected;
+    set({ pipeStatus: status });
+    // After a (re)connect, resync the target-app filter — the C# poller
+    // restarts with `_currentSelectedApp = NONE`, so without this it would
+    // count every app's frames again until the next dropdown change.
+    if (status.connected && !wasConnected) {
+      const target = get().settings.sensors.framerate.targetAppName;
+      tauri.selectPresentMonApp(target || "Auto");
+    }
+  },
 
   toggleOverlay: () => {
     const visible = !get().overlayVisible;

@@ -55,9 +55,9 @@ export function FpsSection() {
       {presentMonApps.length > 0 && (
         <div className="flex flex-col gap-3">
           <Select
-            value={framerate.customReadingId || "__auto__"}
+            value={framerate.targetAppName || "__auto__"}
             onValueChange={(v) =>
-              updateSensor("framerate", { customReadingId: v === "__auto__" ? "" : v })
+              updateSensor("framerate", { targetAppName: v === "__auto__" ? "" : v })
             }
           >
             <SelectTrigger className="h-10 rounded-[8px] text-[14px]">

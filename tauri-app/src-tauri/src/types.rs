@@ -190,6 +190,29 @@ impl Default for SensorConfig {
     }
 }
 
+// Mirrors the TS FramerateSensorConfig: SensorConfig + the PresentMon app
+// filter. `default` on target_app_name keeps existing saved settings loadable
+// (older builds didn't write the field).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FramerateSensorConfig {
+    #[serde(rename = "isEnabled")]
+    pub is_enabled: bool,
+    #[serde(rename = "customReadingId")]
+    pub custom_reading_id: String,
+    #[serde(rename = "targetAppName", default)]
+    pub target_app_name: String,
+}
+
+impl Default for FramerateSensorConfig {
+    fn default() -> Self {
+        FramerateSensorConfig {
+            is_enabled: true,
+            custom_reading_id: String::new(),
+            target_app_name: String::new(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GraphSensorConfig {
     #[serde(rename = "isEnabled")]
@@ -211,7 +234,7 @@ impl Default for GraphSensorConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SensorsConfig {
-    pub framerate: SensorConfig,
+    pub framerate: FramerateSensorConfig,
     pub frametime: SensorConfig,
     #[serde(rename = "cpuTemp")]
     pub cpu_temp: GraphSensorConfig,
@@ -240,7 +263,7 @@ pub struct SensorsConfig {
 impl Default for SensorsConfig {
     fn default() -> Self {
         SensorsConfig {
-            framerate: SensorConfig::default(),
+            framerate: FramerateSensorConfig::default(),
             frametime: SensorConfig::default(),
             cpu_temp: GraphSensorConfig::default(),
             cpu_usage: GraphSensorConfig::default(),
