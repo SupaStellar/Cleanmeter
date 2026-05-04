@@ -12,15 +12,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Windows-only release. The HardwareMonitor sidecar depends on
+          # PresentMon (ETW, Windows-only) and LibreHardwareMonitor's
+          # WinRing0 driver (Windows-only) for FPS + sensor data, so the
+          # macOS/Linux bundles ship a non-functional service. Keep the
+          # matrix structure for future re-introduction.
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
             bundles: nsis
-          - platform: macos-latest
-            target: aarch64-apple-darwin
-            bundles: dmg,app
-          - platform: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            bundles: deb
 
     runs-on: ${{ matrix.platform }}
 
