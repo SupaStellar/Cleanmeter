@@ -53,17 +53,39 @@ public class PresentMonPoller(ILogger logger)
     private const int FOREGROUND_POLL_MS = 500;
     private volatile string _foregroundAppName = "";
 
-    // Rolling 1-second timestamp windows for frame-rate aggregation.
-    // Each PresentMon CSV row is one frame; counting how many landed in the
-    // last 1000ms gives classic frames-per-second, matching Afterburner/RTSS.
-    // Without this, Value would be 1000/single_frametime — per-frame
-    // instantaneous FPS, which is extremely noisy.
-    // ConcurrentQueue rather than Queue: ParseData runs on the
-    // OutputDataReceived background thread while SetSelectedApp/Clear can
-    // fire from the UI thread, and Queue<T> is not thread-safe.
+    // Frame-time-based FPS aggregation, indexed by PresentMon's own
+    // CPUStartTime (column 8, ms since capture start) — NOT wall-clock
+    // arrival. PresentMon delivers rows in ETW bursts (often a 300+ row
+    // dump every other second), so an arrival-time window inflates 2-3x
+    // during bursts even though the long-term rate matches the game.
+    // Frame timestamps are immune to delivery jitter: 380 rows arriving
+    // in 50ms still represent ~6 seconds of game time and trim correctly.
+    // fps = N * 1000 / Σ frametime_ms — the same formula CapFrameX,
+    // OCAT, and the Intel PresentMon SDK use.
     private const int FPS_WINDOW_MS = 1000;
-    private readonly ConcurrentQueue<long> _presentedTimestamps = new();
-    private readonly ConcurrentQueue<long> _displayedTimestamps = new();
+    private const int FPS_STALE_MS = 1500;
+    private readonly Queue<(double startTimeMs, float intervalMs)> _presentedFrames = new();
+    private readonly Queue<(double startTimeMs, float intervalMs)> _displayedFrames = new();
+    // Running sums kept in lockstep with the queues so UpdateFromBuffer is
+    // O(1) instead of O(N). At 180-300 fps the queues hold ~180-300 entries
+    // and ParseData's O(N) sum was burning lock-time on every row; pre-aggregating
+    // means the lock-held block is just an enqueue + dequeue + arithmetic.
+    private double _presentedSumMs;
+    private double _displayedSumMs;
+    private double _latestStartTimeMs;
+    private long _lastRowArrivalMs;
+
+    // FPS diagnostics. Counters live under _stateLock alongside the other
+    // attribution state. Rollup task logs once per FPS_DIAG_WINDOW_MS so the
+    // log line cadence matches what the overlay shows; raw-row dump is one-
+    // shot and bounded so large CSVs don't bloat the log.
+    private const int FPS_DIAG_WINDOW_MS = 1000;
+    private const int RAW_ROWS_TO_LOG = 3;
+    private int _rawRowsLogged;
+    private readonly Dictionary<string, int> _countedByApp = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, int> _droppedByApp = new(StringComparer.OrdinalIgnoreCase);
+    private int _shortRowCount;
+    private int _totalRowCount;
 
     [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
@@ -121,6 +143,7 @@ public class PresentMonPoller(ILogger logger)
 
         _ = ClearCurrentAppsAsync(stoppingToken);
         _ = PollForegroundAsync(stoppingToken);
+        _ = LogFpsDiagnosticsAsync(stoppingToken);
         await _process.WaitForExitAsync(stoppingToken);
     }
 
@@ -133,7 +156,24 @@ public class PresentMonPoller(ILogger logger)
     {
         if (argsData == null) return;
         var parts = argsData.Split(",");
-        if (parts.Length < 18) return;
+
+        // One-shot raw-row dump verifies PresentMon's actual column layout
+        // matches the hard-coded indices ([0]=app, [9]=frametime,
+        // [17]=displayed). If PresentMon's CSV format changed, attribution
+        // would silently read wrong columns — this catches that.
+        var seen = Interlocked.Increment(ref _rawRowsLogged);
+        if (seen <= RAW_ROWS_TO_LOG)
+        {
+            logger.LogDebug("[FPS-DEBUG] Raw row {N} ({Cols} cols): {Line}",
+                seen, parts.Length, argsData);
+        }
+
+        Interlocked.Increment(ref _totalRowCount);
+        if (parts.Length < 18)
+        {
+            Interlocked.Increment(ref _shortRowCount);
+            return;
+        }
 
         var rowApp = parts[0];
         var nowMs = Environment.TickCount64;
@@ -184,54 +224,90 @@ public class PresentMonPoller(ILogger logger)
                         && string.Equals(_foregroundAppName, rowApp, StringComparison.OrdinalIgnoreCase);
             }
 
+            if (match)
+                _countedByApp[rowApp] = _countedByApp.GetValueOrDefault(rowApp) + 1;
+            else
+                _droppedByApp[rowApp] = _droppedByApp.GetValueOrDefault(rowApp) + 1;
+
             if (!match) return;
 
-            // Every CSV row that gets here is a present event for the
-            // active app. Enqueue under the lock so concurrent queue
-            // clears (foreground swap, SetSelectedApp) can't drop this
-            // frame mid-update.
-            _presentedTimestamps.Enqueue(nowMs);
+            // Parse PresentMon's per-frame timestamps. CPUStartTime [8]
+            // is monotonic ms since capture start; FrameTime [9] is the
+            // present-to-present interval. fps = N * 1000 / Σ frametime
+            // is independent of when the row arrived in our process,
+            // which is the point — ETW burst delivery doesn't affect it.
+            // Skip rows we can't parse or with non-positive frametime
+            // (would NaN the sum or divide by zero downstream).
+            if (!double.TryParse(parts[8], NumberStyles.Any, _cultureInfo, out var startMs)) return;
+            if (!float.TryParse(parts[9], NumberStyles.Any, _cultureInfo, out var ftMs) || ftMs <= 0) return;
 
-            // Only count as a displayed frame when the scan-out interval
-            // is non-zero (dropped frames report 0 here).
-            if (float.TryParse(parts[17], NumberStyles.Any, _cultureInfo, out var displayed)
-                && displayed > 0)
+            if (startMs > _latestStartTimeMs) _latestStartTimeMs = startMs;
+            _lastRowArrivalMs = nowMs;
+
+            _presentedFrames.Enqueue((startMs, ftMs));
+            _presentedSumMs += ftMs;
+            UpdateFromBuffer(_presentedFrames, ref _presentedSumMs, Presented);
+
+            // Displayed FPS uses the display-to-display interval (column
+            // 17), NOT the present-to-present interval. The presented-FPS
+            // and displayed-FPS values diverge whenever the display
+            // refresh rate clamps the rendered framerate (e.g. 240fps
+            // game on a 144Hz monitor displays ~144fps). Frames where
+            // DisplayedTime is 0 were dropped before scan-out and don't
+            // contribute to either count or sum.
+            if (double.TryParse(parts[17], NumberStyles.Any, _cultureInfo, out var displayedTime)
+                && displayedTime > 0)
             {
-                _displayedTimestamps.Enqueue(nowMs);
+                var dtMs = (float)displayedTime;
+                _displayedFrames.Enqueue((startMs, dtMs));
+                _displayedSumMs += dtMs;
+                UpdateFromBuffer(_displayedFrames, ref _displayedSumMs, Displayed);
             }
-        }
 
-        // Trimming and Value writes happen outside the lock — both queues
-        // are ConcurrentQueue and the sensor Value writes are independent
-        // of the attribution state. Holding the lock through TrimWindow
-        // (which can dequeue hundreds of items per call) would stall
-        // PollForegroundAsync at 500ms cadence on every row.
-        if (float.TryParse(parts[9], NumberStyles.Any, _cultureInfo, out var frametime))
-        {
-            Frametime.Value = frametime;
+            // Raw per-frame value — graph plots history of this and gets
+            // the high-frequency jitter that's diagnostic of stutters /
+            // 1% lows. The averaged FPS reading is computed separately
+            // from the buffer above; the two are intentionally different
+            // shapes.
+            Frametime.Value = ftMs;
         }
-        TrimWindow(_presentedTimestamps, nowMs);
-        Presented.Value = _presentedTimestamps.Count;
-        TrimWindow(_displayedTimestamps, nowMs);
-        Displayed.Value = _displayedTimestamps.Count;
     }
 
-    private static void TrimWindow(ConcurrentQueue<long> q, long nowMs)
+    // Trims entries older than FPS_WINDOW_MS of game time (using PresentMon's
+    // own CPUStartTime, NOT wall clock — see field comment above) and
+    // recomputes the sensor value as fps = N * 1000 / Σ interval_ms. Maintains
+    // the running sum by ref so the trim is O(K) on the entries actually
+    // dequeued (typically 0-1 per call) rather than O(N) over the whole
+    // buffer. Caller must hold _stateLock. Empty buffer → 0 fps.
+    private void UpdateFromBuffer(Queue<(double startTimeMs, float intervalMs)> q, ref double sumMs, PresentMonSensor sensor)
     {
-        while (q.TryPeek(out var oldest) && nowMs - oldest > FPS_WINDOW_MS)
+        while (q.Count > 0 && _latestStartTimeMs - q.Peek().startTimeMs > FPS_WINDOW_MS)
         {
-            q.TryDequeue(out _);
+            sumMs -= q.Dequeue().intervalMs;
         }
+        if (q.Count == 0 || sumMs <= 0)
+        {
+            sumMs = 0;
+            sensor.Value = 0;
+            return;
+        }
+        sensor.Value = (float)(q.Count * 1000.0 / sumMs);
     }
 
     public void SetSelectedApp(string appName)
     {
         lock (_stateLock)
         {
-            // Drop prior app's timestamps so the 1s window doesn't inflate
-            // the new app's FPS for the first second after a switch.
-            _presentedTimestamps.Clear();
-            _displayedTimestamps.Clear();
+            // Drop prior app's frametimes so the 1s window doesn't blend
+            // the new app's FPS with the old app's frame timings.
+            _presentedFrames.Clear();
+            _displayedFrames.Clear();
+            _presentedSumMs = 0;
+            _displayedSumMs = 0;
+            _latestStartTimeMs = 0;
+            Presented.Value = 0;
+            Displayed.Value = 0;
+            Frametime.Value = 0;
             // Reset the stale-fallback clock so a freshly-picked app gets a
             // full SELECTED_APP_STALE_MS grace period before we'd ever
             // fall back to foreground attribution.
@@ -315,6 +391,101 @@ public class PresentMonPoller(ILogger logger)
         }
     }
 
+    // Once-per-second rollup of attribution outcomes. Logs which processes
+    // contributed counted vs dropped rows in the just-elapsed window plus
+    // the rolling-window queue sizes — directly comparable to whatever the
+    // overlay is currently showing. If the overlay reads 425 fps but the
+    // log shows counted={Game.exe:180}, the inflation is downstream of
+    // here (queue-trim, sensor wiring); if the log shows
+    // counted={Game.exe:425}, PresentMon is genuinely emitting 425
+    // application rows/sec for the game and the bug is upstream (column
+    // layout, FrameType, dual-presents in borderless).
+    private async Task LogFpsDiagnosticsAsync(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                await Task.Delay(FPS_DIAG_WINDOW_MS, cancellationToken);
+            }
+            catch (TaskCanceledException)
+            {
+                break;
+            }
+
+            Dictionary<string, int> counted, dropped;
+            int total, shortRows;
+            string fg, sel;
+            int presentedQueue, displayedQueue;
+            float fps, ft;
+            bool stale;
+            lock (_stateLock)
+            {
+                // Re-trim and recompute under the lock so the overlay value
+                // refreshes even when PresentMon is between bursts (an
+                // arrival-only path went stale here for up to a second). If
+                // no row has arrived for FPS_STALE_MS, treat as paused /
+                // alt-tabbed and zero everything out — otherwise the buffer
+                // would keep showing the last burst's fps forever.
+                var wallNow = Environment.TickCount64;
+                stale = _lastRowArrivalMs == 0 || wallNow - _lastRowArrivalMs > FPS_STALE_MS;
+                if (stale)
+                {
+                    _presentedFrames.Clear();
+                    _displayedFrames.Clear();
+                    _presentedSumMs = 0;
+                    _displayedSumMs = 0;
+                    Presented.Value = 0;
+                    Displayed.Value = 0;
+                    Frametime.Value = 0;
+                }
+                else
+                {
+                    UpdateFromBuffer(_presentedFrames, ref _presentedSumMs, Presented);
+                    UpdateFromBuffer(_displayedFrames, ref _displayedSumMs, Displayed);
+                    // Frametime intentionally not updated here — ParseData
+                    // sets it raw per row so the overlay graph keeps its
+                    // per-frame jitter. This branch only refreshes the
+                    // averaged FPS counters that ParseData wouldn't update
+                    // between bursts.
+                }
+
+                counted = new Dictionary<string, int>(_countedByApp, StringComparer.OrdinalIgnoreCase);
+                dropped = new Dictionary<string, int>(_droppedByApp, StringComparer.OrdinalIgnoreCase);
+                _countedByApp.Clear();
+                _droppedByApp.Clear();
+                total = Interlocked.Exchange(ref _totalRowCount, 0);
+                shortRows = Interlocked.Exchange(ref _shortRowCount, 0);
+                fg = _foregroundAppName;
+                sel = _currentSelectedApp;
+                presentedQueue = _presentedFrames.Count;
+                displayedQueue = _displayedFrames.Count;
+                fps = Presented.Value ?? 0f;
+                ft = Frametime.Value ?? 0f;
+            }
+            var countedStr = counted.Count == 0
+                ? "-"
+                : string.Join(", ", counted.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key}:{kv.Value}"));
+            var droppedStr = dropped.Count == 0
+                ? "-"
+                : string.Join(", ", dropped.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key}:{kv.Value}"));
+
+            logger.LogDebug(
+                "[FPS-DEBUG] fg={Fg} sel={Sel} fps={Fps:F1} ft={Ft:F2}ms buf.presented={QP} buf.displayed={QD} rows={Total} short={Short} stale={Stale} counted=[{Counted}] dropped=[{Dropped}]",
+                string.IsNullOrEmpty(fg) ? "(empty)" : fg,
+                sel,
+                fps,
+                ft,
+                presentedQueue,
+                displayedQueue,
+                total,
+                shortRows,
+                stale,
+                countedStr,
+                droppedStr);
+        }
+    }
+
     // Tracks the current foreground process name. When the foreground app
     // changes while in Auto mode, the rolling window is cleared so the
     // prior app's frames don't inflate the new app's count for the first
@@ -336,11 +507,20 @@ public class PresentMonPoller(ILogger logger)
                 {
                     if (!string.Equals(newName, _foregroundAppName, StringComparison.OrdinalIgnoreCase))
                     {
+                        logger.LogDebug("[FPS-DEBUG] Foreground change: {Old} -> {New}",
+                            string.IsNullOrEmpty(_foregroundAppName) ? "(empty)" : _foregroundAppName,
+                            string.IsNullOrEmpty(newName) ? "(empty)" : newName);
                         _foregroundAppName = newName;
                         if (_currentSelectedApp == NO_SELECTED_APP)
                         {
-                            _presentedTimestamps.Clear();
-                            _displayedTimestamps.Clear();
+                            _presentedFrames.Clear();
+                            _displayedFrames.Clear();
+                            _presentedSumMs = 0;
+                            _displayedSumMs = 0;
+                            _latestStartTimeMs = 0;
+                            Presented.Value = 0;
+                            Displayed.Value = 0;
+                            Frametime.Value = 0;
                         }
                     }
                 }
