@@ -77,10 +77,78 @@ jobs:
         run: ls -la HardwareMonitor/HardwareMonitor/bin/Release/net8.0/win-x64/publish/
         shell: bash
 
+      - name: Sign Windows binaries
+        if: matrix.platform == 'windows-latest'
+        # Signs the bundled binaries (HardwareMonitor.exe, presentmon.exe)
+        # before Tauri packages them into the installer. Tauri itself signs
+        # the installer + main exe via tauri.conf.json's signCommand.
+        #
+        # Imports the PFX into the runner's CurrentUser cert store and
+        # signs by thumbprint (signtool /sha1) rather than passing the PFX
+        # password on the command line. GitHub Actions redacts secrets
+        # from log output, but a /p <password> argument is still visible
+        # in OS-level process listings (Process Monitor, ETW) for the
+        # lifetime of the signtool call. Cert-store import keeps the
+        # password off the command line entirely.
+        #
+        # No-op when WINDOWS_CERTIFICATE_BASE64 is unset (PR builds from
+        # forks, local workflow_dispatch without secrets) so the build
+        # continues to work unsigned for development.
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          if (-not $env:WINDOWS_CERTIFICATE_BASE64) {
+            Write-Host "WINDOWS_CERTIFICATE_BASE64 not set — skipping code signing."
+            exit 0
+          }
+          $certPath = Join-Path $env:RUNNER_TEMP "code-signing-cert.pfx"
+          [IO.File]::WriteAllBytes($certPath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64))
+
+          $securePassword = ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
+          $cert = Import-PfxCertificate -FilePath $certPath `
+            -CertStoreLocation Cert:\CurrentUser\My `
+            -Password $securePassword
+          $thumbprint = $cert.Thumbprint
+          # Drop the PFX from disk now that it's in the store. The
+          # GitHub-hosted runner is ephemeral, but no point leaving it.
+          Remove-Item $certPath -Force
+
+          # Persist the thumbprint for the Tauri step that follows so its
+          # signCommand can sign by thumbprint with no password on the
+          # command line.
+          "WINDOWS_CERTIFICATE_THUMBPRINT=$thumbprint" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+          # signtool ships with the Windows SDK; locate the latest version
+          # rather than relying on PATH (the GitHub-hosted runner image
+          # changes its SDK version periodically).
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" |
+            Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
+          if (-not $signtool) { throw "signtool.exe not found on runner" }
+
+          $publishDir = "HardwareMonitor/HardwareMonitor/bin/Release/net8.0/win-x64/publish"
+          $targets = @("$publishDir/HardwareMonitor.exe", "$publishDir/presentmon.exe")
+          foreach ($exe in $targets) {
+            if (-not (Test-Path $exe)) {
+              Write-Host "::warning::Sign target missing: $exe"
+              continue
+            }
+            & $signtool sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 `
+              /sha1 $thumbprint $exe
+            if ($LASTEXITCODE -ne 0) { throw "signtool failed for $exe" }
+          }
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Tauri's signCommand reads this thumbprint to sign the
+          # installer + main exe via the cert imported in the step above.
+          # When unset (no cert configured / non-Windows), the signCommand
+          # wrapper detects the missing thumbprint and skips signing
+          # rather than failing the build.
+          WINDOWS_CERTIFICATE_THUMBPRINT: ${{ env.WINDOWS_CERTIFICATE_THUMBPRINT }}
         with:
           projectPath: tauri-app
           tagName: v__VERSION__
