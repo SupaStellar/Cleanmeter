@@ -215,9 +215,13 @@ public class MonitorPoller(
         using var memoryStream = new MemoryStream();
         using var writer = new BinaryWriter(memoryStream);
 
+        // Take a snapshot under PresentMonPoller's _stateLock — iterating
+        // CurrentApps directly would race with ParseData's Add on the
+        // PresentMon callback thread.
+        var apps = _presentMonPoller.SnapshotCurrentApps();
         writer.Write((short)MonitorPacketCommand.PresentMonApps);
-        writer.Write((short)_presentMonPoller.CurrentApps.Count);
-        foreach (var app in _presentMonPoller.CurrentApps)
+        writer.Write((short)apps.Length);
+        foreach (var app in apps)
         {
             writer.Write(GetBytes(app, SharedMemoryConsts.NameSize));
         }
