@@ -16,8 +16,37 @@ If you do not want this driver on your machine, **do not install CleanMeter**. H
 
 ## What CleanMeter does about it
 
-- CleanMeter's installer, main executable (`cleanmeter.exe`), background sidecar (`HardwareMonitor.exe`), and bundled `presentmon.exe` are **Authenticode-signed** for tagged release builds. The signature establishes provenance — it does not change Defender's verdict on WinRing0 itself, but it eliminates the "Unknown publisher" SmartScreen prompt and the unrelated heuristic flags that hit unsigned binaries.
+- CleanMeter's CI has **Authenticode signing infrastructure wired up** for the installer, main executable (`cleanmeter.exe`), background sidecar (`HardwareMonitor.exe`), and bundled `presentmon.exe`. As of v2.1.3 the project does not yet have a code-signing certificate funded, so tagged release builds are currently shipped unsigned. Once a certificate is added to the repository's GitHub secrets, every subsequent tag will produce signed bundles automatically with no further code changes — the signing path is conditional on the secret being present.
 - CleanMeter does not bundle a separately-signed kernel driver of its own. The WinRing0 driver lives inside `LibreHardwareMonitorLib`.
+
+## What you'll see today (unsigned releases)
+
+Until CleanMeter ships signed, two separate Windows prompts can appear and they have different causes.
+
+### 1. SmartScreen "Windows protected your PC" (purple popup, on first launch of the installer)
+
+```
+Windows protected your PC
+Microsoft Defender SmartScreen prevented an unrecognized app from
+starting. Running this app might put your PC at risk.
+
+App:        CleanMeter_X.Y.Z_x64-setup.exe
+Publisher:  Unknown publisher
+```
+
+**This is reputation-based, not a virus detection.** SmartScreen flags every unsigned `.exe` from a publisher Windows hasn't seen — including perfectly legitimate ones — until the binary either accumulates thousands of clean installs to build reputation organically, or is signed with a code-signing certificate. (An EV certificate clears the prompt immediately; an OV certificate fades as reputation accrues over hundreds of installs.)
+
+To bypass it for the current release: click **More info → Run anyway**. Before you do, verify the file's SHA-256 against the value listed on the GitHub release page:
+
+```powershell
+Get-FileHash CleanMeter_2.1.3_x64-setup.exe -Algorithm SHA256
+```
+
+If the hash matches the release page, the file you have is byte-for-byte identical to what GitHub built from the tagged source. Sign-off equivalent of an Authenticode signature, just manual.
+
+### 2. `VulnerableDriver:WinNT/Winring0` (Defender quarantine, post-install)
+
+This is the genuine WinRing0 flag covered in the section above. It fires on the LibreHardwareMonitor driver, not on the CleanMeter binaries themselves, and is **independent** of whether CleanMeter is code-signed. Signing the installer would remove the SmartScreen prompt but would not change this flag.
 
 ## If Defender quarantines CleanMeter
 
