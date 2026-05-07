@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/nicegui/toolkits/refs/heads/main/tauri/schema.json",
   "productName": "CleanMeter",
   "identifier": "com.cleanmeter.desktop",
-  "version": "2.2.0-preview-early-build",
+  "version": "2.2.1-preview-early-build",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",

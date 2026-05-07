@@ -1,7 +1,7 @@
 {
   "name": "cleanmeter",
   "private": true,
-  "version": "2.2.0-preview-early-build",
+  "version": "2.2.1-preview-early-build",
   "type": "module",
   "scripts": {
     "build:tokens": "node sd.config.js",
