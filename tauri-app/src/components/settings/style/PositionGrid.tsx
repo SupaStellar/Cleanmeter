@@ -133,7 +133,7 @@ export function PositionGrid() {
                     <span
                       className={cn(
                         "absolute size-2",
-                        selected ? "rounded-full bg-foreground" : "rounded-[2px] bg-border",
+                        selected ? "rounded-full bg-foreground" : "rounded-full bg-border",
                         p.pipClass,
                       )}
                     />
