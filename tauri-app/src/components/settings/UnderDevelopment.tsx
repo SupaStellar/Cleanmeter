@@ -46,7 +46,7 @@ function BuildAvatar({ className }: { className?: string }) {
 
 export function UnderDevelopment() {
   return (
-    <div className="flex h-[545px] w-full flex-col items-center justify-center gap-3 rounded-[12px] border border-border/50 p-5">
+    <div className="flex h-full w-full flex-col items-center justify-center gap-3 rounded-[12px] border border-border/50 p-5">
       <BuildAvatar />
       <div className="flex w-full flex-col gap-1">
         <p className="w-full text-center text-[14px] font-medium leading-[22px] text-foreground">
