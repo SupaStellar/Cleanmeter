@@ -34,7 +34,7 @@ export function SettingsIcon({ className }: IconProps) {
   );
 }
 
-export function AboutIcon({ className }: IconProps) {
+export function HelpIcon({ className }: IconProps) {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
       <path

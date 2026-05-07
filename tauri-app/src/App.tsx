@@ -3,8 +3,7 @@ import { TopBar } from "@/components/settings/TopBar";
 import { TabNav, type SettingsTab } from "@/components/settings/TabNav";
 import { StatsTab } from "@/components/settings/stats/StatsTab";
 import { StyleTab } from "@/components/settings/style/StyleTab";
-import { AppSettingsTab } from "@/components/settings/AppSettingsTab";
-import { AboutTab } from "@/components/settings/AboutTab";
+import { UnderDevelopment } from "@/components/settings/UnderDevelopment";
 import { useSensorData } from "@/hooks/useSensorData";
 import { useHotkey } from "@/hooks/useHotkey";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -92,8 +91,8 @@ export default function App() {
         <div className="min-h-0 flex-1 overflow-y-auto">
           {activeTab === "stats" && <StatsTab />}
           {activeTab === "style" && <StyleTab />}
-          {activeTab === "settings" && <AppSettingsTab />}
-          {activeTab === "about" && <AboutTab />}
+          {activeTab === "settings" && <UnderDevelopment />}
+          {activeTab === "help" && <UnderDevelopment />}
         </div>
       </div>
     </div>
