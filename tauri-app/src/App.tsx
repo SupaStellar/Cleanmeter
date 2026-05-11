@@ -3,6 +3,7 @@ import { TopBar } from "@/components/settings/TopBar";
 import { TabNav, type SettingsTab } from "@/components/settings/TabNav";
 import { StatsTab } from "@/components/settings/stats/StatsTab";
 import { StyleTab } from "@/components/settings/style/StyleTab";
+import { HelpTab } from "@/components/settings/help/HelpTab";
 import { UnderDevelopment } from "@/components/settings/UnderDevelopment";
 import { useSensorData } from "@/hooks/useSensorData";
 import { useHotkey } from "@/hooks/useHotkey";
@@ -92,7 +93,7 @@ export default function App() {
           {activeTab === "stats" && <StatsTab />}
           {activeTab === "style" && <StyleTab />}
           {activeTab === "settings" && <UnderDevelopment />}
-          {activeTab === "help" && <UnderDevelopment />}
+          {activeTab === "help" && <HelpTab />}
         </div>
       </div>
     </div>
