@@ -1,22 +1,46 @@
+import type { ReactNode } from "react";
+
 type FaqItem = {
   question: string;
-  answer: string;
+  answer: ReactNode;
 };
 
-// TODO: replace with API data
 const FAQ_ITEMS: FaqItem[] = [
   {
-    question: "Need more support?",
+    question: "Is Cleanmeter resource-heavy?",
     answer:
-      "You can join our discord server were we actively help and answer questions.",
+      "No! Cleanmeter is designed to be lightweight and efficient, ensuring it runs smoothly without impacting your system's performance.",
   },
   {
-    question: "How do I get better in games?",
-    answer: "Lol, you on your own on that one.",
+    question: "Can I customize what stats are displayed?",
+    answer:
+      "Yes, you can refine the stats. All stats are completely customizable.",
   },
   {
-    question: "What are the current limitations?",
-    answer: "Lol, you on your own on that one.",
+    question: "Is Cleanmeter free to use?",
+    answer: "Yes, clean meter is currently free to use for everyone!",
+  },
+  {
+    question: "Can Cleanmeter make me better at games?",
+    answer:
+      "No, but it'll make sure your PC isn't having a meltdown mid-match. And hey, if your skills are still lacking, at least your overlay will be clean and accurate.",
+  },
+  {
+    question: "How do I contact support?",
+    answer: (
+      <>
+        Join our{" "}
+        <a
+          href="https://discord.gg/CN2b7d4c9"
+          target="_blank"
+          rel="noreferrer"
+          className="font-medium text-foreground underline"
+        >
+          discord server
+        </a>{" "}
+        and share your feedback.
+      </>
+    ),
   },
 ];
 

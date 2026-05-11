@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { TopBar } from "@/components/settings/TopBar";
-import { TabNav, type SettingsTab } from "@/components/settings/TabNav";
+import { TabNav, type SettingsTab as TabKey } from "@/components/settings/TabNav";
 import { StatsTab } from "@/components/settings/stats/StatsTab";
 import { StyleTab } from "@/components/settings/style/StyleTab";
+import { SettingsTab } from "@/components/settings/settings/SettingsTab";
 import { HelpTab } from "@/components/settings/help/HelpTab";
-import { UnderDevelopment } from "@/components/settings/UnderDevelopment";
 import { useSensorData } from "@/hooks/useSensorData";
 import { useHotkey } from "@/hooks/useHotkey";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -61,7 +61,7 @@ function MonitoringBanner() {
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<SettingsTab>("stats");
+  const [activeTab, setActiveTab] = useState<TabKey>("stats");
   const settings = useSettingsStore((s) => s.settings);
   const loadSettings = useSettingsStore((s) => s.loadSettings);
   const loadPreferences = useSettingsStore((s) => s.loadPreferences);
@@ -92,7 +92,7 @@ export default function App() {
         <div className="min-h-0 flex-1 overflow-y-auto">
           {activeTab === "stats" && <StatsTab />}
           {activeTab === "style" && <StyleTab />}
-          {activeTab === "settings" && <UnderDevelopment />}
+          {activeTab === "settings" && <SettingsTab />}
           {activeTab === "help" && <HelpTab />}
         </div>
       </div>

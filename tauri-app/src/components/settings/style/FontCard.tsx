@@ -1,4 +1,4 @@
-import { SectionCard } from "@/components/settings/stats/SectionCard";
+import { CollapsibleCard } from "./CollapsibleCard";
 import {
   Select,
   SelectContent,
@@ -6,17 +6,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/shadcn/select";
+import { cn } from "@/lib/utils";
 import { useSettingsStore } from "@/stores/settings-store";
 
-/**
- * FONT card. Matches Figma 2075:7779. Two rows:
- *   Label  [size ▾]   [weight ▾]
- *   Stats  [size ▾]   [weight ▾]
- *
- * Each row has independent size and weight bindings:
- *   Label → fontSizeLabel + labelFontWeight
- *   Stats → fontSizeValue + fontWeight
- */
+// FONT card — Figma 2310:3197. Two rows:
+//   [Label]  [size ▾]   [weight ▾]
+//   [Stats]  [size ▾]   [weight ▾]
+// All three columns share equal flex-1 width; gap-3 horizontally & vertically.
 
 const SIZE_OPTIONS = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32] as const;
 
@@ -30,6 +26,12 @@ const WEIGHT_OPTIONS: { value: number; label: string }[] = [
 function weightLabel(value: number) {
   return WEIGHT_OPTIONS.find((w) => w.value === value)?.label ?? "Medium";
 }
+
+const triggerClasses = cn(
+  "h-10 flex-1 rounded-[8px] border-[#CECFD2] bg-card px-3 py-2 font-medium",
+  "shadow-[0px_1px_1px_0px_rgba(16,24,40,0.05)]",
+  "text-[14px] text-[#0C111D] [&_svg]:size-5 [&_svg]:opacity-100",
+);
 
 function FontRow({
   label,
@@ -45,15 +47,15 @@ function FontRow({
   onWeightChange: (v: number) => void;
 }) {
   return (
-    <div className="flex items-center gap-3">
-      <span className="w-[180px] shrink-0 text-[14px] font-medium text-foreground">
+    <div className="flex w-full items-center gap-3">
+      <span className="flex-1 text-[14px] font-medium leading-none text-[#0C111D]">
         {label}
       </span>
       <Select
         value={String(size)}
         onValueChange={(v) => onSizeChange(parseInt(v, 10))}
       >
-        <SelectTrigger className="h-10 flex-1 rounded-[8px] text-[14px] font-medium">
+        <SelectTrigger className={triggerClasses}>
           <SelectValue placeholder="Size" />
         </SelectTrigger>
         <SelectContent>
@@ -68,7 +70,7 @@ function FontRow({
         value={String(weight)}
         onValueChange={(v) => onWeightChange(parseInt(v, 10))}
       >
-        <SelectTrigger className="h-10 flex-1 rounded-[8px] text-[14px] font-medium">
+        <SelectTrigger className={triggerClasses}>
           <SelectValue placeholder="Weight">{weightLabel(weight)}</SelectValue>
         </SelectTrigger>
         <SelectContent>
@@ -88,7 +90,7 @@ export function FontCard() {
   const updateSettings = useSettingsStore((s) => s.updateSettings);
 
   return (
-    <SectionCard title="Font">
+    <CollapsibleCard title="Font">
       <div className="flex flex-col gap-3">
         <FontRow
           label="Label"
@@ -105,6 +107,6 @@ export function FontCard() {
           onWeightChange={(v) => updateSettings({ fontWeight: v })}
         />
       </div>
-    </SectionCard>
+    </CollapsibleCard>
   );
 }
