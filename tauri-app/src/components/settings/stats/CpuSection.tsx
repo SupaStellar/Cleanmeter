@@ -1,15 +1,9 @@
 import { useRef } from "react";
-import type { Sensor, Hardware } from "@/lib/types";
-import { SensorType, HardwareType } from "@/lib/types";
+import type { Hardware, Sensor } from "@/lib/types";
+import { HardwareType, SensorType } from "@/lib/types";
 import { useSettingsStore } from "@/stores/settings-store";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/shadcn/select";
 import { SectionCard, SubCollapsible } from "./SectionCard";
+import { SensorSelect } from "./SensorSelect";
 import { TempRangeControl } from "./TempRangeControl";
 
 interface Props {
@@ -73,24 +67,11 @@ export function CpuSection({ sensors, hardwares }: Props) {
         >
           <div className="flex flex-col gap-4">
             {cpuLoadSensors.length > 0 && (
-              <Select
+              <SensorSelect
                 value={cpuUsage.customReadingId}
-                onValueChange={(v) => updateSensor("cpuUsage", { customReadingId: v })}
-              >
-                <SelectTrigger className="h-10 rounded-[8px] bg-card text-[14px]">
-                  <span className="flex items-center gap-2">
-                    <span className="text-[14px] font-normal text-muted-foreground">Sensor:</span>
-                    <SelectValue placeholder="Select" />
-                  </span>
-                </SelectTrigger>
-                <SelectContent>
-                  {cpuLoadSensors.map((s) => (
-                    <SelectItem key={s.identifier} value={s.identifier}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                options={cpuLoadSensors}
+                onChange={(v) => updateSensor("cpuUsage", { customReadingId: v })}
+              />
             )}
             <TempRangeControl
               boundaries={cpuUsage.boundaries}
@@ -106,24 +87,11 @@ export function CpuSection({ sensors, hardwares }: Props) {
         >
           <div className="flex flex-col gap-4">
             {cpuTempSensors.length > 0 && (
-              <Select
+              <SensorSelect
                 value={cpuTemp.customReadingId}
-                onValueChange={(v) => updateSensor("cpuTemp", { customReadingId: v })}
-              >
-                <SelectTrigger className="h-10 rounded-[8px] bg-card text-[14px]">
-                  <span className="flex items-center gap-2">
-                    <span className="text-[14px] font-normal text-muted-foreground">Sensor:</span>
-                    <SelectValue placeholder="Select" />
-                  </span>
-                </SelectTrigger>
-                <SelectContent>
-                  {cpuTempSensors.map((s) => (
-                    <SelectItem key={s.identifier} value={s.identifier}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                options={cpuTempSensors}
+                onChange={(v) => updateSensor("cpuTemp", { customReadingId: v })}
+              />
             )}
             <TempRangeControl
               boundaries={cpuTemp.boundaries}
@@ -141,26 +109,13 @@ export function CpuSection({ sensors, hardwares }: Props) {
         >
           <div className="flex flex-col gap-4">
             {cpuPowerSensors.length > 0 && (
-              <Select
+              <SensorSelect
                 value={cpuConsumption.customReadingId}
-                onValueChange={(v) =>
+                options={cpuPowerSensors}
+                onChange={(v) =>
                   updateSensor("cpuConsumption", { customReadingId: v })
                 }
-              >
-                <SelectTrigger className="h-10 rounded-[8px] bg-card text-[14px]">
-                  <span className="flex items-center gap-2">
-                    <span className="text-[14px] font-normal text-muted-foreground">Sensor:</span>
-                    <SelectValue placeholder="Select" />
-                  </span>
-                </SelectTrigger>
-                <SelectContent>
-                  {cpuPowerSensors.map((s) => (
-                    <SelectItem key={s.identifier} value={s.identifier}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
             )}
             <TempRangeControl
               boundaries={cpuConsumption.boundaries}

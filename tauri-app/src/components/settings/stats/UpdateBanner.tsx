@@ -1,3 +1,12 @@
+import { Button } from "@/app/components/Button";
+import {
+  ToastBanner,
+  ToastBannerActions,
+  ToastBannerContent,
+  ToastBannerDescription,
+  ToastBannerIcon,
+  ToastBannerTitle,
+} from "@/app/components/ToastBanner";
 import { cn } from "@/lib/utils";
 
 export type UpdateStatus = "idle" | "downloading" | "complete";
@@ -13,14 +22,10 @@ interface Props {
 }
 
 /**
- * Bottom-pinned floating banner shown when a new version is available.
- * Three states (idle / downloading / complete) share the outer pill shell;
- * the icon, title, and right-side actions swap per state.
+ * Bottom-pinned banner shown when a new version is available.
+ * Three states (idle / downloading / complete) share the outer ToastBanner
+ * shell; the icon, title, and right-side actions swap per state.
  * Matches Figma frames 2338:3496 / 2338:3809 / 2338:4118.
- *
- * Uses raw color values because the DS token CSS (src/app/globals.css with its
- * --bgBrand / --cornerRound / typography classes) is not imported into the main
- * Vite entry, so DS classes silently no-op in this part of the tree.
  */
 export function UpdateBanner({
   status,
@@ -32,23 +37,21 @@ export function UpdateBanner({
   className,
 }: Props) {
   return (
-    <div
-      role="status"
-      className={cn(
-        "mx-auto flex h-[68px] w-full max-w-[499px] items-center gap-3 rounded-full bg-[#0C111D] px-4 py-[14px] shadow-[0_4px_24px_rgba(0,0,0,0.24)]",
-        className,
-      )}
+    <ToastBanner
+      className={cn("mx-auto h-[68px] w-full max-w-[499px]", className)}
     >
-      <StatusIcon status={status} />
-      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-        <p className="truncate text-[14px] font-medium leading-[17px] text-white">
-          {titleFor(status)}
-        </p>
-        <p className="truncate text-[12px] font-medium leading-[15px] text-[#94969C]">
-          v{version}
-        </p>
-      </div>
-      <div className="flex shrink-0 items-center">
+      {status === "downloading" ? (
+        <ProgressSpinner />
+      ) : (
+        <ToastBannerIcon>
+          {status === "idle" ? <CloudDownloadIcon /> : <DownloadDoneIcon />}
+        </ToastBannerIcon>
+      )}
+      <ToastBannerContent>
+        <ToastBannerTitle>{titleFor(status)}</ToastBannerTitle>
+        <ToastBannerDescription>v{version}</ToastBannerDescription>
+      </ToastBannerContent>
+      <ToastBannerActions className="gap-0">
         {status === "downloading" ? (
           <GhostButton onClick={onCancel} tight>
             Cancel
@@ -56,15 +59,17 @@ export function UpdateBanner({
         ) : (
           <>
             <GhostButton onClick={onLater}>Later</GhostButton>
-            <PrimaryButton
+            <Button
+              variant="filled-white"
+              size="sm"
               onClick={status === "idle" ? onUpdate : onInstall}
             >
               {status === "idle" ? "Update now" : "Install now"}
-            </PrimaryButton>
+            </Button>
           </>
         )}
-      </div>
-    </div>
+      </ToastBannerActions>
+    </ToastBanner>
   );
 }
 
@@ -77,15 +82,6 @@ function titleFor(status: UpdateStatus) {
     case "complete":
       return "Update ready to install";
   }
-}
-
-function StatusIcon({ status }: { status: UpdateStatus }) {
-  if (status === "downloading") return <ProgressSpinner />;
-  return (
-    <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#161B26] text-white">
-      {status === "idle" ? <CloudDownloadIcon /> : <DownloadDoneIcon />}
-    </div>
-  );
 }
 
 function GhostButton({
@@ -102,27 +98,9 @@ function GhostButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex h-10 cursor-pointer items-center justify-center whitespace-nowrap rounded-full text-[14px] font-medium text-white transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
-        tight ? "px-3" : "px-5",
+        "flex h-10 cursor-pointer items-center justify-center whitespace-nowrap rounded-[var(--cornerRound)] text-body-sm-medium text-[var(--textInverse)] transition-colors duration-150 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
+        tight ? "px-[var(--spacingS)]" : "px-[var(--spacingL)]",
       )}
-    >
-      {children}
-    </button>
-  );
-}
-
-function PrimaryButton({
-  children,
-  onClick,
-}: {
-  children: React.ReactNode;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex h-10 cursor-pointer items-center justify-center whitespace-nowrap rounded-full bg-white px-5 text-[14px] font-medium text-[#0C111D] transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
     >
       {children}
     </button>
@@ -145,16 +123,17 @@ function ProgressSpinner() {
           cx="20"
           cy="20"
           r={radius}
-          stroke="#FFFFFF"
+          stroke="currentColor"
           strokeOpacity="0.1"
           strokeWidth="3"
           fill="none"
+          className="text-[var(--textInverse)]"
         />
         <circle
           cx="20"
           cy="20"
           r={radius}
-          stroke="#17B26A"
+          stroke="var(--iconSuccess)"
           strokeWidth="3"
           fill="none"
           strokeDasharray={`${arc} ${circumference - arc}`}

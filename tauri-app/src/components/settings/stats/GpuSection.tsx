@@ -1,15 +1,9 @@
 import { useRef } from "react";
-import type { Sensor, Hardware } from "@/lib/types";
+import type { Hardware, Sensor } from "@/lib/types";
 import { HardwareType, SensorType } from "@/lib/types";
 import { useSettingsStore } from "@/stores/settings-store";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/shadcn/select";
 import { SectionCard, SubCollapsible } from "./SectionCard";
+import { SensorSelect } from "./SensorSelect";
 import { TempRangeControl } from "./TempRangeControl";
 
 interface Props {
@@ -177,30 +171,3 @@ export function GpuSection({ sensors, hardwares }: Props) {
   );
 }
 
-function SensorSelect({
-  value,
-  options,
-  onChange,
-}: {
-  value: string;
-  options: Sensor[];
-  onChange: (v: string) => void;
-}) {
-  return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="h-10 rounded-[8px] bg-card text-[14px]">
-        <span className="flex items-center gap-2">
-          <span className="text-[14px] font-normal text-muted-foreground">Sensor:</span>
-          <SelectValue placeholder="Select" />
-        </span>
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((s) => (
-          <SelectItem key={s.identifier} value={s.identifier}>
-            {s.name}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}

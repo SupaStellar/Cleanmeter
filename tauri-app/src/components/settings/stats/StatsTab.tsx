@@ -17,6 +17,7 @@ export function StatsTab() {
   // TODO: replace with updater API. Mocked locally so the banner UI can be
   // exercised end-to-end (idle → downloading → complete).
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>("idle");
+  // TODO: replace with updater API data
   const updateVersion = "2.0.0";
 
   useEffect(() => {
