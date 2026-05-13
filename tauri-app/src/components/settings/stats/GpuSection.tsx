@@ -27,7 +27,7 @@ export function GpuSection({ sensors, hardwares }: Props) {
   const settings = useSettingsStore((s) => s.settings);
   const updateSensor = useSettingsStore((s) => s.updateSensor);
   const updateBoundary = useSettingsStore((s) => s.updateBoundary);
-  const { gpuUsage, gpuTemp, vramUsage } = settings.sensors;
+  const { gpuUsage, gpuTemp, gpuConsumption, vramUsage } = settings.sensors;
 
   const gpuHwIds = new Set(
     hardwares.filter((h) => GPU_HW_TYPES.includes(h.hardwareType)).map((h) => h.identifier),
@@ -38,6 +38,9 @@ export function GpuSection({ sensors, hardwares }: Props) {
   const gpuTempSensors = sensors.filter(
     (s) => gpuHwIds.has(s.hardwareIdentifier) && s.sensorType === SensorType.Temperature,
   );
+  const gpuPowerSensors = sensors.filter(
+    (s) => gpuHwIds.has(s.hardwareIdentifier) && s.sensorType === SensorType.Power,
+  );
   // VRAM usage is a load-type sensor whose name indicates memory.
   const vramSensors = sensors.filter(
     (s) =>
@@ -46,11 +49,16 @@ export function GpuSection({ sensors, hardwares }: Props) {
       s.name.toLowerCase().includes("memory"),
   );
 
-  const anyEnabled = gpuUsage.isEnabled || gpuTemp.isEnabled || vramUsage.isEnabled;
+  const anyEnabled =
+    gpuUsage.isEnabled ||
+    gpuTemp.isEnabled ||
+    gpuConsumption.isEnabled ||
+    vramUsage.isEnabled;
 
   const prevState = useRef<{
     gpuUsage: boolean;
     gpuTemp: boolean;
+    gpuConsumption: boolean;
     vramUsage: boolean;
   } | null>(null);
 
@@ -59,18 +67,20 @@ export function GpuSection({ sensors, hardwares }: Props) {
       prevState.current = {
         gpuUsage: gpuUsage.isEnabled,
         gpuTemp: gpuTemp.isEnabled,
+        gpuConsumption: gpuConsumption.isEnabled,
         vramUsage: vramUsage.isEnabled,
       };
       updateSensor("gpuUsage", { isEnabled: false });
       updateSensor("gpuTemp", { isEnabled: false });
-      updateSensor("vramUsage", { isEnabled: false });
-      // Clear removed-from-UI sensors so upgraders don't see ghost metrics.
-      updateSensor("totalVramUsed", { isEnabled: false });
       updateSensor("gpuConsumption", { isEnabled: false });
+      updateSensor("vramUsage", { isEnabled: false });
+      // Clear removed-from-UI sensor so upgraders don't see ghost metrics.
+      updateSensor("totalVramUsed", { isEnabled: false });
     } else {
       const prev = prevState.current;
       updateSensor("gpuUsage", { isEnabled: prev ? prev.gpuUsage : true });
       updateSensor("gpuTemp", { isEnabled: prev ? prev.gpuTemp : true });
+      updateSensor("gpuConsumption", { isEnabled: prev ? prev.gpuConsumption : true });
       updateSensor("vramUsage", { isEnabled: prev ? prev.vramUsage : true });
     }
   };
@@ -115,6 +125,30 @@ export function GpuSection({ sensors, hardwares }: Props) {
             <TempRangeControl
               boundaries={gpuTemp.boundaries}
               onChange={(b) => updateBoundary("gpuTemp", b)}
+              unit="°"
+              max={120}
+            />
+          </div>
+        </SubCollapsible>
+
+        <SubCollapsible
+          label="GPU Power"
+          checked={gpuConsumption.isEnabled}
+          onCheckedChange={(v) => updateSensor("gpuConsumption", { isEnabled: v })}
+        >
+          <div className="flex flex-col gap-4">
+            {gpuPowerSensors.length > 0 && (
+              <SensorSelect
+                value={gpuConsumption.customReadingId}
+                options={gpuPowerSensors}
+                onChange={(v) => updateSensor("gpuConsumption", { customReadingId: v })}
+              />
+            )}
+            <TempRangeControl
+              boundaries={gpuConsumption.boundaries}
+              onChange={(b) => updateBoundary("gpuConsumption", b)}
+              unit="W"
+              max={600}
             />
           </div>
         </SubCollapsible>

@@ -1,28 +1,32 @@
 import { Info } from "lucide-react";
 import type { Boundaries } from "@/lib/types";
 
-const CLAMP = (v: number, min = 0, max = 100) =>
+const CLAMP = (v: number, min: number, max: number) =>
   Math.max(min, Math.min(max, v));
 
 /**
- * 3-segment temp range control from Figma GPU Usage / CPU Usage card.
- * Boundaries.low = upper bound of Low segment (= min of Medium).
- * Boundaries.medium = upper bound of Medium segment (= min of High).
- * Boundaries.high = upper bound of High (max). Typically 100.
+ * 3-segment range control from Figma. Defaults to a 0-100% scale (GPU/CPU
+ * usage); pass `unit` + `max` to reuse for °C temperatures, watts, etc.
+ * Boundaries.low / .medium are the upper bounds of the Low / Medium segments.
+ * Boundaries.high is the absolute max.
  */
 export function TempRangeControl({
   boundaries,
   onChange,
+  unit = "%",
+  max = 100,
 }: {
   boundaries: Boundaries;
   onChange: (b: Boundaries) => void;
+  unit?: string;
+  max?: number;
 }) {
   const lowMin = 0;
   const lowMax = boundaries.low;
   const medMin = boundaries.low;
   const medMax = boundaries.medium;
   const highMin = boundaries.medium;
-  const highMax = boundaries.high || 100;
+  const highMax = boundaries.high || max;
 
   const setLowMax = (v: number) => {
     const lv = CLAMP(v, 0, boundaries.medium - 1);
@@ -33,16 +37,16 @@ export function TempRangeControl({
     onChange({ ...boundaries, medium: mv });
   };
   const setHighMax = (v: number) => {
-    const hv = CLAMP(v, boundaries.medium + 1, 100);
+    const hv = CLAMP(v, boundaries.medium + 1, max);
     onChange({ ...boundaries, high: hv });
   };
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex gap-4">
-        <RangeSegment color="#17B26A" label="Low" min={lowMin} max={lowMax} readOnlyMin onMaxChange={setLowMax} />
-        <RangeSegment color="#FEC84B" label="Medium" min={medMin} max={medMax} readOnlyMin onMaxChange={setMedMax} />
-        <RangeSegment color="#F04438" label="High" min={highMin} max={highMax} readOnlyMin onMaxChange={setHighMax} />
+        <RangeSegment color="#17B26A" label="Low" min={lowMin} max={lowMax} unit={unit} inputMax={max} readOnlyMin onMaxChange={setLowMax} />
+        <RangeSegment color="#FEC84B" label="Medium" min={medMin} max={medMax} unit={unit} inputMax={max} readOnlyMin onMaxChange={setMedMax} />
+        <RangeSegment color="#F04438" label="High" min={highMin} max={highMax} unit={unit} inputMax={max} readOnlyMin onMaxChange={setHighMax} />
       </div>
       <div className="flex items-center gap-1">
         <Info className="size-4 text-muted-foreground" strokeWidth={2} />
@@ -59,6 +63,8 @@ function RangeSegment({
   label,
   min,
   max,
+  unit,
+  inputMax,
   readOnlyMin,
   onMaxChange,
 }: {
@@ -66,6 +72,8 @@ function RangeSegment({
   label: string;
   min: number;
   max: number;
+  unit: string;
+  inputMax: number;
   readOnlyMin?: boolean;
   onMaxChange: (v: number) => void;
 }) {
@@ -76,9 +84,11 @@ function RangeSegment({
         <span className="text-[14px] font-medium text-foreground">{label}</span>
       </div>
       <div className="flex">
-        <PctInput value={min} readOnly={readOnlyMin} muted className="rounded-l-[8px]" />
-        <PctInput
+        <ValueInput value={min} unit={unit} inputMax={inputMax} readOnly={readOnlyMin} muted className="rounded-l-[8px]" />
+        <ValueInput
           value={max}
+          unit={unit}
+          inputMax={inputMax}
           onChange={onMaxChange}
           className="-ml-px rounded-r-[8px]"
         />
@@ -87,14 +97,18 @@ function RangeSegment({
   );
 }
 
-function PctInput({
+function ValueInput({
   value,
+  unit,
+  inputMax,
   onChange,
   readOnly,
   muted,
   className,
 }: {
   value: number;
+  unit: string;
+  inputMax: number;
   onChange?: (v: number) => void;
   readOnly?: boolean;
   muted?: boolean;
@@ -107,13 +121,13 @@ function PctInput({
       <input
         type="number"
         min={0}
-        max={100}
+        max={inputMax}
         value={Number.isFinite(value) ? value : 0}
         readOnly={readOnly}
         onChange={(e) => onChange?.(parseInt(e.target.value || "0", 10))}
         className="w-full bg-transparent text-[14px] font-medium text-foreground outline-none read-only:text-muted-foreground"
       />
-      <span className="text-[14px] font-medium text-muted-foreground">%</span>
+      <span className="text-[14px] font-medium text-muted-foreground">{unit}</span>
     </div>
   );
 }
