@@ -201,11 +201,21 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   loadSettings: async () => {
     try {
       const saved = await tauri.getSettings();
+      // Per-sensor merge so newly-added fields (e.g. boundaries on power
+      // configs) hydrate onto older saves that pre-date them.
+      const mergedSensors = { ...DEFAULT_SETTINGS.sensors };
+      const savedSensors = (saved?.sensors ?? {}) as Partial<OverlaySettings["sensors"]>;
+      for (const key of Object.keys(DEFAULT_SETTINGS.sensors) as (keyof OverlaySettings["sensors"])[]) {
+        mergedSensors[key] = {
+          ...DEFAULT_SETTINGS.sensors[key],
+          ...(savedSensors[key] ?? {}),
+        } as OverlaySettings["sensors"][typeof key];
+      }
       const settings: OverlaySettings = saved
         ? {
             ...DEFAULT_SETTINGS,
             ...saved,
-            sensors: { ...DEFAULT_SETTINGS.sensors, ...(saved.sensors ?? {}) },
+            sensors: mergedSensors,
           }
         : { ...DEFAULT_SETTINGS };
       // No UI exposes isPositionLocked, so a stale `true` from an older

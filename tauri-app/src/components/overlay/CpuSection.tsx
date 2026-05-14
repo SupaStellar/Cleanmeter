@@ -71,12 +71,22 @@ export function CpuSection({ isHorizontal }: CpuSectionProps) {
         )
       )}
       {cpuConsumption.isEnabled && (
-        <div className="flex items-baseline gap-0.5">
-          <span style={{ fontSize: valueFontSize, fontWeight: 400, color: "var(--overlay-text)", fontFamily: "Inter", minWidth: "3em", textAlign: "right", display: "inline-block" }} className="tabular-nums">
-            {formatValue(cpuPowerVal)}
-          </span>
-          <span style={{ fontSize: labelFontSize, fontWeight: 400, color: "var(--overlay-text-muted)" }}>W</span>
-        </div>
+        showProgress ? (
+          <Progress
+            value={cpuPowerVal}
+            max={cpuConsumption.boundaries.high}
+            label={formatValue(cpuPowerVal)}
+            unit="W"
+            boundaries={cpuConsumption.boundaries}
+          />
+        ) : (
+          <div className="flex items-baseline gap-0.5">
+            <span style={{ fontSize: valueFontSize, fontWeight: 400, color: "var(--overlay-text)", fontFamily: "Inter", minWidth: "3em", textAlign: "right", display: "inline-block" }} className="tabular-nums">
+              {formatValue(cpuPowerVal)}
+            </span>
+            <span style={{ fontSize: labelFontSize, fontWeight: 400, color: "var(--overlay-text-muted)" }}>W</span>
+          </div>
+        )
       )}
     </Pill>
   );
