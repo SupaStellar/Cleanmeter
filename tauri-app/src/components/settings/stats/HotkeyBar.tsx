@@ -1,48 +1,212 @@
-import { Info } from "lucide-react";
-import { Switch } from "@/components/shadcn/switch";
-import { useSettingsStore } from "@/stores/settings-store";
+// Hot-key card — Figma 2075:5744. Single row inside a transparent rounded-12
+// card with 1px border/bold (rgba(206,207,210,0.5)). The keycaps are inline
+// SVGs exported directly from Figma so the 3D body (gradient fill + gradient
+// stroke + 3px dark depth at the bottom) and the vector "Ctrl"/"Alt"/"F10"
+// text labels match the source 1:1.
 
-function Kbd({ children, wide }: { children: React.ReactNode; wide?: boolean }) {
+function InfoIcon({ className }: { className?: string }) {
   return (
-    <span
-      className="flex h-8 items-center justify-center rounded-[10px] bg-primary text-[13px] font-normal text-primary-foreground"
-      style={{ width: wide ? 40 : 32, fontFamily: "Inter, sans-serif" }}
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden
     >
-      {children}
-    </span>
+      <path d="M11 17h2v-6h-2zm1-8q.425 0 .713-.288T13 8q0-.425-.288-.713T12 7q-.425 0-.713.288T11 8q0 .425.288.713T12 9m0 13q-2.075 0-3.9-.788t-3.175-2.137Q3.575 17.725 2.787 15.9T2 12q0-2.075.788-3.9t2.137-3.175Q6.275 3.575 8.1 2.787T12 2q2.075 0 3.9.788t3.175 2.137Q20.425 6.275 21.212 8.1T22 12q0 2.075-.788 3.9t-2.137 3.175q-1.35 1.35-3.175 2.137T12 22m0-2q3.35 0 5.675-2.325T20 12q0-3.35-2.325-5.675T12 4Q8.65 4 6.325 6.325T4 12q0 3.35 2.325 5.675T12 20" />
+    </svg>
+  );
+}
+
+function CtrlKey() {
+  return (
+    <svg
+      width="40"
+      height="32"
+      viewBox="0 0 40 32"
+      fill="none"
+      aria-hidden
+    >
+      <path
+        d="M0 10C0 4.47715 4.47715 0 10 0H30C35.5228 0 40 4.47715 40 10V22C40 27.5228 35.5228 32 30 32H10C4.47715 32 0 27.5228 0 22V10Z"
+        fill="#0C111D"
+      />
+      <rect y="3" width="40" height="29" rx="5" fill="#0C111D" />
+      <rect
+        x="0.5"
+        y="0.5"
+        width="39"
+        height="28"
+        rx="4.5"
+        fill="url(#kbd-ctrl-fill)"
+        stroke="url(#kbd-ctrl-stroke)"
+      />
+      <path
+        d="M18.0916 13.5H16.9467C16.879 13.1707 16.7605 12.8814 16.5912 12.6321C16.425 12.3828 16.2219 12.1735 15.9818 12.0043C15.7449 11.8319 15.4817 11.7027 15.1924 11.6165C14.9031 11.5303 14.6015 11.4872 14.2876 11.4872C13.7152 11.4872 13.1966 11.6319 12.7318 11.9212C12.2702 12.2105 11.9024 12.6367 11.6285 13.1999C11.3577 13.7631 11.2223 14.4541 11.2223 15.2727C11.2223 16.0914 11.3577 16.7823 11.6285 17.3455C11.9024 17.9087 12.2702 18.335 12.7318 18.6243C13.1966 18.9136 13.7152 19.0582 14.2876 19.0582C14.6015 19.0582 14.9031 19.0152 15.1924 18.929C15.4817 18.8428 15.7449 18.7151 15.9818 18.5458C16.2219 18.3735 16.425 18.1626 16.5912 17.9134C16.7605 17.661 16.879 17.3717 16.9467 17.0455H18.0916C18.0054 17.5286 17.8484 17.9611 17.6207 18.3427C17.3929 18.7243 17.1098 19.049 16.7713 19.3168C16.4327 19.5814 16.0526 19.783 15.631 19.9215C15.2124 20.06 14.7646 20.1293 14.2876 20.1293C13.4812 20.1293 12.7642 19.9323 12.1363 19.5384C11.5085 19.1444 11.0145 18.5843 10.6544 17.858C10.2943 17.1316 10.1143 16.2699 10.1143 15.2727C10.1143 14.2756 10.2943 13.4138 10.6544 12.6875C11.0145 11.9612 11.5085 11.401 12.1363 11.0071C12.7642 10.6132 13.4812 10.4162 14.2876 10.4162C14.7646 10.4162 15.2124 10.4854 15.631 10.6239C16.0526 10.7624 16.4327 10.9656 16.7713 11.2333C17.1098 11.498 17.3929 11.8211 17.6207 12.2028C17.8484 12.5813 18.0054 13.0137 18.0916 13.5ZM22.6177 12.9091V13.8324H18.943V12.9091H22.6177ZM20.014 11.2102H21.1035V17.9688C21.1035 18.2765 21.1481 18.5073 21.2374 18.6612C21.3297 18.812 21.4467 18.9136 21.5882 18.9659C21.7329 19.0152 21.8852 19.0398 22.0453 19.0398C22.1653 19.0398 22.2638 19.0336 22.3407 19.0213C22.4177 19.0059 22.4792 18.9936 22.5254 18.9844L22.747 19.9631C22.6731 19.9908 22.57 20.0185 22.4377 20.0462C22.3053 20.0769 22.1376 20.0923 21.9345 20.0923C21.6267 20.0923 21.3251 20.0262 21.0296 19.8938C20.7373 19.7615 20.4941 19.5599 20.3002 19.2891C20.1094 19.0182 20.014 18.6766 20.014 18.2642V11.2102ZM23.9966 20V12.9091H25.0491V13.9801H25.123C25.2522 13.6293 25.4861 13.3446 25.8247 13.1261C26.1632 12.9076 26.5448 12.7983 26.9696 12.7983C27.0496 12.7983 27.1496 12.7998 27.2696 12.8029C27.3897 12.806 27.4805 12.8106 27.542 12.8168V13.9247C27.5051 13.9155 27.4204 13.9016 27.2881 13.8832C27.1588 13.8616 27.0219 13.8509 26.8772 13.8509C26.5325 13.8509 26.2248 13.9232 25.9539 14.0678C25.6862 14.2094 25.4738 14.4064 25.3169 14.6587C25.163 14.908 25.086 15.1927 25.086 15.5128V20H23.9966ZM29.663 10.5455V20H28.5735V10.5455H29.663Z"
+        fill="white"
+      />
+      <defs>
+        <linearGradient
+          id="kbd-ctrl-fill"
+          x1="20"
+          y1="3.16364"
+          x2="20"
+          y2="29"
+          gradientUnits="userSpaceOnUse"
+        >
+          <stop stopColor="#404040" />
+          <stop offset="1" stopColor="#303030" />
+        </linearGradient>
+        <linearGradient
+          id="kbd-ctrl-stroke"
+          x1="20"
+          y1="0"
+          x2="20"
+          y2="29"
+          gradientUnits="userSpaceOnUse"
+        >
+          <stop stopColor="#404040" />
+          <stop offset="1" stopColor="#303030" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
+function AltKey() {
+  return (
+    <svg
+      width="40"
+      height="32"
+      viewBox="0 0 40 32"
+      fill="none"
+      aria-hidden
+    >
+      <path
+        d="M0 10C0 4.47715 4.47715 0 10 0H30C35.5228 0 40 4.47715 40 10V22C40 27.5228 35.5228 32 30 32H10C4.47715 32 0 27.5228 0 22V10Z"
+        fill="#0C111D"
+      />
+      <rect y="3" width="40" height="29" rx="5" fill="#0C111D" />
+      <rect
+        x="0.5"
+        y="0.5"
+        width="39"
+        height="28"
+        rx="4.5"
+        fill="url(#kbd-alt-fill)"
+        stroke="url(#kbd-alt-stroke)"
+      />
+      <path
+        d="M13.4963 20H12.296L15.7676 10.5455H16.9494L20.421 20H19.2207L16.3954 12.0412H16.3216L13.4963 20ZM13.9395 16.3068H18.7775V17.3224H13.9395V16.3068ZM22.5754 10.5455V20H21.4859V10.5455H22.5754ZM27.3947 12.9091V13.8324H23.72V12.9091H27.3947ZM24.791 11.2102H25.8805V17.9688C25.8805 18.2765 25.9251 18.5073 26.0144 18.6612C26.1067 18.812 26.2236 18.9136 26.3652 18.9659C26.5099 19.0152 26.6622 19.0398 26.8223 19.0398C26.9423 19.0398 27.0408 19.0336 27.1177 19.0213C27.1946 19.0059 27.2562 18.9936 27.3024 18.9844L27.524 19.9631C27.4501 19.9908 27.347 20.0185 27.2147 20.0462C27.0823 20.0769 26.9146 20.0923 26.7115 20.0923C26.4037 20.0923 26.1021 20.0262 25.8066 19.8938C25.5143 19.7615 25.2711 19.5599 25.0772 19.2891C24.8864 19.0182 24.791 18.6766 24.791 18.2642V11.2102Z"
+        fill="white"
+      />
+      <defs>
+        <linearGradient
+          id="kbd-alt-fill"
+          x1="20"
+          y1="3.16364"
+          x2="20"
+          y2="29"
+          gradientUnits="userSpaceOnUse"
+        >
+          <stop stopColor="#404040" />
+          <stop offset="1" stopColor="#303030" />
+        </linearGradient>
+        <linearGradient
+          id="kbd-alt-stroke"
+          x1="20"
+          y1="0"
+          x2="20"
+          y2="29"
+          gradientUnits="userSpaceOnUse"
+        >
+          <stop stopColor="#404040" />
+          <stop offset="1" stopColor="#303030" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
+function F10Key() {
+  return (
+    <svg
+      width="32"
+      height="32"
+      viewBox="0 0 32 32"
+      fill="none"
+      aria-hidden
+    >
+      <path
+        d="M0 10C0 4.47715 4.47715 0 10 0H22C27.5228 0 32 4.47715 32 10V22C32 27.5228 27.5228 32 22 32H10C4.47715 32 0 27.5228 0 22V10Z"
+        fill="#0C111D"
+      />
+      <rect y="3" width="32" height="29" rx="5" fill="#0C111D" />
+      <rect
+        x="0.5"
+        y="0.5"
+        width="31"
+        height="28"
+        rx="4.5"
+        fill="url(#kbd-f10-fill)"
+        stroke="url(#kbd-f10-stroke)"
+      />
+      <path
+        d="M6.50596 20V10.5455H12.175V11.5611H7.65085V14.7557H11.7503V15.7713H7.65085V20H6.50596ZM17.0335 10.5455V20H15.8886V11.7457H15.8332L13.525 13.2784V12.1151L15.8886 10.5455H17.0335ZM22.5764 20.1293C21.8809 20.1293 21.2884 19.94 20.7991 19.5614C20.3097 19.1798 19.9358 18.6274 19.6773 17.9041C19.4188 17.1778 19.2895 16.3007 19.2895 15.2727C19.2895 14.2509 19.4188 13.3784 19.6773 12.6552C19.9389 11.9289 20.3144 11.3749 20.8037 10.9933C21.2961 10.6085 21.887 10.4162 22.5764 10.4162C23.2658 10.4162 23.8552 10.6085 24.3445 10.9933C24.837 11.3749 25.2124 11.9289 25.471 12.6552C25.7326 13.3784 25.8634 14.2509 25.8634 15.2727C25.8634 16.3007 25.7341 17.1778 25.4756 17.9041C25.2171 18.6274 24.8431 19.1798 24.3538 19.5614C23.8644 19.94 23.272 20.1293 22.5764 20.1293ZM22.5764 19.1136C23.2658 19.1136 23.8013 18.7812 24.183 18.1165C24.5646 17.4517 24.7554 16.5038 24.7554 15.2727C24.7554 14.4541 24.6677 13.757 24.4923 13.1815C24.3199 12.6059 24.0706 12.1674 23.7444 11.8658C23.4212 11.5642 23.0319 11.4134 22.5764 11.4134C21.8932 11.4134 21.3592 11.7504 20.9745 12.4244C20.5898 13.0953 20.3974 14.0447 20.3974 15.2727C20.3974 16.0914 20.4836 16.7869 20.656 17.3594C20.8283 17.9318 21.0761 18.3673 21.3992 18.6658C21.7255 18.9644 22.1179 19.1136 22.5764 19.1136Z"
+        fill="white"
+      />
+      <defs>
+        <linearGradient
+          id="kbd-f10-fill"
+          x1="16"
+          y1="3.16364"
+          x2="16"
+          y2="29"
+          gradientUnits="userSpaceOnUse"
+        >
+          <stop stopColor="#404040" />
+          <stop offset="1" stopColor="#303030" />
+        </linearGradient>
+        <linearGradient
+          id="kbd-f10-stroke"
+          x1="16"
+          y1="0"
+          x2="16"
+          y2="29"
+          gradientUnits="userSpaceOnUse"
+        >
+          <stop stopColor="#404040" />
+          <stop offset="1" stopColor="#303030" />
+        </linearGradient>
+      </defs>
+    </svg>
   );
 }
 
 export function HotkeyBar() {
-  const overlayVisible = useSettingsStore((s) => s.overlayVisible);
-  const setOverlayVisible = useSettingsStore((s) => s.setOverlayVisible);
-
   return (
-    <div className="flex w-full flex-col gap-3 rounded-[12px] border border-border px-4 py-4">
-      <div className="flex items-center justify-between gap-3">
+    <div
+      className="w-full rounded-[12px] border"
+      style={{ borderColor: "rgba(206,207,210,0.5)" }}
+    >
+      <div className="flex items-center justify-between gap-3 p-4">
         <div className="flex min-w-0 items-center gap-2">
-          <Info className="size-5 shrink-0 text-muted-foreground" strokeWidth={2} />
-          <span className="truncate text-[14px] font-medium text-foreground">
-            Show overlay
+          <InfoIcon className="size-5 shrink-0 text-muted-foreground" />
+          <span className="truncate text-[14px] font-medium leading-none text-foreground">
+            Hot key for showing/hiding the overlay
           </span>
         </div>
-        <Switch
-          checked={overlayVisible}
-          onCheckedChange={setOverlayVisible}
-          aria-label="Show overlay"
-        />
-      </div>
-      <div className="h-px w-full bg-divider" />
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-[13px] text-muted-foreground">
-          Hot key for showing/hiding the overlay
-        </span>
-        <div className="flex items-center gap-1">
-          <Kbd wide>Ctrl</Kbd>
-          <span className="text-[14px] font-medium text-muted-foreground">+</span>
-          <Kbd wide>Alt</Kbd>
-          <span className="text-[14px] font-medium text-muted-foreground">+</span>
-          <Kbd>F10</Kbd>
+        <div className="flex shrink-0 items-center gap-1">
+          <CtrlKey />
+          <span className="text-[14px] font-medium leading-none text-muted-foreground">
+            +
+          </span>
+          <AltKey />
+          <span className="text-[14px] font-medium leading-none text-muted-foreground">
+            +
+          </span>
+          <F10Key />
         </div>
       </div>
     </div>

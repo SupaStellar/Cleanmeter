@@ -1,21 +1,13 @@
-import * as React from "react";
-import { ChevronDown } from "lucide-react";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/shadcn/collapsible";
+import { CollapsibleCard } from "./CollapsibleCard";
 import { Switch } from "@/components/shadcn/switch";
 import { cn } from "@/lib/utils";
 import { useSettingsStore } from "@/stores/settings-store";
 
-/**
- * POSITION card — Figma 2235:661.
- * Collapsible white card with:
- * - "Use custom position" switch row (drag-pan icon + title + helper).
- * - Divider.
- * - 3×2 grid of preset tiles. Selected = 2px brand border + round brand pip.
- */
+// POSITION card — Figma 2310:3112.
+//   1. 40×40 outlined drag-pan circle + title/helper text + switch.
+//   2. 1px subtle divider.
+//   3. 3×2 grid of preset tiles. Selected = 2px brand inset ring + round
+//      dark pip; unselected = light gray rounded-square pip.
 
 type Preset = {
   index: number;
@@ -53,100 +45,79 @@ function DragPanIcon({ className }: { className?: string }) {
 export function PositionGrid() {
   const settings = useSettingsStore((s) => s.settings);
   const updateSettings = useSettingsStore((s) => s.updateSettings);
-  const [open, setOpen] = React.useState(true);
-
   const { useCustomPosition, positionIndex } = settings;
 
   return (
-    <Collapsible
-      open={open}
-      onOpenChange={setOpen}
-      className="flex w-full flex-col gap-5 rounded-[12px] bg-card p-5"
-    >
-      <CollapsibleTrigger asChild>
-        <button
-          type="button"
-          className="flex items-center justify-between"
-          aria-label={open ? "Collapse Position" : "Expand Position"}
-        >
-          <span className="text-[13px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-            Position
-          </span>
-          <ChevronDown
-            className={cn(
-              "size-5 text-muted-foreground transition-transform",
-              open && "rotate-180",
-            )}
-            strokeWidth={2}
-          />
-        </button>
-      </CollapsibleTrigger>
-
-      <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-none">
-        <div className="flex flex-col gap-5">
-          {/* Use custom position row */}
-          <div className="flex items-center gap-3">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-full border border-border/50 bg-card text-muted-foreground">
-              <DragPanIcon className="size-5" />
-            </span>
-            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-              <span className="text-[14px] font-medium leading-none text-foreground">
-                Use custom position
-              </span>
-              <span className="text-[14px] leading-none text-muted-foreground">
-                Hold the meter to move around the overlay freely.
-              </span>
-            </div>
-            <Switch
-              checked={useCustomPosition}
-              onCheckedChange={(v) => updateSettings({ useCustomPosition: v })}
-            />
-          </div>
-
-          {/* Divider */}
-          <div className="h-px w-full bg-divider" />
-
-          {/* 3×2 preset grid */}
+    <CollapsibleCard title="Position">
+      <div className="flex w-full flex-col gap-5">
+        <div className="flex items-center gap-3">
           <div
-            className={cn(
-              "grid grid-cols-3 gap-3 transition-opacity",
-              useCustomPosition && "pointer-events-none opacity-40",
-            )}
-            aria-disabled={useCustomPosition}
+            className="flex size-10 shrink-0 items-center justify-center rounded-full bg-card text-foreground"
+            style={{ boxShadow: "inset 0 0 0 1px rgba(206,207,210,0.5)" }}
           >
-            {PRESETS.map((p) => {
-              const selected = !useCustomPosition && positionIndex === p.index;
-              return (
-                <button
-                  key={p.index}
-                  type="button"
-                  disabled={useCustomPosition}
-                  onClick={() => updateSettings({ positionIndex: p.index })}
-                  className={cn(
-                    "flex h-14 items-center gap-3 overflow-hidden rounded-[8px] bg-card pl-1 pr-3 py-1 text-left",
-                    "border border-border/50 shadow-[0_4px_8px_0_rgba(0,0,0,0.02)]",
-                    "transition-colors hover:border-foreground/40 disabled:cursor-not-allowed",
-                    selected && "border-2 border-foreground pl-[3px] pr-[11px] py-[3px]",
-                  )}
-                >
-                  <span className="relative size-12 shrink-0 rounded-[4px] bg-[var(--surface-sunken-subtle,#f5f5f6)]">
-                    <span
-                      className={cn(
-                        "absolute size-2",
-                        selected ? "rounded-full bg-foreground" : "rounded-full bg-border",
-                        p.pipClass,
-                      )}
-                    />
-                  </span>
-                  <span className="truncate text-[14px] font-medium text-foreground">
-                    {p.label}
-                  </span>
-                </button>
-              );
-            })}
+            <DragPanIcon className="size-5" />
           </div>
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <span className="text-[14px] font-medium leading-none text-foreground">
+              Use custom position
+            </span>
+            <span className="text-[14px] font-normal leading-none text-muted-foreground">
+              Hold the meter to move around the overlay freely.
+            </span>
+          </div>
+          <Switch
+            checked={useCustomPosition}
+            onCheckedChange={(v) => updateSettings({ useCustomPosition: v })}
+          />
         </div>
-      </CollapsibleContent>
-    </Collapsible>
+
+        <div className="h-px w-full bg-[#ECECED]" aria-hidden />
+
+        <div
+          className={cn(
+            "grid grid-cols-3 gap-3 transition-opacity",
+            useCustomPosition && "pointer-events-none opacity-40",
+          )}
+          aria-disabled={useCustomPosition}
+        >
+          {PRESETS.map((p) => {
+            const selected = !useCustomPosition && positionIndex === p.index;
+            return (
+              <button
+                key={p.index}
+                type="button"
+                disabled={useCustomPosition}
+                onClick={() => updateSettings({ positionIndex: p.index })}
+                className={cn(
+                  "flex h-14 items-center gap-3 overflow-hidden rounded-[8px] bg-card pl-1 pr-3 py-1 text-left",
+                  "transition-shadow duration-150 motion-reduce:transition-none disabled:cursor-not-allowed",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+                )}
+                style={{
+                  boxShadow: selected
+                    ? "inset 0 0 0 2px #0C111D, 0 4px 8px 0 rgba(0,0,0,0.02)"
+                    : "inset 0 0 0 1px rgba(206,207,210,0.5), 0 4px 8px 0 rgba(0,0,0,0.02)",
+                }}
+              >
+                <span className="relative size-12 shrink-0 rounded-[4px] bg-[#F5F5F6]">
+                  <span
+                    className={cn(
+                      "absolute size-2",
+                      selected
+                        ? "rounded-full bg-foreground"
+                        : "rounded-[4px] bg-[#CECFD2]",
+                      p.pipClass,
+                    )}
+                  />
+                </span>
+                <span className="truncate text-[14px] font-medium text-foreground">
+                  {p.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </CollapsibleCard>
   );
 }
