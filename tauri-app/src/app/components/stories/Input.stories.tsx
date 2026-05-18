@@ -10,6 +10,11 @@ const meta: Meta<typeof Input> = {
   tags: ["autodocs"],
   argTypes: {
     dotColor: { control: "color" },
+    prefixWidth: {
+      control: { type: "text" },
+      description:
+        "Prefix width — number (px), CSS width string (e.g. '30%', '5rem'), or 'fill' to flex-fill",
+    },
   },
 };
 
@@ -61,6 +66,36 @@ export const Disabled: Story = {
   render: (args) => <Input className="w-[297px]" {...args} />,
 };
 
+export const PrefixFixedWidth: Story = {
+  args: {
+    placeholder: "yourname",
+    label: "URL",
+    prefix: "https://",
+    prefixWidth: 96,
+  },
+  render: (args) => <Input className="w-[297px]" {...args} />,
+};
+
+export const PrefixPercent: Story = {
+  args: {
+    placeholder: "Text",
+    label: "Label",
+    prefix: "Long prefix",
+    prefixWidth: "40%",
+  },
+  render: (args) => <Input className="w-[297px]" {...args} />,
+};
+
+export const PrefixFill: Story = {
+  args: {
+    placeholder: "Text",
+    label: "Label",
+    prefix: "$",
+    prefixWidth: "fill",
+  },
+  render: (args) => <Input className="w-[297px]" {...args} />,
+};
+
 export const AllVariants: Story = {
   render: () => (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
@@ -92,6 +127,28 @@ export const AllVariants: Story = {
         <div style={{ display: "flex", flexDirection: "column", gap: 8, width: 297 }}>
           <span className="text-body-sm-regular text-[var(--textParagraph2)]">No prefix</span>
           <Input placeholder="Enter a value" label="Label" />
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, width: 297 }}>
+          <span className="text-body-sm-regular text-[var(--textParagraph2)]">
+            prefixWidth: 96 (px)
+          </span>
+          <Input placeholder="yourname" label="URL" prefix="https://" prefixWidth={96} />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, width: 297 }}>
+          <span className="text-body-sm-regular text-[var(--textParagraph2)]">
+            prefixWidth: "40%"
+          </span>
+          <Input placeholder="Text" label="Label" prefix="Long prefix" prefixWidth="40%" />
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, width: 297 }}>
+          <span className="text-body-sm-regular text-[var(--textParagraph2)]">
+            prefixWidth: "fill"
+          </span>
+          <Input placeholder="Text" label="Label" prefix="$" prefixWidth="fill" />
         </div>
       </div>
     </div>
