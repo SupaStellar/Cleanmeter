@@ -1,24 +1,18 @@
-import { SectionCard } from "@/components/settings/stats/SectionCard";
+import { CollapsibleCard } from "./CollapsibleCard";
 import { Switch } from "@/components/shadcn/switch";
 import { cn } from "@/lib/utils";
 import { useSettingsStore } from "@/stores/settings-store";
 
-/**
- * POSITION card.
- * - Compact "Use custom position" switch row (drag-pan icon + title + helper).
- * - Divider.
- * - 3×2 grid of preset tiles; each tile shows a tiny dot inside a 48×48 mini
- *   frame reflecting the preset (top-left, top-center, …, bottom-right).
- *
- * Matches Figma frame 2075:7680 ("Position").
- * Addresses "Minimize this flow" comment — the old X/Y inputs and lock row
- * fold into the single switch; custom dragging happens in the overlay itself.
- */
+// POSITION card — Figma 2310:3112.
+//   1. 40×40 outlined drag-pan circle + title/helper text + switch.
+//   2. 1px subtle divider.
+//   3. 3×2 grid of preset tiles. Selected = 2px brand inset ring + round
+//      dark pip; unselected = light gray rounded-square pip.
 
 type Preset = {
   index: number;
   label: string;
-  pipClass: string; // where the mini dot sits in the 48×48 tile
+  pipClass: string;
 };
 
 const PRESETS: Preset[] = [
@@ -51,72 +45,79 @@ function DragPanIcon({ className }: { className?: string }) {
 export function PositionGrid() {
   const settings = useSettingsStore((s) => s.settings);
   const updateSettings = useSettingsStore((s) => s.updateSettings);
-
   const { useCustomPosition, positionIndex } = settings;
 
   return (
-    <SectionCard title="Position">
-      {/* Use custom position row */}
-      <div className="flex items-center gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground">
-          <DragPanIcon className="size-5" />
-        </span>
-        <div className="flex min-w-0 flex-1 flex-col">
-          <span className="text-[14px] font-medium text-foreground">
-            Use custom position
-          </span>
-          <span className="text-[13px] text-muted-foreground">
-            Hold the meter to move around the overlay freely.
-          </span>
+    <CollapsibleCard title="Position">
+      <div className="flex w-full flex-col gap-5">
+        <div className="flex items-center gap-3">
+          <div
+            className="flex size-10 shrink-0 items-center justify-center rounded-full bg-card text-foreground"
+            style={{ boxShadow: "inset 0 0 0 1px rgba(206,207,210,0.5)" }}
+          >
+            <DragPanIcon className="size-5" />
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <span className="text-[14px] font-medium leading-none text-foreground">
+              Use custom position
+            </span>
+            <span className="text-[14px] font-normal leading-none text-muted-foreground">
+              Hold the meter to move around the overlay freely.
+            </span>
+          </div>
+          <Switch
+            checked={useCustomPosition}
+            onCheckedChange={(v) => updateSettings({ useCustomPosition: v })}
+          />
         </div>
-        <Switch
-          checked={useCustomPosition}
-          onCheckedChange={(v) => updateSettings({ useCustomPosition: v })}
-        />
-      </div>
 
-      {/* Divider */}
-      <div className="h-px w-full bg-divider" />
+        <div className="h-px w-full bg-[#ECECED]" aria-hidden />
 
-      {/* 3×2 preset grid */}
-      <div
-        className={cn(
-          "grid grid-cols-3 gap-3 transition-opacity",
-          useCustomPosition && "pointer-events-none opacity-40",
-        )}
-        aria-disabled={useCustomPosition}
-      >
-        {PRESETS.map((p) => {
-          const selected = !useCustomPosition && positionIndex === p.index;
-          return (
-            <button
-              key={p.index}
-              type="button"
-              disabled={useCustomPosition}
-              onClick={() => updateSettings({ positionIndex: p.index })}
-              className={cn(
-                "flex h-14 items-center gap-3 rounded-[8px] bg-card p-1 text-left transition-colors",
-                "border border-border hover:border-foreground/40",
-                selected && "border-2 border-foreground p-[3px]",
-                "disabled:cursor-not-allowed",
-              )}
-            >
-              <span className="relative size-12 shrink-0 rounded-[4px] bg-muted">
-                <span
-                  className={cn(
-                    "absolute size-2 rounded-full",
-                    selected ? "bg-foreground" : "bg-border",
-                    p.pipClass,
-                  )}
-                />
-              </span>
-              <span className="truncate text-[14px] font-medium text-foreground">
-                {p.label}
-              </span>
-            </button>
-          );
-        })}
+        <div
+          className={cn(
+            "grid grid-cols-3 gap-3 transition-opacity",
+            useCustomPosition && "pointer-events-none opacity-40",
+          )}
+          aria-disabled={useCustomPosition}
+        >
+          {PRESETS.map((p) => {
+            const selected = !useCustomPosition && positionIndex === p.index;
+            return (
+              <button
+                key={p.index}
+                type="button"
+                disabled={useCustomPosition}
+                onClick={() => updateSettings({ positionIndex: p.index })}
+                className={cn(
+                  "flex h-14 items-center gap-3 overflow-hidden rounded-[8px] bg-card pl-1 pr-3 py-1 text-left",
+                  "transition-shadow duration-150 motion-reduce:transition-none disabled:cursor-not-allowed",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+                )}
+                style={{
+                  boxShadow: selected
+                    ? "inset 0 0 0 2px #0C111D, 0 4px 8px 0 rgba(0,0,0,0.02)"
+                    : "inset 0 0 0 1px rgba(206,207,210,0.5), 0 4px 8px 0 rgba(0,0,0,0.02)",
+                }}
+              >
+                <span className="relative size-12 shrink-0 rounded-[4px] bg-[#F5F5F6]">
+                  <span
+                    className={cn(
+                      "absolute size-2",
+                      selected
+                        ? "rounded-full bg-foreground"
+                        : "rounded-[4px] bg-[#CECFD2]",
+                      p.pipClass,
+                    )}
+                  />
+                </span>
+                <span className="truncate text-[14px] font-medium text-foreground">
+                  {p.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
-    </SectionCard>
+    </CollapsibleCard>
   );
 }

@@ -1,13 +1,12 @@
-import { SectionCard } from "@/components/settings/stats/SectionCard";
+import { CollapsibleCard } from "./CollapsibleCard";
+import { Switch } from "@/components/shadcn/switch";
 import { cn } from "@/lib/utils";
 import { useSettingsStore } from "@/stores/settings-store";
 import type { GraphType, ProgressType } from "@/lib/types";
 
-/**
- * SHOW GRAPH card. Matches Figma 2075:7833 — section switch + two option
- * tiles (Ring / Bar). Icon on the left inside a 64×64 muted square, label
- * on the right.
- */
+// SHOW GRAPH card — Figma 2075:7833. Section title + switch + chevron in
+// header. Body has two large option tiles (Ring / Bar) with a 64×64 muted
+// icon square on the left.
 
 function RingPreview() {
   return (
@@ -29,7 +28,6 @@ function RingPreview() {
 }
 
 function BarPreview() {
-  // 9 bars, top 4 muted, bottom 5 green. Matches Figma 2091:2570.
   return (
     <div className="flex flex-col gap-[2px]">
       {Array.from({ length: 9 }, (_, i) => {
@@ -64,10 +62,15 @@ function GraphTile({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex flex-1 items-center gap-3 rounded-[8px] bg-card p-1 text-left transition-colors",
-        "border border-border hover:border-foreground/40",
-        selected && "border-2 border-foreground p-[3px]",
+        "flex flex-1 items-center gap-3 rounded-[8px] bg-card p-1 text-left",
+        "transition-shadow duration-150 motion-reduce:transition-none",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
       )}
+      style={{
+        boxShadow: selected
+          ? "inset 0 0 0 2px #0C111D, 0 4px 8px 0 rgba(0,0,0,0.02)"
+          : "inset 0 0 0 1px rgba(206,207,210,0.5), 0 4px 8px 0 rgba(0,0,0,0.02)",
+      }}
     >
       <span className="flex size-16 shrink-0 items-center justify-center rounded-[4px] bg-muted">
         {icon}
@@ -85,7 +88,6 @@ export function GraphTypePicker() {
 
   const handleToggle = (enabled: boolean) => {
     if (enabled) {
-      // Re-enable with the user's previously chosen graph type (default ring).
       const type: ProgressType = settings.graphType === "bar" ? "bar" : "circular";
       updateSettings({ progressType: type });
     } else {
@@ -104,7 +106,12 @@ export function GraphTypePicker() {
     settings.progressType === "bar" ? "bar" : "ring";
 
   return (
-    <SectionCard title="Show graph" enabled={isEnabled} onToggle={handleToggle}>
+    <CollapsibleCard
+      title="Show graph"
+      rightControl={
+        <Switch checked={isEnabled} onCheckedChange={handleToggle} />
+      }
+    >
       {isEnabled && (
         <div className="flex gap-3">
           <GraphTile
@@ -121,6 +128,6 @@ export function GraphTypePicker() {
           />
         </div>
       )}
-    </SectionCard>
+    </CollapsibleCard>
   );
 }
