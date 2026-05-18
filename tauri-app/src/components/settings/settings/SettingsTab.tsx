@@ -13,9 +13,9 @@ import { cn } from "@/lib/utils";
 import { useSettingsStore } from "@/stores/settings-store";
 import type { TemperatureUnit } from "@/lib/types";
 import {
+  BrowserUpdatedIcon,
   ChevronRightIcon,
   DiscordIcon,
-  GitHubIcon,
   InfoIcon,
   ThemePreviewDark,
   ThemePreviewLight,
@@ -263,8 +263,8 @@ export function SettingsTab() {
       <div className="flex w-full flex-col gap-6">
         <div className="flex gap-3">
           <FooterLinkButton
-            icon={<GitHubIcon className="size-8" />}
-            label="Check the latest build"
+            icon={<BrowserUpdatedIcon className="size-8" />}
+            label="Check for latest updates"
             href={GITHUB_RELEASES_URL}
           />
           <FooterLinkButton

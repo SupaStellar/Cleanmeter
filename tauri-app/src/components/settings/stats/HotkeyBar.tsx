@@ -193,7 +193,7 @@ export function HotkeyBar() {
       <div className="flex items-center justify-between gap-3 p-4">
         <div className="flex min-w-0 items-center gap-2">
           <InfoIcon className="size-5 shrink-0 text-muted-foreground" />
-          <span className="truncate text-[14px] font-medium leading-none text-foreground">
+          <span className="truncate text-body-sm-medium text-foreground">
             Hot key for showing/hiding the overlay
           </span>
         </div>
