@@ -29,7 +29,7 @@ export function CollapsibleCard({
     <Collapsible
       open={open}
       onOpenChange={setOpen}
-      className="flex w-full flex-col gap-5 rounded-[12px] bg-card p-5"
+      className="flex w-full flex-col gap-5 rounded-[12px] bg-[var(--bgSurfaceRaised)] p-5"
     >
       <div className="flex items-center gap-3">
         <span className="flex-1 text-[13px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">

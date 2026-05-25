@@ -124,7 +124,7 @@ function OrientationTile({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex h-full flex-1 flex-col overflow-hidden rounded-[8px] bg-card text-left",
+        "flex h-full flex-1 flex-col overflow-hidden rounded-[8px] bg-[var(--bgSurfaceRaised)] text-left",
         "transition-shadow duration-150 motion-reduce:transition-none",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
       )}
