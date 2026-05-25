@@ -42,11 +42,15 @@ const FAQ_ITEMS: FaqItem[] = [
       </>
     ),
   },
+  {
+    question: "What are the current limitations?",
+    answer: "Does not support exclusive full screen.",
+  },
 ];
 
 export function FaqSection() {
   return (
-    <section className="flex w-full flex-col gap-5 rounded-[12px] bg-card px-5 pb-6 pt-5">
+    <section className="flex w-full flex-col gap-5 rounded-[12px] bg-[var(--bgSurfaceRaised)] px-5 pb-6 pt-5">
       <h2 className="text-[13px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
         Frequently asked questions
       </h2>
