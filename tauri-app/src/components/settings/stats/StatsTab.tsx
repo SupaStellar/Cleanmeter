@@ -35,6 +35,9 @@ export function StatsTab() {
       <RamSection />
       <NetworkSection sensors={sensors} hardwares={hardwares} />
       <MonitorSection />
+      <p className="text-label-sm-medium w-full text-right text-[var(--textDisabled)]">
+        May your frames be high, and temps be low.
+      </p>
       {updateStatus && (
         <UpdateBanner
           className="sticky bottom-4 z-10 mt-auto"

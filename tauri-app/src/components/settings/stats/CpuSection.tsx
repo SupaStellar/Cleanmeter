@@ -68,6 +68,7 @@ export function CpuSection({ sensors, hardwares }: Props) {
           <div className="flex flex-col gap-4">
             {cpuLoadSensors.length > 0 && (
               <SensorSelect
+                label="CPU Usage"
                 value={cpuUsage.customReadingId}
                 options={cpuLoadSensors}
                 onChange={(v) => updateSensor("cpuUsage", { customReadingId: v })}
@@ -88,6 +89,7 @@ export function CpuSection({ sensors, hardwares }: Props) {
           <div className="flex flex-col gap-4">
             {cpuTempSensors.length > 0 && (
               <SensorSelect
+                label="CPU Temperature"
                 value={cpuTemp.customReadingId}
                 options={cpuTempSensors}
                 onChange={(v) => updateSensor("cpuTemp", { customReadingId: v })}
@@ -110,6 +112,7 @@ export function CpuSection({ sensors, hardwares }: Props) {
           <div className="flex flex-col gap-4">
             {cpuPowerSensors.length > 0 && (
               <SensorSelect
+                label="CPU Power"
                 value={cpuConsumption.customReadingId}
                 options={cpuPowerSensors}
                 onChange={(v) =>

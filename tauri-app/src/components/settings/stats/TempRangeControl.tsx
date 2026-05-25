@@ -1,5 +1,5 @@
-import { Info } from "lucide-react";
 import type { Boundaries } from "@/lib/types";
+import { useSettingsStore } from "@/stores/settings-store";
 
 const CLAMP = (v: number, min: number, max: number) =>
   Math.max(min, Math.min(max, v));
@@ -21,6 +21,11 @@ export function TempRangeControl({
   unit?: string;
   max?: number;
 }) {
+  const graphEnabled = useSettingsStore(
+    (s) => s.settings.progressType !== "none",
+  );
+  if (!graphEnabled) return null;
+
   const lowMin = 0;
   const lowMax = boundaries.low;
   const medMin = boundaries.low;
@@ -42,18 +47,10 @@ export function TempRangeControl({
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex gap-4">
-        <RangeSegment color="#17B26A" label="Low" min={lowMin} max={lowMax} unit={unit} inputMax={max} readOnlyMin onMaxChange={setLowMax} />
-        <RangeSegment color="#FEC84B" label="Medium" min={medMin} max={medMax} unit={unit} inputMax={max} readOnlyMin onMaxChange={setMedMax} />
-        <RangeSegment color="#F04438" label="High" min={highMin} max={highMax} unit={unit} inputMax={max} readOnlyMin onMaxChange={setHighMax} />
-      </div>
-      <div className="flex items-center gap-1">
-        <Info className="size-4 text-muted-foreground" strokeWidth={2} />
-        <span className="text-[12px] font-medium text-muted-foreground">
-          Colors are visible only when the graph is enabled in the style settings
-        </span>
-      </div>
+    <div className="flex gap-4">
+      <RangeSegment color="#17B26A" label="Low" min={lowMin} max={lowMax} unit={unit} inputMax={max} readOnlyMin onMaxChange={setLowMax} />
+      <RangeSegment color="#FEC84B" label="Medium" min={medMin} max={medMax} unit={unit} inputMax={max} readOnlyMin onMaxChange={setMedMax} />
+      <RangeSegment color="#F04438" label="High" min={highMin} max={highMax} unit={unit} inputMax={max} readOnlyMin onMaxChange={setHighMax} />
     </div>
   );
 }
@@ -116,7 +113,7 @@ function ValueInput({
 }) {
   return (
     <div
-      className={`flex h-10 flex-1 items-center border border-border px-3 ${muted ? "bg-sub-card" : "bg-card"} ${className ?? ""}`}
+      className={`flex h-10 flex-1 items-center border border-[var(--borderBolder)] px-3 ${muted ? "bg-sub-card" : "bg-[var(--bgSurfaceRaised)]"} ${className ?? ""}`}
     >
       <input
         type="number"

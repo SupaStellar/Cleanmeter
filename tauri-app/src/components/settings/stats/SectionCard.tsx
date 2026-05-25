@@ -29,7 +29,7 @@ export function SectionCard({
   return (
     <section
       className={cn(
-        "flex w-full flex-col gap-5 rounded-[12px] bg-card p-5",
+        "flex w-full flex-col gap-5 rounded-[12px] bg-[var(--bgSurfaceRaised)] p-5",
         className,
       )}
     >
@@ -41,7 +41,10 @@ export function SectionCard({
           <Switch checked={!!enabled} onCheckedChange={onToggle} />
         )}
       </div>
-      {children}
+      {/* When the section has a toggle and it's off, hide the body entirely
+          to match Figma "Stats / Off" — header row only. Sections without a
+          toggle (Monitor) always show their content. */}
+      {(onToggle === undefined || enabled) && children}
     </section>
   );
 }
@@ -57,12 +60,17 @@ export function SubCollapsible({
   checked,
   onCheckedChange,
   defaultOpen = false,
+  expandable = true,
   children,
 }: {
   label: string;
   checked: boolean;
   onCheckedChange: (v: boolean) => void;
   defaultOpen?: boolean;
+  // When false, renders a flat row with no chevron and no expand panel —
+  // used when the expanded content would otherwise be empty (e.g. RAM Usage
+  // with graphs disabled has nothing to show below the row).
+  expandable?: boolean;
   children?: React.ReactNode;
 }) {
   const [open, setOpen] = React.useState(defaultOpen && checked);
@@ -71,6 +79,23 @@ export function SubCollapsible({
   React.useEffect(() => {
     if (!checked && open) setOpen(false);
   }, [checked, open]);
+  // Also collapse if the row becomes non-expandable so state doesn't get stuck.
+  React.useEffect(() => {
+    if (!expandable && open) setOpen(false);
+  }, [expandable, open]);
+
+  if (!expandable) {
+    return (
+      <div className="flex items-center gap-2">
+        <Checkbox
+          checked={checked}
+          onCheckedChange={(v) => onCheckedChange(v === true)}
+        />
+        <span className="text-[14px] font-medium text-foreground">{label}</span>
+      </div>
+    );
+  }
+
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="flex flex-col gap-2">
       <div className="flex items-center gap-2">
