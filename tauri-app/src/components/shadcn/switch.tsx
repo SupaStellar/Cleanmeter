@@ -12,7 +12,7 @@ function Switch({
       className={cn(
         "peer inline-flex h-[18px] w-[32px] shrink-0 items-center rounded-full p-[2px] outline-none transition-colors",
         "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50",
-        "data-[state=checked]:bg-success data-[state=unchecked]:bg-switch-off",
+        "data-[state=checked]:bg-success data-[state=unchecked]:bg-[var(--bgSurfaceSunken)]",
         className,
       )}
       {...props}

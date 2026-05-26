@@ -62,7 +62,7 @@ function GraphTile({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex flex-1 items-center gap-3 rounded-[8px] bg-card p-1 text-left",
+        "flex flex-1 items-center gap-3 rounded-[8px] bg-[var(--bgSurfaceRaised)] p-1 text-left",
         "transition-shadow duration-150 motion-reduce:transition-none",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
       )}

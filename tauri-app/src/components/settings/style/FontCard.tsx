@@ -28,7 +28,7 @@ function weightLabel(value: number) {
 }
 
 const triggerClasses = cn(
-  "h-10 flex-1 rounded-[8px] border-[#CECFD2] bg-card px-3 py-2 font-medium",
+  "h-10 flex-1 rounded-[8px] border-[var(--borderBolder)] bg-[var(--bgSurfaceRaised)] px-3 py-2 font-medium",
   "shadow-[0px_1px_1px_0px_rgba(16,24,40,0.05)]",
   "text-[14px] text-[#0C111D] [&_svg]:size-5 [&_svg]:opacity-100",
 );

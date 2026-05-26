@@ -91,6 +91,7 @@ export function GpuSection({ sensors, hardwares }: Props) {
           <div className="flex flex-col gap-4">
             {gpuLoadSensors.length > 0 && (
               <SensorSelect
+                label="GPU Usage"
                 value={gpuUsage.customReadingId}
                 options={gpuLoadSensors}
                 onChange={(v) => updateSensor("gpuUsage", { customReadingId: v })}
@@ -111,6 +112,7 @@ export function GpuSection({ sensors, hardwares }: Props) {
           <div className="flex flex-col gap-4">
             {gpuTempSensors.length > 0 && (
               <SensorSelect
+                label="GPU Temperature"
                 value={gpuTemp.customReadingId}
                 options={gpuTempSensors}
                 onChange={(v) => updateSensor("gpuTemp", { customReadingId: v })}
@@ -133,6 +135,7 @@ export function GpuSection({ sensors, hardwares }: Props) {
           <div className="flex flex-col gap-4">
             {gpuPowerSensors.length > 0 && (
               <SensorSelect
+                label="GPU Power"
                 value={gpuConsumption.customReadingId}
                 options={gpuPowerSensors}
                 onChange={(v) => updateSensor("gpuConsumption", { customReadingId: v })}
@@ -155,6 +158,7 @@ export function GpuSection({ sensors, hardwares }: Props) {
           <div className="flex flex-col gap-4">
             {vramSensors.length > 0 && (
               <SensorSelect
+                label="VRAM Usage"
                 value={vramUsage.customReadingId}
                 options={vramSensors}
                 onChange={(v) => updateSensor("vramUsage", { customReadingId: v })}

@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/shadcn/select";
 import { cn } from "@/lib/utils";
+import { getAutoStart, setAutoStart } from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
 import type { TemperatureUnit } from "@/lib/types";
 import {
@@ -30,7 +31,7 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <section className="flex w-full flex-col gap-5 rounded-[12px] bg-card p-5">
+    <section className="flex w-full flex-col gap-5 rounded-[12px] bg-[var(--bgSurfaceRaised)] p-5">
       <h2 className="text-[13px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
         {title}
       </h2>
@@ -42,8 +43,27 @@ function SectionCard({
 function GeneralSection() {
   const startMinimized = useSettingsStore((s) => s.preferences.startMinimized);
   const updatePreferences = useSettingsStore((s) => s.updatePreferences);
-  // TODO: wire startWithWindows to preferences/autostart
   const [startWithWindows, setStartWithWindows] = React.useState(false);
+  // Rapid toggles fire concurrent setAutoStart calls that can resolve out
+  // of order, leaving the checkbox out of sync with the OS registry.
+  // Gate clicks while one is in flight.
+  const [autoStartPending, setAutoStartPending] = React.useState(false);
+
+  React.useEffect(() => {
+    getAutoStart()
+      .then((v) => {
+        if (v !== undefined) setStartWithWindows(v);
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleStartWithWindows = (enabled: boolean) => {
+    setAutoStartPending(true);
+    setStartWithWindows(enabled);
+    setAutoStart(enabled)
+      .catch(() => setStartWithWindows(!enabled))
+      .finally(() => setAutoStartPending(false));
+  };
 
   return (
     <SectionCard title="General">
@@ -51,7 +71,8 @@ function GeneralSection() {
         <label className="flex cursor-pointer items-center gap-2 text-[14px] font-medium text-foreground">
           <Checkbox
             checked={startWithWindows}
-            onCheckedChange={(v) => setStartWithWindows(v === true)}
+            disabled={autoStartPending}
+            onCheckedChange={(v) => handleStartWithWindows(v === true)}
           />
           Start with windows
         </label>
@@ -136,7 +157,7 @@ function PollingRateSection() {
             updateSettings({ pollingRate: parseInt(v, 10) })
           }
         >
-          <SelectTrigger className="w-full rounded-[8px] font-medium">
+          <SelectTrigger className="w-full rounded-[8px] border-[var(--borderBolder)] bg-[var(--bgSurfaceRaised)] font-medium shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -169,30 +190,50 @@ const THEME_OPTIONS: {
 ];
 
 function AppearanceSection() {
-  const isDarkTheme = useSettingsStore((s) => s.settings.isDarkTheme);
+  const themeMode = useSettingsStore((s) => s.settings.themeMode);
   const updateSettings = useSettingsStore((s) => s.updateSettings);
-  // TODO: wire "System" to OS theme preference; store currently only has isDarkTheme
-  const [theme, setTheme] = React.useState<ThemeChoice>(
-    isDarkTheme ? "dark" : "light",
-  );
+
+  React.useEffect(() => {
+    if (themeMode !== "system") return;
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const apply = (matches: boolean) => {
+      if (useSettingsStore.getState().settings.isDarkTheme !== matches) {
+        updateSettings({ isDarkTheme: matches });
+      }
+    };
+    apply(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => apply(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, [themeMode, updateSettings]);
+
+  const handleThemeChange = (value: ThemeChoice) => {
+    if (value === "light") {
+      updateSettings({ themeMode: "light", isDarkTheme: false });
+    } else if (value === "dark") {
+      updateSettings({ themeMode: "dark", isDarkTheme: true });
+    } else {
+      const prefersDark =
+        typeof window !== "undefined" &&
+        !!window.matchMedia &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches;
+      updateSettings({ themeMode: "system", isDarkTheme: prefersDark });
+    }
+  };
 
   return (
     <SectionCard title="Appearance">
       <div className="flex gap-3">
         {THEME_OPTIONS.map(({ value, label, Preview }) => {
-          const selected = theme === value;
+          const selected = themeMode === value;
           return (
             <button
               key={value}
               type="button"
-              onClick={() => {
-                setTheme(value);
-                if (value === "light" || value === "dark") {
-                  updateSettings({ isDarkTheme: value === "dark" });
-                }
-              }}
+              onClick={() => handleThemeChange(value)}
               className={cn(
-                "flex flex-1 flex-col overflow-hidden rounded-[8px] bg-card transition-shadow duration-150",
+                "flex flex-1 flex-col overflow-hidden rounded-[8px] bg-[var(--bgSurfaceRaised)] transition-shadow duration-150",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
               )}
               style={{
@@ -230,8 +271,8 @@ function FooterLinkButton({
       target="_blank"
       rel="noreferrer"
       className={cn(
-        "flex flex-1 items-center justify-between gap-3 rounded-[12px] border border-border/50 p-3",
-        "transition-colors hover:border-border",
+        "flex flex-1 items-center justify-between gap-3 rounded-[12px] border border-[var(--borderBolder)]/50 p-3",
+        "transition-colors hover:border-[var(--borderBolder)]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
       )}
     >

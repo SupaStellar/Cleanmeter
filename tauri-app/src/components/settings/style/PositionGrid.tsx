@@ -52,7 +52,7 @@ export function PositionGrid() {
       <div className="flex w-full flex-col gap-5">
         <div className="flex items-center gap-3">
           <div
-            className="flex size-10 shrink-0 items-center justify-center rounded-full bg-card text-foreground"
+            className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--bgSurfaceRaised)] text-foreground"
             style={{ boxShadow: "inset 0 0 0 1px rgba(206,207,210,0.5)" }}
           >
             <DragPanIcon className="size-5" />
@@ -71,52 +71,49 @@ export function PositionGrid() {
           />
         </div>
 
-        <div className="h-px w-full bg-[#ECECED]" aria-hidden />
+        {!useCustomPosition && (
+          <>
+            <div className="h-px w-full bg-[#ECECED]" aria-hidden />
 
-        <div
-          className={cn(
-            "grid grid-cols-3 gap-3 transition-opacity",
-            useCustomPosition && "pointer-events-none opacity-40",
-          )}
-          aria-disabled={useCustomPosition}
-        >
-          {PRESETS.map((p) => {
-            const selected = !useCustomPosition && positionIndex === p.index;
-            return (
-              <button
-                key={p.index}
-                type="button"
-                disabled={useCustomPosition}
-                onClick={() => updateSettings({ positionIndex: p.index })}
-                className={cn(
-                  "flex h-14 items-center gap-3 overflow-hidden rounded-[8px] bg-card pl-1 pr-3 py-1 text-left",
-                  "transition-shadow duration-150 motion-reduce:transition-none disabled:cursor-not-allowed",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
-                )}
-                style={{
-                  boxShadow: selected
-                    ? "inset 0 0 0 2px #0C111D, 0 4px 8px 0 rgba(0,0,0,0.02)"
-                    : "inset 0 0 0 1px rgba(206,207,210,0.5), 0 4px 8px 0 rgba(0,0,0,0.02)",
-                }}
-              >
-                <span className="relative size-12 shrink-0 rounded-[4px] bg-[#F5F5F6]">
-                  <span
+            <div className="grid grid-cols-3 gap-3">
+              {PRESETS.map((p) => {
+                const selected = positionIndex === p.index;
+                return (
+                  <button
+                    key={p.index}
+                    type="button"
+                    onClick={() => updateSettings({ positionIndex: p.index })}
                     className={cn(
-                      "absolute size-2",
-                      selected
-                        ? "rounded-full bg-foreground"
-                        : "rounded-[4px] bg-[#CECFD2]",
-                      p.pipClass,
+                      "flex h-14 items-center gap-3 overflow-hidden rounded-[8px] bg-[var(--bgSurfaceRaised)] pl-1 pr-3 py-1 text-left",
+                      "transition-shadow duration-150 motion-reduce:transition-none",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
                     )}
-                  />
-                </span>
-                <span className="truncate text-[14px] font-medium text-foreground">
-                  {p.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+                    style={{
+                      boxShadow: selected
+                        ? "inset 0 0 0 2px #0C111D, 0 4px 8px 0 rgba(0,0,0,0.02)"
+                        : "inset 0 0 0 1px rgba(206,207,210,0.5), 0 4px 8px 0 rgba(0,0,0,0.02)",
+                    }}
+                  >
+                    <span className="relative size-12 shrink-0 rounded-[4px] bg-[#F5F5F6]">
+                      <span
+                        className={cn(
+                          "absolute size-2",
+                          selected
+                            ? "rounded-full bg-foreground"
+                            : "rounded-[4px] bg-[#CECFD2]",
+                          p.pipClass,
+                        )}
+                      />
+                    </span>
+                    <span className="truncate text-[14px] font-medium text-foreground">
+                      {p.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
     </CollapsibleCard>
   );
