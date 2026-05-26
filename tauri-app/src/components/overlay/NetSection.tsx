@@ -27,8 +27,12 @@ export function NetSection({ isHorizontal }: NetSectionProps) {
   return (
     <Pill title="NET" isHorizontal={isHorizontal}>
       {downRate.isEnabled && (
+        // Figma 2106:2313 NET sub-pill: [value, arrow] order with gap 4.
+        // Arrow opacity scales with traffic so it stays a useful visual signal.
         <div className="flex items-center gap-1">
-          {/* Download arrow */}
+          <span style={{ fontSize: valueFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em", textAlign: "left" }} className="tabular-nums">
+            {formatNetworkRate(downVal)}
+          </span>
           <svg
             width="10"
             height="10"
@@ -44,14 +48,13 @@ export function NetSection({ isHorizontal }: NetSectionProps) {
               strokeLinejoin="round"
             />
           </svg>
-          <span style={{ fontSize: valueFontSize, fontWeight: 400, color: "var(--overlay-text)", fontFamily: "Inter", minWidth: "5.5em", textAlign: "right" }} className="tabular-nums">
-            {formatNetworkRate(downVal)}
-          </span>
         </div>
       )}
       {upRate.isEnabled && (
         <div className="flex items-center gap-1">
-          {/* Upload arrow */}
+          <span style={{ fontSize: valueFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em", textAlign: "left" }} className="tabular-nums">
+            {formatNetworkRate(upVal)}
+          </span>
           <svg
             width="10"
             height="10"
@@ -67,9 +70,6 @@ export function NetSection({ isHorizontal }: NetSectionProps) {
               strokeLinejoin="round"
             />
           </svg>
-          <span style={{ fontSize: valueFontSize, fontWeight: 400, color: "var(--overlay-text)", fontFamily: "Inter", minWidth: "5.5em", textAlign: "right" }} className="tabular-nums">
-            {formatNetworkRate(upVal)}
-          </span>
         </div>
       )}
       {showNetGraph && (

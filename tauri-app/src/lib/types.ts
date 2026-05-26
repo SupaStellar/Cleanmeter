@@ -169,7 +169,10 @@ export const DEFAULT_SETTINGS: OverlaySettings = {
   positionY: 0,
   isPositionLocked: false,
   opacity: 1.0,
-  pillOpacity: 0.3,
+  // Figma 2106:2313 canonical sub-pill is rgba(0,0,0,0.24); outer derives
+  // proportionally in OverlayHud (× 8/3, capped). Existing users keep their
+  // saved value via settings-store merge.
+  pillOpacity: 0.24,
   fontSizeValue: 12,
   fontSizeLabel: 12,
   numberFontSize: 14,

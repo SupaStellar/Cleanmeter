@@ -24,10 +24,16 @@ export function getBoundaryColor(
   value: number,
   boundaries: Boundaries
 ): string {
-  if (value >= boundaries.high) return "var(--color-danger)";
-  if (value >= boundaries.medium) return "var(--color-warning)";
-  if (value >= boundaries.low) return "var(--color-success)";
-  return "var(--color-success)";
+  // Figma 2106:2313 ring palette (exact rgba from the design):
+  //   danger  → rgb(240,68,56)  = #f04438 = --red500
+  //   warning → rgb(254,200,75) = #fec84b = --yellow300 (NOT 500/700)
+  //   success → rgb(23,178,106) = #17b26a = --green500
+  // The semantic `--color-{danger,warning,success}` tokens point at darker
+  // shades (red700, yellow700) chosen for the settings UI — don't reuse
+  // them in the overlay, the overlay palette is intentionally brighter.
+  if (value >= boundaries.high) return "var(--red500)";
+  if (value >= boundaries.medium) return "var(--yellow300)";
+  return "var(--green500)";
 }
 
 export function formatValue(value: number, decimals = 0): string {

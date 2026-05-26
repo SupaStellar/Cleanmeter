@@ -52,11 +52,11 @@ export function RamSection({ isHorizontal }: RamSectionProps) {
           boundaries={ramUsage.boundaries}
         />
       ) : (
-        <div className="flex items-baseline gap-0.5">
-          <span style={{ fontSize: valueFontSize, fontWeight: 400, color: "var(--overlay-text)", fontFamily: "Inter", minWidth: "3.5em", textAlign: "right", display: "inline-block" }} className="tabular-nums">
+        <div className="flex items-center gap-1">
+          <span style={{ fontSize: valueFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em", display: "inline-block" }} className="tabular-nums">
             {ramUsedGB > 0 ? formatValue(ramUsedGB, 1) : formatValue(ramPercent, 0)}
           </span>
-          <span style={{ fontSize: labelFontSize, fontWeight: 400, color: "var(--overlay-text-muted)" }}>{ramUsedGB > 0 ? "GB" : "%"}</span>
+          <span style={{ fontSize: labelFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{ramUsedGB > 0 ? "GB" : "%"}</span>
         </div>
       )}
     </Pill>

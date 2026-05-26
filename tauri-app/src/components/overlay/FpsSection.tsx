@@ -33,21 +33,32 @@ export function FpsSection({ isHorizontal }: FpsSectionProps) {
   return (
     <Pill title="FPS" isHorizontal={isHorizontal}>
       {framerate.isEnabled && (
-        <span style={{ fontSize: valueFontSize, fontWeight: 400, color: "var(--overlay-text)", fontFamily: "Inter", minWidth: "3em", textAlign: "right", display: "inline-block" }} className="tabular-nums">
+        <span style={{ fontSize: valueFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em", display: "inline-block" }} className="tabular-nums">
           {formatValue(fpsValue)}
         </span>
       )}
       {frametime.isEnabled && frametimeHistory.length > 2 && (
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {/* Figma 2202:2313 Frame 66 wraps a 100x7 vector — fixed dimensions
+              regardless of HUD size, vertically centered by the parent flex. */}
           <FrametimeGraph
             history={frametimeHistory}
-            width={isHorizontal ? 60 : 80}
-            height={isHorizontal ? 20 : 24}
+            width={isHorizontal ? 100 : 80}
+            height={isHorizontal ? 7 : 24}
           />
-          <span className="tabular-nums" style={{ fontSize: valueFontSize, fontWeight: 400, color: "var(--overlay-text)", fontFamily: "Inter", minWidth: "4em", textAlign: "right", display: "inline-block" }}>
-            {formatValue(lastFrametime, 1)}
-          </span>
-          <span style={{ fontSize: labelFontSize, fontWeight: 400, color: "var(--overlay-text-muted)" }}>ms</span>
+          {/* Figma 2202:2313 paints "6.2 ms" as one text node, so the value
+              and unit sit closer together than the graph↔value gap (6px).
+              Wrap in a sub-flex with gap-1 (4px) to match value↔unit spacing
+              used everywhere else (Figma value-unit Frame, gap=4). */}
+          {/* Figma 2202:2313 renders "6.2 ms" as ONE text node with node-opacity
+              0.7 — both the value and the unit are muted (unlike every other
+              value+unit pair in the HUD, where only the label is muted). */}
+          <div className="flex items-center gap-1">
+            <span className="tabular-nums" style={{ fontSize: valueFontSize, fontWeight: 500, color: "var(--overlay-text-muted)", fontFamily: "Inter", letterSpacing: "-0.02em" }}>
+              {formatValue(lastFrametime, 1)}
+            </span>
+            <span style={{ fontSize: labelFontSize, fontWeight: 500, color: "var(--overlay-text-muted)", fontFamily: "Inter", letterSpacing: "0.04em" }}>ms</span>
+          </div>
         </div>
       )}
     </Pill>

@@ -58,11 +58,11 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
             boundaries={gpuTemp.boundaries}
           />
         ) : (
-          <div className="flex items-baseline gap-0.5">
-            <span style={{ fontSize: valueFontSize, fontWeight: 400, color: "var(--overlay-text)", fontFamily: "Inter", minWidth: "3em", textAlign: "right", display: "inline-block" }} className="tabular-nums">
+          <div className="flex items-center gap-1">
+            <span style={{ fontSize: valueFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em", display: "inline-block" }} className="tabular-nums">
               {temp.label}
             </span>
-            <span style={{ fontSize: labelFontSize, fontWeight: 400, color: "var(--overlay-text-muted)" }}>{temp.symbol}</span>
+            <span style={{ fontSize: labelFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{temp.symbol}</span>
           </div>
         )
       )}
@@ -76,11 +76,11 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
             boundaries={gpuUsage.boundaries}
           />
         ) : (
-          <div className="flex items-baseline gap-0.5">
-            <span style={{ fontSize: valueFontSize, fontWeight: 400, color: "var(--overlay-text)", fontFamily: "Inter", minWidth: "3em", textAlign: "right", display: "inline-block" }} className="tabular-nums">
+          <div className="flex items-center gap-1">
+            <span style={{ fontSize: valueFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em", display: "inline-block" }} className="tabular-nums">
               {formatValue(gpuUsageVal)}
             </span>
-            <span style={{ fontSize: labelFontSize, fontWeight: 400, color: "var(--overlay-text-muted)" }}>%</span>
+            <span style={{ fontSize: labelFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>%</span>
           </div>
         )
       )}
@@ -94,11 +94,11 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
             boundaries={vramUsage.boundaries}
           />
         ) : (
-          <div className="flex items-baseline gap-0.5">
-            <span style={{ fontSize: valueFontSize, fontWeight: 400, color: "var(--overlay-text)", fontFamily: "Inter", minWidth: "3em", textAlign: "right", display: "inline-block" }} className="tabular-nums">
+          <div className="flex items-center gap-1">
+            <span style={{ fontSize: valueFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em", display: "inline-block" }} className="tabular-nums">
               {formatValue(vramUsedVal, 1)}
             </span>
-            <span style={{ fontSize: labelFontSize, fontWeight: 400, color: "var(--overlay-text-muted)" }}>GB</span>
+            <span style={{ fontSize: labelFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>GB</span>
           </div>
         )
       )}
@@ -112,11 +112,11 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
             boundaries={gpuConsumption.boundaries}
           />
         ) : (
-          <div className="flex items-baseline gap-0.5">
-            <span style={{ fontSize: valueFontSize, fontWeight: 400, color: "var(--overlay-text)", fontFamily: "Inter", minWidth: "3em", textAlign: "right", display: "inline-block" }} className="tabular-nums">
+          <div className="flex items-center gap-1">
+            <span style={{ fontSize: valueFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em", display: "inline-block" }} className="tabular-nums">
               {formatValue(gpuPowerVal)}
             </span>
-            <span style={{ fontSize: labelFontSize, fontWeight: 400, color: "var(--overlay-text-muted)" }}>W</span>
+            <span style={{ fontSize: labelFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>W</span>
           </div>
         )
       )}

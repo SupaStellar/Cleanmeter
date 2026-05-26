@@ -44,11 +44,11 @@ export function CpuSection({ isHorizontal }: CpuSectionProps) {
             boundaries={cpuTemp.boundaries}
           />
         ) : (
-          <div className="flex items-baseline gap-0.5">
-            <span style={{ fontSize: valueFontSize, fontWeight: 400, color: "var(--overlay-text)", fontFamily: "Inter", minWidth: "3em", textAlign: "right", display: "inline-block" }} className="tabular-nums">
+          <div className="flex items-center gap-1">
+            <span style={{ fontSize: valueFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em", display: "inline-block" }} className="tabular-nums">
               {temp.label}
             </span>
-            <span style={{ fontSize: labelFontSize, fontWeight: 400, color: "var(--overlay-text-muted)" }}>{temp.symbol}</span>
+            <span style={{ fontSize: labelFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{temp.symbol}</span>
           </div>
         )
       )}
@@ -62,11 +62,11 @@ export function CpuSection({ isHorizontal }: CpuSectionProps) {
             boundaries={cpuUsage.boundaries}
           />
         ) : (
-          <div className="flex items-baseline gap-0.5">
-            <span style={{ fontSize: valueFontSize, fontWeight: 400, color: "var(--overlay-text)", fontFamily: "Inter", minWidth: "3em", textAlign: "right", display: "inline-block" }} className="tabular-nums">
+          <div className="flex items-center gap-1">
+            <span style={{ fontSize: valueFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em", display: "inline-block" }} className="tabular-nums">
               {formatValue(cpuUsageVal)}
             </span>
-            <span style={{ fontSize: labelFontSize, fontWeight: 400, color: "var(--overlay-text-muted)" }}>%</span>
+            <span style={{ fontSize: labelFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>%</span>
           </div>
         )
       )}
@@ -80,11 +80,11 @@ export function CpuSection({ isHorizontal }: CpuSectionProps) {
             boundaries={cpuConsumption.boundaries}
           />
         ) : (
-          <div className="flex items-baseline gap-0.5">
-            <span style={{ fontSize: valueFontSize, fontWeight: 400, color: "var(--overlay-text)", fontFamily: "Inter", minWidth: "3em", textAlign: "right", display: "inline-block" }} className="tabular-nums">
+          <div className="flex items-center gap-1">
+            <span style={{ fontSize: valueFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em", display: "inline-block" }} className="tabular-nums">
               {formatValue(cpuPowerVal)}
             </span>
-            <span style={{ fontSize: labelFontSize, fontWeight: 400, color: "var(--overlay-text-muted)" }}>W</span>
+            <span style={{ fontSize: labelFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>W</span>
           </div>
         )
       )}
