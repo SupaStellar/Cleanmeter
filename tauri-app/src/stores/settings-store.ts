@@ -218,6 +218,14 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
             sensors: mergedSensors,
           }
         : { ...DEFAULT_SETTINGS };
+      // The previously-rendered SettingsTab only wrote isDarkTheme, never
+      // themeMode — so old save files have no themeMode key and would
+      // resolve to DEFAULT_SETTINGS.themeMode ("light") after merge,
+      // showing the Light card highlighted while the app is actually dark.
+      // Seed themeMode from isDarkTheme on first load.
+      if (!saved?.themeMode) {
+        settings.themeMode = settings.isDarkTheme ? "dark" : "light";
+      }
       // No UI exposes isPositionLocked, so a stale `true` from an older
       // install would freeze the HUD with no way to recover — both the
       // React drag handlers and the cursor:grab style gate on !locked.
