@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Sensor } from "@/lib/types";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogOverlay,
+  DialogPortal,
+  DialogTitle,
+} from "@/components/shadcn/dialog";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -80,38 +88,14 @@ export function SensorPickerModal({
   onChange,
 }: Props) {
   const [query, setQuery] = useState("");
-  const [rendered, setRendered] = useState(open);
-  const [shown, setShown] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Two-phase open/close so an exit transition can play before unmounting.
+  // Reset the search field whenever the modal closes.
   useEffect(() => {
-    if (open) {
-      setRendered(true);
-      const raf = requestAnimationFrame(() => setShown(true));
-      return () => cancelAnimationFrame(raf);
-    }
-    setShown(false);
-    const t = setTimeout(() => setRendered(false), 180);
-    return () => clearTimeout(t);
+    if (!open) setQuery("");
   }, [open]);
-
-  // ESC closes; reset query on close; autofocus search (skipped on touch
-  // devices to avoid spawning the on-screen keyboard).
-  useEffect(() => {
-    if (!open) {
-      setQuery("");
-      return;
-    }
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onOpenChange(false);
-    };
-    window.addEventListener("keydown", onKey);
-    if (!isTouchDevice) inputRef.current?.focus();
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onOpenChange]);
 
   const q = query.trim().toLowerCase();
   const filtered = useMemo(
@@ -158,119 +142,118 @@ export function SensorPickerModal({
     }
   };
 
-  if (!rendered) return null;
-
   return (
-    <div
-      className="fixed inset-x-0 bottom-0 top-[52px] z-50 flex items-start justify-center"
-      onMouseDown={() => onOpenChange(false)}
-    >
-      <div
-        aria-hidden
-        className={cn(
-          "absolute inset-0 bg-[var(--bgBrand)] transition-opacity duration-200 ease-out motion-reduce:transition-none",
-          shown ? "opacity-50" : "opacity-0",
-        )}
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        className={cn(
-          "relative mx-6 mt-[25px] flex w-full max-w-[603px] flex-col overflow-hidden rounded-[12px]",
-          "transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none",
-          shown ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2",
-        )}
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <div className="flex flex-col gap-4 border-b border-[var(--borderSubtle)] bg-[var(--bgSurfaceRaised)] p-5">
-          <div className="flex items-center justify-between">
-            <h2 className="text-[16px] font-medium leading-none text-[var(--textHeading)]">
-              {title}
-            </h2>
-            <button
-              type="button"
-              onClick={() => onOpenChange(false)}
-              aria-label="Close"
-              className={cn(
-                "relative flex size-5 items-center justify-center text-[var(--iconBolderActive)]",
-                "transition-transform duration-100 active:scale-[0.92] motion-reduce:transition-none",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded-[4px]",
-                // 44×44 invisible hit area (Emil): pseudo-element extends touch target.
-                "before:absolute before:inset-[-12px] before:content-['']",
-                "[touch-action:manipulation]",
-              )}
-            >
-              <CloseIcon className="size-5" />
-            </button>
-          </div>
-          <div className="relative">
-            <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-[var(--iconBolderActive)]" />
-            <input
-              ref={inputRef}
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={onListKeyDown}
-              placeholder="Search sensor"
-              spellCheck={false}
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="off"
-              data-1p-ignore
-              data-lpignore="true"
-              aria-label="Search sensor"
-              className={cn(
-                "h-10 w-full rounded-[8px] border border-[var(--borderBolder)] bg-[var(--bgSurfaceRaised)] pl-10 pr-3 py-2",
-                "text-[14px] font-medium text-[var(--textHeading)] outline-none",
-                "placeholder:text-[var(--textDisabled)]",
-                "shadow-[0_1px_2px_rgba(16,24,40,0.05)]",
-                "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
-                // Hide the browser's native clear button on type=search
-                "[&::-webkit-search-cancel-button]:hidden",
-              )}
-            />
-          </div>
-        </div>
-        <div
-          ref={listRef}
-          className="flex max-h-[308px] flex-col gap-[2px] overflow-y-auto bg-[var(--bgSurfaceRaised)] p-2"
-        >
-          {filtered.length === 0 ? (
-            <div className="flex h-20 items-center justify-center text-[14px] font-medium text-[var(--textDisabled)]">
-              No sensors match.
-            </div>
-          ) : (
-            filtered.map((s, i) => {
-              const selected = s.identifier === value;
-              const highlighted = selected || i === activeIndex;
-              return (
-                <button
-                  key={s.identifier}
-                  type="button"
-                  onClick={() => handleSelect(s.identifier)}
-                  onMouseEnter={() => setActiveIndex(i)}
-                  className={cn(
-                    "flex h-10 items-center justify-between gap-2 rounded-[8px] px-3 py-2 text-left",
-                    "transition-[background-color,transform] duration-100 ease-out motion-reduce:transition-none",
-                    "active:scale-[0.98]",
-                    "[touch-action:manipulation]",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
-                    highlighted && "bg-[var(--bgSurfaceSunkenSubtle)]",
-                  )}
-                >
-                  <span className="truncate text-[14px] font-medium text-[var(--textHeading)]">
-                    {s.name}
-                  </span>
-                  {selected && (
-                    <CheckIcon className="size-5 shrink-0 text-[var(--iconBolderActive)]" />
-                  )}
-                </button>
-              );
-            })
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogPortal>
+        {/* Overlay sits below the 52px title bar so the bar stays interactive */}
+        <DialogOverlay className="top-[52px]" />
+        <DialogContent
+          aria-describedby={undefined}
+          // Top-anchored layout matches the existing Figma frame (52px title
+          // bar + 25px gap). max-w-[603px] caps width; mx-6 reproduces the
+          // 24px gutters by sizing to viewport minus 48px.
+          className={cn(
+            "left-1/2 top-[77px] -translate-x-1/2 translate-y-0",
+            "grid w-[calc(100%-48px)] max-w-[603px] grid-rows-[auto_1fr] gap-0 overflow-hidden",
+            "rounded-[12px] bg-[var(--bgSurfaceRaised)] shadow-lg",
+            "data-[state=open]:slide-in-from-top-2 data-[state=closed]:slide-out-to-top-2",
           )}
-        </div>
-      </div>
-    </div>
+          onOpenAutoFocus={(e) => {
+            // Default focus would land on the close button. Aim at the search
+            // input instead — except on touch where that pops the soft keyboard.
+            if (isTouchDevice) {
+              e.preventDefault();
+              return;
+            }
+            e.preventDefault();
+            inputRef.current?.focus();
+          }}
+        >
+          <div className="flex flex-col gap-4 border-b border-[var(--borderSubtle)] bg-[var(--bgSurfaceRaised)] p-5">
+            <div className="flex items-center justify-between">
+              <DialogTitle>{title}</DialogTitle>
+              <DialogClose
+                aria-label="Close"
+                className={cn(
+                  "relative flex size-5 items-center justify-center text-[var(--iconBolderActive)]",
+                  "transition-transform duration-100 active:scale-[0.92] motion-reduce:transition-none",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded-[4px]",
+                  // 44×44 invisible hit area (Emil): pseudo-element extends touch target.
+                  "before:absolute before:inset-[-12px] before:content-['']",
+                  "[touch-action:manipulation]",
+                )}
+              >
+                <CloseIcon className="size-5" />
+              </DialogClose>
+            </div>
+            <div className="relative">
+              <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-[var(--iconBolderActive)]" />
+              <input
+                ref={inputRef}
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={onListKeyDown}
+                placeholder="Search sensor"
+                spellCheck={false}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                data-1p-ignore
+                data-lpignore="true"
+                aria-label="Search sensor"
+                className={cn(
+                  "h-10 w-full rounded-[8px] border border-[var(--borderBolder)] bg-[var(--bgSurfaceRaised)] pl-10 pr-3 py-2",
+                  "text-[14px] font-medium text-[var(--textHeading)] outline-none",
+                  "placeholder:text-[var(--textDisabled)]",
+                  "shadow-[0_1px_2px_rgba(16,24,40,0.05)]",
+                  "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+                  // Hide the browser's native clear button on type=search
+                  "[&::-webkit-search-cancel-button]:hidden",
+                )}
+              />
+            </div>
+          </div>
+          <div
+            ref={listRef}
+            className="flex max-h-[308px] flex-col gap-[2px] overflow-y-auto bg-[var(--bgSurfaceRaised)] p-2"
+          >
+            {filtered.length === 0 ? (
+              <div className="flex h-20 items-center justify-center text-[14px] font-medium text-[var(--textDisabled)]">
+                No sensors match.
+              </div>
+            ) : (
+              filtered.map((s, i) => {
+                const selected = s.identifier === value;
+                const highlighted = selected || i === activeIndex;
+                return (
+                  <button
+                    key={s.identifier}
+                    type="button"
+                    onClick={() => handleSelect(s.identifier)}
+                    onMouseEnter={() => setActiveIndex(i)}
+                    className={cn(
+                      "flex h-10 items-center justify-between gap-2 rounded-[8px] px-3 py-2 text-left",
+                      "transition-[background-color,transform] duration-100 ease-out motion-reduce:transition-none",
+                      "active:scale-[0.98]",
+                      "[touch-action:manipulation]",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+                      highlighted && "bg-[var(--bgSurfaceSunkenSubtle)]",
+                    )}
+                  >
+                    <span className="truncate text-[14px] font-medium text-[var(--textHeading)]">
+                      {s.name}
+                    </span>
+                    {selected && (
+                      <CheckIcon className="size-5 shrink-0 text-[var(--iconBolderActive)]" />
+                    )}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </DialogContent>
+      </DialogPortal>
+    </Dialog>
   );
 }
