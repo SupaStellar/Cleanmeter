@@ -44,6 +44,10 @@ function GeneralSection() {
   const startMinimized = useSettingsStore((s) => s.preferences.startMinimized);
   const updatePreferences = useSettingsStore((s) => s.updatePreferences);
   const [startWithWindows, setStartWithWindows] = React.useState(false);
+  // Rapid toggles fire concurrent setAutoStart calls that can resolve out
+  // of order, leaving the checkbox out of sync with the OS registry.
+  // Gate clicks while one is in flight.
+  const [autoStartPending, setAutoStartPending] = React.useState(false);
 
   React.useEffect(() => {
     getAutoStart()
@@ -54,8 +58,11 @@ function GeneralSection() {
   }, []);
 
   const handleStartWithWindows = (enabled: boolean) => {
+    setAutoStartPending(true);
     setStartWithWindows(enabled);
-    setAutoStart(enabled).catch(() => setStartWithWindows(!enabled));
+    setAutoStart(enabled)
+      .catch(() => setStartWithWindows(!enabled))
+      .finally(() => setAutoStartPending(false));
   };
 
   return (
@@ -64,6 +71,7 @@ function GeneralSection() {
         <label className="flex cursor-pointer items-center gap-2 text-[14px] font-medium text-foreground">
           <Checkbox
             checked={startWithWindows}
+            disabled={autoStartPending}
             onCheckedChange={(v) => handleStartWithWindows(v === true)}
           />
           Start with windows
