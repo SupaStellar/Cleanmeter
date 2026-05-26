@@ -84,7 +84,7 @@ export function SensorPickerModal({
   const [shown, setShown] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
-  const rowRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const listRef = useRef<HTMLDivElement>(null);
 
   // Two-phase open/close so an exit transition can play before unmounting.
   useEffect(() => {
@@ -119,17 +119,18 @@ export function SensorPickerModal({
     [options, q],
   );
 
-  // Highlight the current selection when modal opens; clamp to filtered range
-  // when the search query narrows the list.
+  // Seed the highlight at the currently-selected row on open.
   useEffect(() => {
     if (!open) return;
-    const idx = filtered.findIndex((s) => s.identifier === value);
+    const idx = options.findIndex((s) => s.identifier === value);
     setActiveIndex(idx >= 0 ? idx : 0);
-  }, [open, value, filtered]);
+  }, [open, value, options]);
 
+  // Every keystroke re-narrows the list. Snap to the top match so Enter
+  // selects what the user is reading at the top.
   useEffect(() => {
-    if (activeIndex >= filtered.length) setActiveIndex(Math.max(0, filtered.length - 1));
-  }, [filtered.length, activeIndex]);
+    setActiveIndex(0);
+  }, [query]);
 
   const handleSelect = (id: string) => {
     onChange(id);
@@ -139,17 +140,17 @@ export function SensorPickerModal({
   const onListKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActiveIndex((i) => {
-        const next = Math.min(filtered.length - 1, i + 1);
-        rowRefs.current[next]?.scrollIntoView({ block: "nearest" });
-        return next;
+      const next = Math.min(filtered.length - 1, activeIndex + 1);
+      setActiveIndex(next);
+      (listRef.current?.children[next] as HTMLElement | undefined)?.scrollIntoView({
+        block: "nearest",
       });
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setActiveIndex((i) => {
-        const next = Math.max(0, i - 1);
-        rowRefs.current[next]?.scrollIntoView({ block: "nearest" });
-        return next;
+      const next = Math.max(0, activeIndex - 1);
+      setActiveIndex(next);
+      (listRef.current?.children[next] as HTMLElement | undefined)?.scrollIntoView({
+        block: "nearest",
       });
     } else if (e.key === "Enter" && filtered[activeIndex]) {
       e.preventDefault();
@@ -231,7 +232,10 @@ export function SensorPickerModal({
             />
           </div>
         </div>
-        <div className="flex max-h-[308px] flex-col gap-[2px] overflow-y-auto bg-[var(--bgSurfaceRaised)] p-2">
+        <div
+          ref={listRef}
+          className="flex max-h-[308px] flex-col gap-[2px] overflow-y-auto bg-[var(--bgSurfaceRaised)] p-2"
+        >
           {filtered.length === 0 ? (
             <div className="flex h-20 items-center justify-center text-[14px] font-medium text-[var(--textDisabled)]">
               No sensors match.
@@ -243,9 +247,6 @@ export function SensorPickerModal({
               return (
                 <button
                   key={s.identifier}
-                  ref={(el) => {
-                    rowRefs.current[i] = el;
-                  }}
                   type="button"
                   onClick={() => handleSelect(s.identifier)}
                   onMouseEnter={() => setActiveIndex(i)}
