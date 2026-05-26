@@ -1,21 +1,31 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Card, CardContent, CardFooter, CardTitle } from "../Card";
+import { Card, CardContent, CardFooter, CardMinimal, CardTitle } from "../Card";
 
-const meta: Meta<typeof Card> = {
-  title: "Components/Card",
-  component: Card,
-  parameters: {
-    layout: "centered",
-  },
-  tags: ["autodocs"],
-};
+type CardVariant = "default" | "minimal";
 
-export default meta;
-type Story = StoryObj<typeof Card>;
+interface CardArgs {
+  variant: CardVariant;
+  defaultActive?: boolean;
+}
 
-function InteractiveCard({ defaultActive = false }: { defaultActive?: boolean }) {
+function InteractiveCard({
+  variant = "default",
+  defaultActive = false,
+}: CardArgs) {
   const [active, setActive] = useState(defaultActive);
+
+  if (variant === "minimal") {
+    return (
+      <CardMinimal
+        className="w-[180px]"
+        active={active}
+        label="Heading"
+        onClick={() => setActive(!active)}
+      />
+    );
+  }
+
   return (
     <Card
       className="h-[187px] w-[273px]"
@@ -30,12 +40,45 @@ function InteractiveCard({ defaultActive = false }: { defaultActive?: boolean })
   );
 }
 
+const meta: Meta<CardArgs> = {
+  title: "Components/Card",
+  component: InteractiveCard,
+  parameters: {
+    layout: "centered",
+  },
+  tags: ["autodocs"],
+  argTypes: {
+    variant: {
+      control: { type: "radio" },
+      options: ["default", "minimal"],
+    },
+    defaultActive: {
+      control: { type: "boolean" },
+    },
+  },
+  args: {
+    variant: "default",
+    defaultActive: false,
+  },
+};
+
+export default meta;
+type Story = StoryObj<CardArgs>;
+
 export const Default: Story = {
-  render: () => <InteractiveCard />,
+  args: { variant: "default", defaultActive: false },
 };
 
 export const Active: Story = {
-  render: () => <InteractiveCard defaultActive />,
+  args: { variant: "default", defaultActive: true },
+};
+
+export const Minimal: Story = {
+  args: { variant: "minimal", defaultActive: false },
+};
+
+export const MinimalActive: Story = {
+  args: { variant: "minimal", defaultActive: true },
 };
 
 export const AllVariants: Story = {
@@ -45,13 +88,25 @@ export const AllVariants: Story = {
         <span className="text-body-sm-regular text-[var(--textParagraph2)]">
           Default (click to toggle)
         </span>
-        <InteractiveCard />
+        <InteractiveCard variant="default" />
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <span className="text-body-sm-regular text-[var(--textParagraph2)]">
-          Active (click to toggle)
+          Default Active (click to toggle)
         </span>
-        <InteractiveCard defaultActive />
+        <InteractiveCard variant="default" defaultActive />
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <span className="text-body-sm-regular text-[var(--textParagraph2)]">
+          Minimal (click to toggle)
+        </span>
+        <InteractiveCard variant="minimal" />
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <span className="text-body-sm-regular text-[var(--textParagraph2)]">
+          Minimal Active (click to toggle)
+        </span>
+        <InteractiveCard variant="minimal" defaultActive />
       </div>
     </div>
   ),

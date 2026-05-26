@@ -89,16 +89,32 @@ function InputLabel({
 /* ------------------------------------------------------------------ */
 /*  InputPrefix                                                        */
 /* ------------------------------------------------------------------ */
+type PrefixWidth = number | string | "fill";
+
 function InputPrefix({
   className,
   children,
   disabled,
+  width,
+  style,
   ...props
-}: React.ComponentProps<"div"> & { disabled?: boolean }) {
+}: React.ComponentProps<"div"> & {
+  disabled?: boolean;
+  width?: PrefixWidth;
+}) {
+  const fill = width === "fill";
+  const fixedWidth =
+    width !== undefined && !fill
+      ? typeof width === "number"
+        ? `${width}px`
+        : width
+      : undefined;
+
   return (
     <div
       className={cn(
-        "flex shrink-0 items-center justify-center",
+        "flex items-center justify-center",
+        fill ? "flex-1" : "shrink-0",
         "rounded-l-[var(--cornerL)] border-r",
         "bg-[var(--bgSurfaceSunkenSubtler)]",
         "px-[var(--spacingS)] py-[var(--spacingS)]",
@@ -107,6 +123,7 @@ function InputPrefix({
           : "border-[var(--borderBolder)] text-body-sm-medium text-[var(--textParagraph2)]",
         className
       )}
+      style={{ width: fixedWidth, ...style }}
       {...props}
     >
       {children}
@@ -121,11 +138,12 @@ type InputProps = Omit<React.ComponentProps<"input">, "prefix"> &
   VariantProps<typeof inputWrapperVariants> & {
     label?: string;
     prefix?: React.ReactNode;
+    prefixWidth?: PrefixWidth;
     dotColor?: string;
   };
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, error, label, prefix, disabled, id, dotColor, ...props }, ref) => {
+  ({ className, error, label, prefix, prefixWidth, disabled, id, dotColor, ...props }, ref) => {
     const generatedId = React.useId();
     const inputId = id ?? generatedId;
 
@@ -143,7 +161,9 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           )}
         >
           {prefix && (
-            <InputPrefix disabled={disabled}>{prefix}</InputPrefix>
+            <InputPrefix disabled={disabled} width={prefixWidth}>
+              {prefix}
+            </InputPrefix>
           )}
 
           <input

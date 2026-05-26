@@ -46,14 +46,6 @@ function SettingsIcon() {
   );
 }
 
-function AwardIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M10 12.0625L11.5833 13.0208C11.7361 13.1181 11.8889 13.1146 12.0417 13.0104C12.1944 12.9062 12.25 12.7639 12.2083 12.5833L11.7917 10.7708L13.2083 9.54167C13.3472 9.41667 13.3889 9.26736 13.3333 9.09375C13.2778 8.92014 13.1528 8.82639 12.9583 8.8125L11.1042 8.66667L10.375 6.95833C10.3056 6.79167 10.1806 6.70833 10 6.70833C9.81944 6.70833 9.69444 6.79167 9.625 6.95833L8.89583 8.66667L7.04167 8.8125C6.84722 8.82639 6.72222 8.92014 6.66667 9.09375C6.61111 9.26736 6.65278 9.41667 6.79167 9.54167L8.20833 10.7708L7.79167 12.5833C7.75 12.7639 7.80556 12.9062 7.95833 13.0104C8.11111 13.1146 8.26389 13.1181 8.41667 13.0208L10 12.0625ZM7.20833 16.6667H5C4.54167 16.6667 4.14931 16.5035 3.82292 16.1771C3.49653 15.8507 3.33333 15.4583 3.33333 15V12.7917L1.72917 11.1667C1.57639 11 1.45833 10.816 1.375 10.6146C1.29167 10.4132 1.25 10.2083 1.25 10C1.25 9.79167 1.29167 9.58681 1.375 9.38542C1.45833 9.18403 1.57639 9 1.72917 8.83333L3.33333 7.20833V5C3.33333 4.54167 3.49653 4.14931 3.82292 3.82292C4.14931 3.49653 4.54167 3.33333 5 3.33333H7.20833L8.83333 1.72917C9 1.57639 9.18403 1.45833 9.38542 1.375C9.58681 1.29167 9.79167 1.25 10 1.25C10.2083 1.25 10.4132 1.29167 10.6146 1.375C10.816 1.45833 11 1.57639 11.1667 1.72917L12.7917 3.33333H15C15.4583 3.33333 15.8507 3.49653 16.1771 3.82292C16.5035 4.14931 16.6667 4.54167 16.6667 5V7.20833L18.2708 8.83333C18.4236 9 18.5417 9.18403 18.625 9.38542C18.7083 9.58681 18.75 9.79167 18.75 10C18.75 10.2083 18.7083 10.4132 18.625 10.6146C18.5417 10.816 18.4236 11 18.2708 11.1667L16.6667 12.7917V15C16.6667 15.4583 16.5035 15.8507 16.1771 16.1771C15.8507 16.5035 15.4583 16.6667 15 16.6667H12.7917L11.1667 18.2708C11 18.4236 10.816 18.5417 10.6146 18.625C10.4132 18.7083 10.2083 18.75 10 18.75C9.79167 18.75 9.58681 18.7083 9.38542 18.625C9.18403 18.5417 9 18.4236 8.83333 18.2708L7.20833 16.6667ZM7.91667 15L10 17.0833L12.0833 15H15V12.0833L17.0833 10L15 7.91667V5H12.0833L10 2.91667L7.91667 5H5V7.91667L2.91667 10L5 12.0833V15H7.91667Z" fill="currentColor"/>
-    </svg>
-  );
-}
-
 function HelpIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -68,12 +60,13 @@ const tabs = [
   { id: "stats", label: "Stats", icon: StatsIcon },
   { id: "style", label: "Style", icon: LayersIcon },
   { id: "settings", label: "Settings", icon: SettingsIcon },
+  { id: "help", label: "Help", icon: HelpIcon },
 ] as const;
 
 function InteractiveTabs({ defaultTab = "stats" }: { defaultTab?: string }) {
-  const [active, setActive] = useState(defaultTab);
+  const [active, setActive] = useState<string>(defaultTab);
   return (
-    <NavigationTabs className="w-[600px]">
+    <NavigationTabs className="w-[603px]">
       <NavigationTabsGroup>
         {tabs.map(({ id, label, icon: Icon }) => (
           <Tab
@@ -85,14 +78,6 @@ function InteractiveTabs({ defaultTab = "stats" }: { defaultTab?: string }) {
             <TabLabel>{label}</TabLabel>
           </Tab>
         ))}
-      </NavigationTabsGroup>
-      <NavigationTabsGroup>
-        <Tab iconOnly active={active === "awards"} onClick={() => setActive("awards")}>
-          <TabIcon><AwardIcon /></TabIcon>
-        </Tab>
-        <Tab iconOnly active={active === "help"} onClick={() => setActive("help")}>
-          <TabIcon><HelpIcon /></TabIcon>
-        </Tab>
       </NavigationTabsGroup>
     </NavigationTabs>
   );
@@ -111,7 +96,7 @@ export const AllVariants: Story = {
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <span className="text-body-sm-regular text-[var(--textParagraph2)]">
-          Full navigation (click tabs to switch)
+          Default — icon + label (click tabs to switch)
         </span>
         <InteractiveTabs />
       </div>
@@ -127,12 +112,6 @@ export const AllVariants: Story = {
           <Tab active>
             <TabIcon><StatsIcon /></TabIcon>
             <TabLabel>Active</TabLabel>
-          </Tab>
-          <Tab iconOnly>
-            <TabIcon><AwardIcon /></TabIcon>
-          </Tab>
-          <Tab iconOnly active>
-            <TabIcon><AwardIcon /></TabIcon>
           </Tab>
         </div>
       </div>
