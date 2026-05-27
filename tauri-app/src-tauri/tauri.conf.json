@@ -80,7 +80,8 @@
     "resources": {
       "../../HardwareMonitor/HardwareMonitor/bin/Release/net8.0/win-x64/publish/*.exe": "./",
       "../../HardwareMonitor/HardwareMonitor/bin/Release/net8.0/win-x64/publish/*.dll": "./",
-      "../../HardwareMonitor/HardwareMonitor/bin/Release/net8.0/win-x64/publish/*.txt": "./"
+      "../../HardwareMonitor/HardwareMonitor/bin/Release/net8.0/win-x64/publish/*.txt": "./",
+      "../../HardwareMonitor/HardwareMonitor/bin/Release/net8.0/win-x64/publish/*.json": "./"
     }
   },
   "plugins": {}
