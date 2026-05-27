@@ -16,6 +16,8 @@ export function RamSection({ isHorizontal }: RamSectionProps) {
 
   const valueFontSize = settings.fontSizeValue ?? 12;
   const labelFontSize = settings.fontSizeLabel ?? 12;
+  const valueFontWeight = settings.fontWeight ?? 500;
+  const labelFontWeight = settings.labelFontWeight ?? 500;
   const { ramUsage } = settings.sensors;
   const progressType = settings.progressType;
 
@@ -47,16 +49,16 @@ export function RamSection({ isHorizontal }: RamSectionProps) {
         <Progress
           value={ramPercent}
           max={100}
-          label={formatValue(ramPercent, 0)}
-          unit="%"
+          label={ramUsedGB > 0 ? formatValue(ramUsedGB, 1) : formatValue(ramPercent, 0)}
+          unit={ramUsedGB > 0 ? "GB" : "%"}
           boundaries={ramUsage.boundaries}
         />
       ) : (
         <div className="flex items-center gap-1">
-          <span style={{ fontSize: valueFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em", display: "inline-block" }} className="tabular-nums">
+          <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
             {ramUsedGB > 0 ? formatValue(ramUsedGB, 1) : formatValue(ramPercent, 0)}
           </span>
-          <span style={{ fontSize: labelFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{ramUsedGB > 0 ? "GB" : "%"}</span>
+          <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{ramUsedGB > 0 ? "GB" : "%"}</span>
         </div>
       )}
     </Pill>

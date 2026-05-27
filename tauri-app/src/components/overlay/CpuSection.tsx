@@ -15,6 +15,8 @@ export function CpuSection({ isHorizontal }: CpuSectionProps) {
 
   const valueFontSize = settings.fontSizeValue ?? 12;
   const labelFontSize = settings.fontSizeLabel ?? 12;
+  const valueFontWeight = settings.fontWeight ?? 500;
+  const labelFontWeight = settings.labelFontWeight ?? 500;
   const { cpuTemp, cpuUsage, cpuConsumption } = settings.sensors;
   const progressType = settings.progressType;
 
@@ -45,10 +47,10 @@ export function CpuSection({ isHorizontal }: CpuSectionProps) {
           />
         ) : (
           <div className="flex items-center gap-1">
-            <span style={{ fontSize: valueFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em", display: "inline-block" }} className="tabular-nums">
+            <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
               {temp.label}
             </span>
-            <span style={{ fontSize: labelFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{temp.symbol}</span>
+            <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{temp.symbol}</span>
           </div>
         )
       )}
@@ -63,30 +65,22 @@ export function CpuSection({ isHorizontal }: CpuSectionProps) {
           />
         ) : (
           <div className="flex items-center gap-1">
-            <span style={{ fontSize: valueFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em", display: "inline-block" }} className="tabular-nums">
+            <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
               {formatValue(cpuUsageVal)}
             </span>
-            <span style={{ fontSize: labelFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>%</span>
+            <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>%</span>
           </div>
         )
       )}
+      {/* Power consumption has no threshold ring in the canonical build —
+          always a plain value + unit (matches v2.2.x early build). */}
       {cpuConsumption.isEnabled && (
-        showProgress ? (
-          <Progress
-            value={cpuPowerVal}
-            max={cpuConsumption.boundaries.high}
-            label={formatValue(cpuPowerVal)}
-            unit="W"
-            boundaries={cpuConsumption.boundaries}
-          />
-        ) : (
-          <div className="flex items-center gap-1">
-            <span style={{ fontSize: valueFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em", display: "inline-block" }} className="tabular-nums">
-              {formatValue(cpuPowerVal)}
-            </span>
-            <span style={{ fontSize: labelFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>W</span>
-          </div>
-        )
+        <div className="flex items-center gap-1">
+          <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
+            {formatValue(cpuPowerVal)}
+          </span>
+          <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>W</span>
+        </div>
       )}
     </Pill>
   );

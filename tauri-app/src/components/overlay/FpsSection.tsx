@@ -17,6 +17,8 @@ export function FpsSection({ isHorizontal }: FpsSectionProps) {
 
   const valueFontSize = settings.fontSizeValue ?? 12;
   const labelFontSize = settings.fontSizeLabel ?? 12;
+  const valueFontWeight = settings.fontWeight ?? 500;
+  const labelFontWeight = settings.labelFontWeight ?? 500;
   const { framerate, frametime } = settings.sensors;
   if (!framerate.isEnabled && !frametime.isEnabled) return null;
 
@@ -33,7 +35,7 @@ export function FpsSection({ isHorizontal }: FpsSectionProps) {
   return (
     <Pill title="FPS" isHorizontal={isHorizontal}>
       {framerate.isEnabled && (
-        <span style={{ fontSize: valueFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em", display: "inline-block" }} className="tabular-nums">
+        <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
           {formatValue(fpsValue)}
         </span>
       )}
@@ -54,10 +56,10 @@ export function FpsSection({ isHorizontal }: FpsSectionProps) {
               0.7 — both the value and the unit are muted (unlike every other
               value+unit pair in the HUD, where only the label is muted). */}
           <div className="flex items-center gap-1">
-            <span className="tabular-nums" style={{ fontSize: valueFontSize, fontWeight: 500, color: "var(--overlay-text-muted)", fontFamily: "Inter", letterSpacing: "-0.02em" }}>
+            <span className="tabular-nums" style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text-muted)", fontFamily: "Inter", letterSpacing: "-0.02em" }}>
               {formatValue(lastFrametime, 1)}
             </span>
-            <span style={{ fontSize: labelFontSize, fontWeight: 500, color: "var(--overlay-text-muted)", fontFamily: "Inter", letterSpacing: "0.04em" }}>ms</span>
+            <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text-muted)", fontFamily: "Inter", letterSpacing: "0.04em" }}>ms</span>
           </div>
         </div>
       )}

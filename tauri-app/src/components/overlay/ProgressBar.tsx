@@ -19,6 +19,8 @@ export function ProgressBar({
 }: ProgressBarProps) {
   const valueFontSize = useSettingsStore((s) => s.settings.fontSizeValue ?? 12);
   const labelFontSize = useSettingsStore((s) => s.settings.fontSizeLabel ?? 12);
+  const valueFontWeight = useSettingsStore((s) => s.settings.fontWeight ?? 500);
+  const labelFontWeight = useSettingsStore((s) => s.settings.labelFontWeight ?? 500);
   const percentage = Math.min(value / max, 1);
   const filledBars = Math.round(percentage * 10);
   const color = boundaries
@@ -42,11 +44,13 @@ export function ProgressBar({
           );
         })}
       </div>
-      <div className="flex items-center gap-1">
-        <span style={{ fontSize: valueFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
+      {/* Cluster hugs content: cluster→cluster gap reads as Figma 12px;
+          number→unit stays gap-1 (4px). tabular-nums avoids same-digit jitter. */}
+      <div className="flex items-center gap-1" style={{ fontSize: valueFontSize }}>
+        <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
           {label}
         </span>
-        <span style={{ fontSize: labelFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{unit}</span>
+        <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{unit}</span>
       </div>
     </div>
   );

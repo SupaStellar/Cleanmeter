@@ -10,6 +10,7 @@ interface PillProps {
 export function Pill({ title, isHorizontal, children, tooltip }: PillProps) {
   const pillOpacity = useSettingsStore((s) => s.settings.pillOpacity ?? 0.3);
   const labelSize = useSettingsStore((s) => s.settings.fontSizeLabel ?? 12);
+  const labelFontWeight = useSettingsStore((s) => s.settings.labelFontWeight ?? 500);
   const valueFontSize = useSettingsStore((s) => s.settings.fontSizeValue ?? 12);
   const dark = useSettingsStore((s) => !s.settings.isMeterLight);
 
@@ -36,7 +37,7 @@ export function Pill({ title, isHorizontal, children, tooltip }: PillProps) {
   // values. Applied here for labels.
   const labelStyle: React.CSSProperties = {
     fontSize: labelSize,
-    fontWeight: 500,
+    fontWeight: labelFontWeight,
     color: labelColor,
     fontFamily: "Inter",
     letterSpacing: "0.04em",

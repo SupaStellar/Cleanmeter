@@ -68,7 +68,8 @@ export function GpuSection({ sensors, hardwares }: Props) {
       updateSensor("gpuTemp", { isEnabled: false });
       updateSensor("gpuConsumption", { isEnabled: false });
       updateSensor("vramUsage", { isEnabled: false });
-      // Clear removed-from-UI sensor so upgraders don't see ghost metrics.
+      // totalVramUsed (the VRAM GB reading) rides along with vramUsage so the
+      // overlay's GB cluster stays in sync — they're one "VRAM" control.
       updateSensor("totalVramUsed", { isEnabled: false });
     } else {
       const prev = prevState.current;
@@ -76,6 +77,7 @@ export function GpuSection({ sensors, hardwares }: Props) {
       updateSensor("gpuTemp", { isEnabled: prev ? prev.gpuTemp : true });
       updateSensor("gpuConsumption", { isEnabled: prev ? prev.gpuConsumption : true });
       updateSensor("vramUsage", { isEnabled: prev ? prev.vramUsage : true });
+      updateSensor("totalVramUsed", { isEnabled: prev ? prev.vramUsage : true });
     }
   };
 
@@ -141,19 +143,16 @@ export function GpuSection({ sensors, hardwares }: Props) {
                 onChange={(v) => updateSensor("gpuConsumption", { customReadingId: v })}
               />
             )}
-            <TempRangeControl
-              boundaries={gpuConsumption.boundaries}
-              onChange={(b) => updateBoundary("gpuConsumption", b)}
-              unit="W"
-              max={600}
-            />
           </div>
         </SubCollapsible>
 
         <SubCollapsible
           label="VRAM Usage"
           checked={vramUsage.isEnabled}
-          onCheckedChange={(v) => updateSensor("vramUsage", { isEnabled: v })}
+          onCheckedChange={(v) => {
+            updateSensor("vramUsage", { isEnabled: v });
+            updateSensor("totalVramUsed", { isEnabled: v });
+          }}
         >
           <div className="flex flex-col gap-4">
             {vramSensors.length > 0 && (

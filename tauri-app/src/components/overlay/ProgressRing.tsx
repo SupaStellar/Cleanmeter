@@ -19,11 +19,13 @@ export function ProgressRing({
 }: ProgressRingProps) {
   const valueFontSize = useSettingsStore((s) => s.settings.fontSizeValue ?? 12);
   const labelFontSize = useSettingsStore((s) => s.settings.fontSizeLabel ?? 12);
+  const valueFontWeight = useSettingsStore((s) => s.settings.fontWeight ?? 500);
+  const labelFontWeight = useSettingsStore((s) => s.settings.labelFontWeight ?? 500);
   // Figma 2106:2313 ring sizing is a step function on fontSizeValue:
-  // 16px ring when value font ≤14, 20px ring when ≥16. Inner gap follows
-  // 6/8. Verified across all 7 size steps; never linear interpolation.
+  // 16px ring when value font ≤14, 20px ring when ≥16.
   const ringSize = valueFontSize <= 14 ? 16 : 20;
-  const ringToTextGap = valueFontSize <= 14 ? 6 : 8;
+  // Ring→value gap is a flat 8 at every size per Figma (node 2106:2313 redline).
+  const ringToTextGap = 8;
   const strokeWidth = 3;
   const radius = (ringSize - strokeWidth) / 2;
   const center = ringSize / 2;
@@ -64,11 +66,14 @@ export function ProgressRing({
           transform={`rotate(-90 ${center} ${center})`}
         />
       </svg>
-      <div className="flex items-center gap-1">
-        <span style={{ fontSize: valueFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
+      {/* Cluster hugs content: cluster→cluster gap reads as the Figma 12px
+          (Pill gap); number→unit stays gap-1 (Figma 4). tabular-nums avoids
+          same-digit jitter. */}
+      <div className="flex items-center gap-1" style={{ fontSize: valueFontSize }}>
+        <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
           {label}
         </span>
-        <span style={{ fontSize: labelFontSize, fontWeight: 500, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{unit}</span>
+        <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{unit}</span>
       </div>
     </div>
   );

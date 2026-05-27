@@ -120,12 +120,6 @@ export function CpuSection({ sensors, hardwares }: Props) {
                 }
               />
             )}
-            <TempRangeControl
-              boundaries={cpuConsumption.boundaries}
-              onChange={(b) => updateBoundary("cpuConsumption", b)}
-              unit="W"
-              max={300}
-            />
           </div>
         </SubCollapsible>
       </div>
