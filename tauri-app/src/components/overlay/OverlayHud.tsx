@@ -9,16 +9,10 @@ export function OverlayHud() {
   const settings = useSettingsStore((s) => s.settings);
   const isHorizontal = settings.isHorizontal;
   const dark = !settings.isMeterLight;
-  const pillOpacity = settings.pillOpacity ?? 0.3;
-  // Figma 2106:2313 outer capsule: bg rgba(0,0,0,0.64), sub-pills at 0.24.
-  // Tie the outer opacity to the existing pillOpacity slider via the same
-  // ratio so moving the slider fades both layers together. At Figma-canonical
-  // pillOpacity=0.24 the outer lands at 0.64; capped at 1.0 so high
-  // pillOpacity values don't blow past fully-opaque.
-  const outerOpacity = Math.min(1, pillOpacity * (0.64 / 0.24));
-  const bg = dark
-    ? `rgba(0,0,0,${outerOpacity})`
-    : `rgba(255,255,255,${outerOpacity})`;
+  // Pre-PR#8 background: fixed 0.7 outer + 1px border. PR#8 had tied the outer
+  // to pillOpacity (pure black, no border); reverted to the prior look on request.
+  const bg = dark ? "rgba(30,30,30,0.7)" : "rgba(255,255,255,0.7)";
+  const border = dark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.08)";
 
   return (
     <div
@@ -29,6 +23,7 @@ export function OverlayHud() {
         gap: 4,
         padding: 4,
         opacity: settings.opacity,
+        border,
         // Body sets line-height:20px globally which clamps text height to 20px
         // regardless of fontSize, so the pill stopped growing past the 32px
         // Figma frame. Unitless 1.2 = Inter's natural line-height — exact
