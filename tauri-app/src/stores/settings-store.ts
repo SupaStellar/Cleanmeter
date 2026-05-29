@@ -196,7 +196,9 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   presentMonApps: [],
   pipeStatus: { connected: false },
   overlayVisible: false,
-  appVersion: "2.0.0",
+  // Empty until loadAppVersion() resolves the real version — better a brief
+  // blank than a misleading hardcoded number.
+  appVersion: "",
 
   loadSettings: async () => {
     try {
@@ -247,6 +249,12 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
             customReadingId: "",
           },
         };
+      }
+      // pillOpacity has no UI control, so a saved 0.24 can only be PR#8's
+      // (now reverted) default leaking in from a prior run. Heal it back to
+      // the restored 0.3 so existing installs match the reverted look.
+      if (settings.pillOpacity === 0.24) {
+        settings.pillOpacity = 0.3;
       }
       set({ settings });
       tauri.setOverlayClickThrough(!settings.useCustomPosition && settings.isPositionLocked);

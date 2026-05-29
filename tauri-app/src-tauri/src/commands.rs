@@ -41,19 +41,18 @@ pub fn save_settings(
     app: AppHandle,
 ) {
     settings_mgr.save_settings(settings.clone());
-    // Notify overlay window of settings change
-    if let Some(overlay) = app.get_webview_window("overlay") {
-        let _ = overlay.emit("settings-changed", &settings);
-    }
+    // Broadcast to every window, not just the overlay. The settings window
+    // holds its own store copy; emitting only to the overlay left it with a
+    // stale positionX/Y, so toggling a stat re-saved the old position and
+    // snapped a dragged widget back. All windows now stay in sync with disk.
+    let _ = app.emit("settings-changed", &settings);
 }
 
 #[tauri::command]
 pub fn clear_settings(settings_mgr: State<'_, SettingsManager>, app: AppHandle) {
     settings_mgr.clear_settings();
     let defaults = settings_mgr.get_settings();
-    if let Some(overlay) = app.get_webview_window("overlay") {
-        let _ = overlay.emit("settings-changed", &defaults);
-    }
+    let _ = app.emit("settings-changed", &defaults);
 }
 
 #[tauri::command]
@@ -149,25 +148,69 @@ pub async fn set_polling_rate(
 
 // ─── System Commands ────────────────────────────────────────────
 
+// Autostart via a Scheduled Task rather than the HKCU Run key. The exe is
+// manifested requireAdministrator, and Windows can't silently auto-launch an
+// elevation-required exe from Run — it prompts UAC at every logon. A task with
+// "/rl highest" launches it elevated with no prompt.
+#[cfg(windows)]
+const AUTOSTART_TASK: &str = "CleanMeter";
+
 #[tauri::command]
 pub fn set_auto_start(enabled: bool) -> Result<(), String> {
     #[cfg(windows)]
     {
-        use winreg::enums::*;
-        use winreg::RegKey;
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
 
-        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-        let run_key = hkcu
-            .open_subkey_with_flags(r"Software\Microsoft\Windows\CurrentVersion\Run", KEY_WRITE)
-            .map_err(|e| e.to_string())?;
+        // Always clear the legacy Run entry — leaving it would keep prompting
+        // UAC at logon (and double-launch alongside the task).
+        {
+            use winreg::enums::*;
+            use winreg::RegKey;
+            if let Ok(run_key) = RegKey::predef(HKEY_CURRENT_USER)
+                .open_subkey_with_flags(r"Software\Microsoft\Windows\CurrentVersion\Run", KEY_WRITE)
+            {
+                let _ = run_key.delete_value("CleanMeter");
+            }
+        }
 
         if enabled {
             let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-            run_key
-                .set_value("CleanMeter", &exe.to_string_lossy().to_string())
+            // /sc onlogon fires at sign-in, /rl highest runs elevated without a
+            // prompt, /f overwrites an existing task. Quote the path for spaces.
+            // Capture output so a failure surfaces schtasks' actual stderr in
+            // the Err (and never leaks to the parent console).
+            let output = std::process::Command::new("schtasks")
+                .args([
+                    "/create",
+                    "/tn",
+                    AUTOSTART_TASK,
+                    "/tr",
+                    &format!("\"{}\"", exe.to_string_lossy()),
+                    "/sc",
+                    "onlogon",
+                    "/rl",
+                    "highest",
+                    "/f",
+                ])
+                .creation_flags(CREATE_NO_WINDOW)
+                .output()
                 .map_err(|e| e.to_string())?;
+            if !output.status.success() {
+                return Err(format!(
+                    "schtasks /create exited with {:?}: {}",
+                    output.status.code(),
+                    String::from_utf8_lossy(&output.stderr).trim()
+                ));
+            }
         } else {
-            let _ = run_key.delete_value("CleanMeter");
+            // Deleting a non-existent task prints an expected error — silence it.
+            let _ = std::process::Command::new("schtasks")
+                .args(["/delete", "/tn", AUTOSTART_TASK, "/f"])
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .creation_flags(CREATE_NO_WINDOW)
+                .status();
         }
     }
     Ok(())
@@ -177,14 +220,30 @@ pub fn set_auto_start(enabled: bool) -> Result<(), String> {
 pub fn get_auto_start() -> bool {
     #[cfg(windows)]
     {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+        // Task present ⇒ autostart on. Silence stdout/stderr — this runs on
+        // every startup + settings load, and a missing task (the default for
+        // most users) would otherwise spam "cannot find the file specified".
+        if let Ok(status) = std::process::Command::new("schtasks")
+            .args(["/query", "/tn", AUTOSTART_TASK])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .creation_flags(CREATE_NO_WINDOW)
+            .status()
+        {
+            if status.success() {
+                return true;
+            }
+        }
+        // Fall back to the legacy Run entry so installs that predate the task
+        // migration still report correctly until the next toggle migrates them.
         use winreg::enums::*;
         use winreg::RegKey;
-
-        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-        if let Ok(run_key) = hkcu.open_subkey_with_flags(
-            r"Software\Microsoft\Windows\CurrentVersion\Run",
-            KEY_READ,
-        ) {
+        if let Ok(run_key) = RegKey::predef(HKEY_CURRENT_USER)
+            .open_subkey_with_flags(r"Software\Microsoft\Windows\CurrentVersion\Run", KEY_READ)
+        {
             return run_key.get_value::<String, _>("CleanMeter").is_ok();
         }
     }

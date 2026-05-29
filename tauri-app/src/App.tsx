@@ -8,7 +8,7 @@ import { HelpTab } from "@/components/settings/help/HelpTab";
 import { useSensorData } from "@/hooks/useSensorData";
 import { useHotkey } from "@/hooks/useHotkey";
 import { useSettingsStore } from "@/stores/settings-store";
-import { checkDotnetRuntime } from "@/lib/tauri";
+import { checkDotnetRuntime, onSettingsChanged } from "@/lib/tauri";
 
 function MonitoringBanner() {
   const sensorData = useSettingsStore((s) => s.sensorData);
@@ -75,6 +75,29 @@ export default function App() {
     loadPreferences();
     loadAppVersion();
   }, [loadSettings, loadPreferences, loadAppVersion]);
+
+  // Stay in sync with changes saved by the overlay window (e.g. a drag move).
+  // Without this the settings store keeps a stale positionX/Y and re-saving any
+  // unrelated setting would snap the dragged widget back. setState only — never
+  // updateSettings — so the echo can't re-trigger a save loop.
+  useEffect(() => {
+    let active = true;
+    let unlisten: (() => void) | undefined;
+    onSettingsChanged((newSettings) => {
+      useSettingsStore.setState({ settings: newSettings });
+    })
+      .then((u) => {
+        if (active) unlisten = u;
+        else u();
+      })
+      .catch((err) => {
+        console.error("Failed to subscribe to settings changes:", err);
+      });
+    return () => {
+      active = false;
+      unlisten?.();
+    };
+  }, []);
 
   useEffect(() => {
     document.documentElement.setAttribute(
