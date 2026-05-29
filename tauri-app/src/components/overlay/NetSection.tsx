@@ -27,6 +27,24 @@ export function NetSection({ isHorizontal }: NetSectionProps) {
   const down = formatNetworkRateParts(findSensorById(sensors, downRate.customReadingId)?.value ?? 0);
   const up = formatNetworkRateParts(findSensorById(sensors, upRate.customReadingId)?.value ?? 0);
 
+  // Value vs label/unit styling — same split as the other sections (value
+  // hugs at -0.02em letterSpacing; unit/arrow use the label treatment at
+  // +0.04em). Extracted to avoid repeating the style object on every span.
+  const valueStyle: React.CSSProperties = {
+    fontSize: valueFontSize,
+    fontWeight: valueFontWeight,
+    color: "var(--overlay-text)",
+    fontFamily: "Inter",
+    letterSpacing: "-0.02em",
+  };
+  const labelStyle: React.CSSProperties = {
+    fontSize: labelFontSize,
+    fontWeight: labelFontWeight,
+    color: "var(--overlay-text)",
+    fontFamily: "Inter",
+    letterSpacing: "0.04em",
+  };
+
   return (
     <Pill title="NET" isHorizontal={isHorizontal}>
       {downRate.isEnabled && (
@@ -34,20 +52,16 @@ export function NetSection({ isHorizontal }: NetSectionProps) {
         // rate unit (KB/s, MB/s) is a label — same styling as %, W, GB — not
         // part of the value. Arrow is a white ↓ text glyph at label size.
         <div className="flex items-center gap-1">
-          <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
-            {down.value}
-          </span>
-          <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{down.unit}</span>
-          <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>↓</span>
+          <span style={valueStyle} className="tabular-nums">{down.value}</span>
+          <span style={labelStyle}>{down.unit}</span>
+          <span style={labelStyle}>↓</span>
         </div>
       )}
       {upRate.isEnabled && (
         <div className="flex items-center gap-1">
-          <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
-            {up.value}
-          </span>
-          <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{up.unit}</span>
-          <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>↑</span>
+          <span style={valueStyle} className="tabular-nums">{up.value}</span>
+          <span style={labelStyle}>{up.unit}</span>
+          <span style={labelStyle}>↑</span>
         </div>
       )}
       {showNetGraph && (
