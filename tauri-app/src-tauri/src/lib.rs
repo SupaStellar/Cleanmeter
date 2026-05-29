@@ -216,9 +216,21 @@ pub fn run() {
 
                 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
-                let hw_exe = std::env::current_exe()
+                // In a packaged build the sidecar is bundled as a Tauri resource,
+                // so resolve via resource_dir() first. Fall back to the executable's
+                // own directory for `cargo tauri dev`, where the .exe sits next to
+                // the freshly built binary rather than under a resource dir.
+                let hw_exe = app
+                    .path()
+                    .resource_dir()
                     .ok()
-                    .and_then(|p| p.parent().map(|d| d.join("HardwareMonitor.exe")))
+                    .map(|p| p.join("HardwareMonitor.exe"))
+                    .filter(|p| p.exists())
+                    .or_else(|| {
+                        std::env::current_exe()
+                            .ok()
+                            .and_then(|p| p.parent().map(|d| d.join("HardwareMonitor.exe")))
+                    })
                     .unwrap_or_else(|| std::path::PathBuf::from("HardwareMonitor.exe"));
 
                 let child_slot: Arc<StdMutex<Option<Child>>> = Arc::new(StdMutex::new(None));
@@ -256,10 +268,11 @@ pub fn run() {
                                 // Poll for exit so we can also react to shutdown.
                                 loop {
                                     if !hw_running.load(Ordering::Relaxed) {
-                                        if let Some(c) = child_slot.lock().unwrap().as_mut() {
+                                        let mut guard = child_slot.lock().unwrap();
+                                        if let Some(c) = guard.as_mut() {
                                             let _ = c.kill();
                                         }
-                                        *child_slot.lock().unwrap() = None;
+                                        *guard = None;
                                         info!("HardwareMonitor supervisor stopped");
                                         return;
                                     }
