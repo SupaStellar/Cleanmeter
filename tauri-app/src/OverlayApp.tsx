@@ -4,7 +4,6 @@ import { useSensorData } from "@/hooks/useSensorData";
 import { useSettingsStore } from "@/stores/settings-store";
 import {
   onSettingsChanged,
-  onSetOpacity,
   getMonitors,
   setOverlayPosition,
   setOverlaySize,
@@ -73,10 +72,9 @@ export default function OverlayApp() {
         useSettingsStore.setState({ settings: newSettings });
       });
       if (mounted) unlisteners.push(u1); else u1();
-      const u2 = await onSetOpacity((opacity) => {
-        document.documentElement.style.opacity = String(opacity);
-      });
-      if (mounted) unlisteners.push(u2); else u2();
+      // Opacity no longer dims the whole overlay — the Opacity setting drives
+      // the pill background alpha (see Pill.tsx). The legacy document-root
+      // opacity application was removed so the background and text stay opaque.
     };
     setup();
     return () => {
