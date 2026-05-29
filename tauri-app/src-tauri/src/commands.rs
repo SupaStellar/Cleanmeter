@@ -178,7 +178,9 @@ pub fn set_auto_start(enabled: bool) -> Result<(), String> {
             let exe = std::env::current_exe().map_err(|e| e.to_string())?;
             // /sc onlogon fires at sign-in, /rl highest runs elevated without a
             // prompt, /f overwrites an existing task. Quote the path for spaces.
-            let status = std::process::Command::new("schtasks")
+            // Capture output so a failure surfaces schtasks' actual stderr in
+            // the Err (and never leaks to the parent console).
+            let output = std::process::Command::new("schtasks")
                 .args([
                     "/create",
                     "/tn",
@@ -192,14 +194,21 @@ pub fn set_auto_start(enabled: bool) -> Result<(), String> {
                     "/f",
                 ])
                 .creation_flags(CREATE_NO_WINDOW)
-                .status()
+                .output()
                 .map_err(|e| e.to_string())?;
-            if !status.success() {
-                return Err(format!("schtasks /create exited with {:?}", status.code()));
+            if !output.status.success() {
+                return Err(format!(
+                    "schtasks /create exited with {:?}: {}",
+                    output.status.code(),
+                    String::from_utf8_lossy(&output.stderr).trim()
+                ));
             }
         } else {
+            // Deleting a non-existent task prints an expected error — silence it.
             let _ = std::process::Command::new("schtasks")
                 .args(["/delete", "/tn", AUTOSTART_TASK, "/f"])
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
                 .creation_flags(CREATE_NO_WINDOW)
                 .status();
         }
@@ -214,9 +223,13 @@ pub fn get_auto_start() -> bool {
         use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x08000000;
 
-        // Task present ⇒ autostart on.
+        // Task present ⇒ autostart on. Silence stdout/stderr — this runs on
+        // every startup + settings load, and a missing task (the default for
+        // most users) would otherwise spam "cannot find the file specified".
         if let Ok(status) = std::process::Command::new("schtasks")
             .args(["/query", "/tn", AUTOSTART_TASK])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
             .creation_flags(CREATE_NO_WINDOW)
             .status()
         {

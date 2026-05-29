@@ -85,10 +85,14 @@ export default function App() {
     let unlisten: (() => void) | undefined;
     onSettingsChanged((newSettings) => {
       useSettingsStore.setState({ settings: newSettings });
-    }).then((u) => {
-      if (active) unlisten = u;
-      else u();
-    });
+    })
+      .then((u) => {
+        if (active) unlisten = u;
+        else u();
+      })
+      .catch((err) => {
+        console.error("Failed to subscribe to settings changes:", err);
+      });
     return () => {
       active = false;
       unlisten?.();
