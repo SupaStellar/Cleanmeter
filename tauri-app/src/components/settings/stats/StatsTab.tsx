@@ -17,8 +17,10 @@ export function StatsTab() {
   // TODO: replace with updater API. Mocked locally so the banner UI can be
   // exercised end-to-end (idle → downloading → complete).
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>("idle");
-  // TODO: replace with updater API data
-  const updateVersion = "2.0.0";
+  // Until the updater API is wired, surface the actual running version rather
+  // than a stale literal. TODO: once the updater lands, show the *available*
+  // update version here, not the current one.
+  const appVersion = useSettingsStore((s) => s.appVersion);
 
   useEffect(() => {
     if (updateStatus !== "downloading") return;
@@ -42,7 +44,7 @@ export function StatsTab() {
         <UpdateBanner
           className="sticky bottom-4 z-10 mt-auto"
           status={updateStatus}
-          version={updateVersion}
+          version={appVersion}
           onLater={() => setUpdateStatus(null)}
           onUpdate={() => setUpdateStatus("downloading")}
           onCancel={() => setUpdateStatus("idle")}

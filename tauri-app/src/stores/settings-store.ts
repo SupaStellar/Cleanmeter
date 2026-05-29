@@ -196,7 +196,9 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   presentMonApps: [],
   pipeStatus: { connected: false },
   overlayVisible: false,
-  appVersion: "2.0.0",
+  // Empty until loadAppVersion() resolves the real version — better a brief
+  // blank than a misleading hardcoded number.
+  appVersion: "",
 
   loadSettings: async () => {
     try {
