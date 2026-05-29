@@ -41,19 +41,18 @@ pub fn save_settings(
     app: AppHandle,
 ) {
     settings_mgr.save_settings(settings.clone());
-    // Notify overlay window of settings change
-    if let Some(overlay) = app.get_webview_window("overlay") {
-        let _ = overlay.emit("settings-changed", &settings);
-    }
+    // Broadcast to every window, not just the overlay. The settings window
+    // holds its own store copy; emitting only to the overlay left it with a
+    // stale positionX/Y, so toggling a stat re-saved the old position and
+    // snapped a dragged widget back. All windows now stay in sync with disk.
+    let _ = app.emit("settings-changed", &settings);
 }
 
 #[tauri::command]
 pub fn clear_settings(settings_mgr: State<'_, SettingsManager>, app: AppHandle) {
     settings_mgr.clear_settings();
     let defaults = settings_mgr.get_settings();
-    if let Some(overlay) = app.get_webview_window("overlay") {
-        let _ = overlay.emit("settings-changed", &defaults);
-    }
+    let _ = app.emit("settings-changed", &defaults);
 }
 
 #[tauri::command]
