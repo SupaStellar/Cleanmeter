@@ -5,9 +5,9 @@ mod tray;
 mod types;
 
 use commands::PipeCommandSender;
-use log::info;
+use log::{error, info, warn};
 use settings::SettingsManager;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{Emitter, Manager};
 use tokio::sync::mpsc;
@@ -186,6 +186,7 @@ pub fn run() {
             let app_handle = app.handle().clone();
             let running = Arc::new(AtomicBool::new(true));
             let running_clone = running.clone();
+            let running_for_hw = running.clone();
 
             tauri::async_runtime::spawn(async move {
                 pipe_client::run_pipe_client(app_handle, cmd_rx, running_clone).await;
@@ -197,40 +198,111 @@ pub fn run() {
             // Set up system tray
             tray::setup_tray(app.handle())?;
 
-            // Spawn HardwareMonitor as a child process.
-            // Kill any existing instances first to avoid pipe conflicts.
-            // Since CleanMeter runs as admin (requireAdministrator manifest),
-            // the child inherits those privileges and can read all hardware sensors.
+            // Supervise HardwareMonitor as a child process. Spawning it once was
+            // fragile: if a stale instance still held the named pipe at launch
+            // (or the child crashed), it exited and was never replaced — which
+            // surfaced as a permanent "Pipe not connected" with no recovery short
+            // of a manual restart. This loop respawns the sidecar whenever it
+            // dies, so a startup race or a crash self-heals within ~1s. The live
+            // child is tracked so app exit can kill it instead of orphaning it
+            // (an orphaned sidecar is what created the stale-pipe race to begin
+            // with). CleanMeter runs elevated (requireAdministrator manifest), so
+            // the child inherits admin and can read every sensor + drive PresentMon.
+            #[cfg(windows)]
             {
-                let hw_exe = std::env::current_exe()
+                use std::os::windows::process::CommandExt;
+                use std::process::Child;
+                use std::sync::Mutex as StdMutex;
+
+                const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+                // In a packaged build the sidecar is bundled as a Tauri resource,
+                // so resolve via resource_dir() first. Fall back to the executable's
+                // own directory for `cargo tauri dev`, where the .exe sits next to
+                // the freshly built binary rather than under a resource dir.
+                let hw_exe = app
+                    .path()
+                    .resource_dir()
                     .ok()
-                    .and_then(|p| p.parent().map(|d| d.join("HardwareMonitor.exe")))
+                    .map(|p| p.join("HardwareMonitor.exe"))
+                    .filter(|p| p.exists())
+                    .or_else(|| {
+                        std::env::current_exe()
+                            .ok()
+                            .and_then(|p| p.parent().map(|d| d.join("HardwareMonitor.exe")))
+                    })
                     .unwrap_or_else(|| std::path::PathBuf::from("HardwareMonitor.exe"));
-                #[cfg(windows)]
-                {
-                    use std::os::windows::process::CommandExt;
-                    // Remove the old Windows service (if installed by a previous version)
+
+                let child_slot: Arc<StdMutex<Option<Child>>> = Arc::new(StdMutex::new(None));
+                app.manage(child_slot.clone());
+
+                let hw_running = running_for_hw;
+                std::thread::spawn(move || {
+                    // One-time cleanup: drop any service or instance left behind
+                    // by a previous version or a previous run before we take over.
                     let _ = std::process::Command::new("sc.exe")
                         .args(["stop", "CleanMeterHW"])
-                        .creation_flags(0x08000000)
+                        .creation_flags(CREATE_NO_WINDOW)
                         .status();
                     let _ = std::process::Command::new("sc.exe")
                         .args(["delete", "CleanMeterHW"])
-                        .creation_flags(0x08000000)
+                        .creation_flags(CREATE_NO_WINDOW)
                         .status();
-                    // Kill any existing HardwareMonitor instances before spawning a new one
                     let _ = std::process::Command::new("taskkill")
                         .args(["/f", "/im", "HardwareMonitor.exe"])
-                        .creation_flags(0x08000000)
+                        .creation_flags(CREATE_NO_WINDOW)
                         .status();
+                    // Give the OS a moment to release the pipe handle held by any
+                    // instance we just killed before the first spawn.
                     std::thread::sleep(std::time::Duration::from_millis(500));
-                    if let Ok(child) = std::process::Command::new(hw_exe)
-                        .creation_flags(0x08000000) // CREATE_NO_WINDOW
-                        .spawn()
-                    {
-                        app.manage(std::sync::Mutex::new(Some(child)));
+
+                    while hw_running.load(Ordering::Relaxed) {
+                        match std::process::Command::new(&hw_exe)
+                            .creation_flags(CREATE_NO_WINDOW)
+                            .spawn()
+                        {
+                            Ok(child) => {
+                                info!("HardwareMonitor spawned (pid {})", child.id());
+                                *child_slot.lock().unwrap() = Some(child);
+
+                                // Poll for exit so we can also react to shutdown.
+                                loop {
+                                    if !hw_running.load(Ordering::Relaxed) {
+                                        let mut guard = child_slot.lock().unwrap();
+                                        if let Some(c) = guard.as_mut() {
+                                            let _ = c.kill();
+                                        }
+                                        *guard = None;
+                                        info!("HardwareMonitor supervisor stopped");
+                                        return;
+                                    }
+                                    let exited = match child_slot.lock().unwrap().as_mut() {
+                                        Some(c) => matches!(c.try_wait(), Ok(Some(_)) | Err(_)),
+                                        None => true,
+                                    };
+                                    if exited {
+                                        break;
+                                    }
+                                    std::thread::sleep(std::time::Duration::from_millis(500));
+                                }
+                                *child_slot.lock().unwrap() = None;
+                            }
+                            Err(e) => {
+                                error!("Failed to spawn HardwareMonitor: {}", e);
+                            }
+                        }
+
+                        if !hw_running.load(Ordering::Relaxed) {
+                            break;
+                        }
+                        // Backoff before respawn: keeps a hard-failing sidecar from
+                        // busy-looping and lets the OS release the pipe from the
+                        // instance that just exited.
+                        warn!("HardwareMonitor exited; respawning in 1s");
+                        std::thread::sleep(std::time::Duration::from_secs(1));
                     }
-                }
+                    info!("HardwareMonitor supervisor stopped");
+                });
             }
 
             // Register global shortcuts. Filter on Pressed — the callback fires
@@ -335,6 +407,25 @@ pub fn run() {
             commands::launch_hardware_monitor,
             commands::ui_debug_log,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|app_handle, event| {
+            // On real teardown, stop the supervisor and kill the sidecar so it
+            // never lingers to hold the pipe against the next launch.
+            if let tauri::RunEvent::Exit = event {
+                if let Some(running) = app_handle.try_state::<Arc<AtomicBool>>() {
+                    running.store(false, Ordering::Relaxed);
+                }
+                #[cfg(windows)]
+                if let Some(slot) =
+                    app_handle.try_state::<Arc<std::sync::Mutex<Option<std::process::Child>>>>()
+                {
+                    if let Ok(mut guard) = slot.lock() {
+                        if let Some(child) = guard.as_mut() {
+                            let _ = child.kill();
+                        }
+                    }
+                }
+            }
+        });
 }
