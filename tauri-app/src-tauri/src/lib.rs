@@ -84,6 +84,38 @@ pub fn run() {
         .setup(|app| {
             info!("CleanMeter starting up...");
 
+            // Initialize the settings manager early so startup can read the
+            // start_minimized preference before deciding whether to show the
+            // settings window.
+            let app_data_dir = app
+                .path()
+                .app_data_dir()
+                .expect("Failed to get app data dir");
+            let settings_mgr = SettingsManager::new(app_data_dir);
+            let start_minimized = settings_mgr.get_preferences().start_minimized;
+            app.manage(settings_mgr);
+
+            // One-time autostart migration: older builds registered autostart
+            // via an HKCU Run entry, which prompts UAC at every logon for this
+            // requireAdministrator exe. Move it to a scheduled task (launches
+            // elevated silently) and drop the Run entry.
+            #[cfg(windows)]
+            {
+                use winreg::enums::*;
+                use winreg::RegKey;
+                let has_run_entry = RegKey::predef(HKEY_CURRENT_USER)
+                    .open_subkey_with_flags(
+                        r"Software\Microsoft\Windows\CurrentVersion\Run",
+                        KEY_READ,
+                    )
+                    .ok()
+                    .and_then(|k| k.get_value::<String, _>("CleanMeter").ok())
+                    .is_some();
+                if has_run_entry {
+                    let _ = commands::set_auto_start(true);
+                }
+            }
+
             // Force the settings window to spec size, centered on the primary
             // monitor in physical pixels. Done in Rust so it lands correctly
             // before the window is ever shown — Tauri's `center: true` config
@@ -139,8 +171,12 @@ pub fn run() {
                     ));
                     let _ = window.center();
                 }
-                let _ = window.show();
-                let _ = window.set_focus();
+                // Honor "Start minimized": when on, leave the settings window
+                // hidden (config is visible:false) so the app starts to tray.
+                if !start_minimized {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
 
                 if let Ok(pos) = window.outer_position() {
                     log_lines.push(format!("t=0 after show outer_position: ({},{})", pos.x, pos.y));
@@ -169,14 +205,6 @@ pub fn run() {
                     }
                 });
             }
-
-            // Initialize settings manager
-            let app_data_dir = app
-                .path()
-                .app_data_dir()
-                .expect("Failed to get app data dir");
-            let settings_mgr = SettingsManager::new(app_data_dir);
-            app.manage(settings_mgr);
 
             // Set up pipe client communication channel
             let (cmd_tx, cmd_rx) = mpsc::channel::<pipe_client::PipeCommand>(32);

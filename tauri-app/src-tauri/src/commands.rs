@@ -148,25 +148,60 @@ pub async fn set_polling_rate(
 
 // ─── System Commands ────────────────────────────────────────────
 
+// Autostart via a Scheduled Task rather than the HKCU Run key. The exe is
+// manifested requireAdministrator, and Windows can't silently auto-launch an
+// elevation-required exe from Run — it prompts UAC at every logon. A task with
+// "/rl highest" launches it elevated with no prompt.
+#[cfg(windows)]
+const AUTOSTART_TASK: &str = "CleanMeter";
+
 #[tauri::command]
 pub fn set_auto_start(enabled: bool) -> Result<(), String> {
     #[cfg(windows)]
     {
-        use winreg::enums::*;
-        use winreg::RegKey;
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
 
-        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-        let run_key = hkcu
-            .open_subkey_with_flags(r"Software\Microsoft\Windows\CurrentVersion\Run", KEY_WRITE)
-            .map_err(|e| e.to_string())?;
+        // Always clear the legacy Run entry — leaving it would keep prompting
+        // UAC at logon (and double-launch alongside the task).
+        {
+            use winreg::enums::*;
+            use winreg::RegKey;
+            if let Ok(run_key) = RegKey::predef(HKEY_CURRENT_USER)
+                .open_subkey_with_flags(r"Software\Microsoft\Windows\CurrentVersion\Run", KEY_WRITE)
+            {
+                let _ = run_key.delete_value("CleanMeter");
+            }
+        }
 
         if enabled {
             let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-            run_key
-                .set_value("CleanMeter", &exe.to_string_lossy().to_string())
+            // /sc onlogon fires at sign-in, /rl highest runs elevated without a
+            // prompt, /f overwrites an existing task. Quote the path for spaces.
+            let status = std::process::Command::new("schtasks")
+                .args([
+                    "/create",
+                    "/tn",
+                    AUTOSTART_TASK,
+                    "/tr",
+                    &format!("\"{}\"", exe.to_string_lossy()),
+                    "/sc",
+                    "onlogon",
+                    "/rl",
+                    "highest",
+                    "/f",
+                ])
+                .creation_flags(CREATE_NO_WINDOW)
+                .status()
                 .map_err(|e| e.to_string())?;
+            if !status.success() {
+                return Err(format!("schtasks /create exited with {:?}", status.code()));
+            }
         } else {
-            let _ = run_key.delete_value("CleanMeter");
+            let _ = std::process::Command::new("schtasks")
+                .args(["/delete", "/tn", AUTOSTART_TASK, "/f"])
+                .creation_flags(CREATE_NO_WINDOW)
+                .status();
         }
     }
     Ok(())
@@ -176,14 +211,26 @@ pub fn set_auto_start(enabled: bool) -> Result<(), String> {
 pub fn get_auto_start() -> bool {
     #[cfg(windows)]
     {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+        // Task present ⇒ autostart on.
+        if let Ok(status) = std::process::Command::new("schtasks")
+            .args(["/query", "/tn", AUTOSTART_TASK])
+            .creation_flags(CREATE_NO_WINDOW)
+            .status()
+        {
+            if status.success() {
+                return true;
+            }
+        }
+        // Fall back to the legacy Run entry so installs that predate the task
+        // migration still report correctly until the next toggle migrates them.
         use winreg::enums::*;
         use winreg::RegKey;
-
-        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-        if let Ok(run_key) = hkcu.open_subkey_with_flags(
-            r"Software\Microsoft\Windows\CurrentVersion\Run",
-            KEY_READ,
-        ) {
+        if let Ok(run_key) = RegKey::predef(HKEY_CURRENT_USER)
+            .open_subkey_with_flags(r"Software\Microsoft\Windows\CurrentVersion\Run", KEY_READ)
+        {
             return run_key.get_value::<String, _>("CleanMeter").is_ok();
         }
     }
