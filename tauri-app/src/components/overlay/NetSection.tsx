@@ -15,6 +15,9 @@ export function NetSection({ isHorizontal }: NetSectionProps) {
   const sensors = sensorData?.sensors ?? [];
 
   const valueFontSize = settings.fontSizeValue ?? 12;
+  const valueFontWeight = settings.fontWeight ?? 500;
+  const labelFontSize = settings.fontSizeLabel ?? 12;
+  const labelFontWeight = settings.labelFontWeight ?? 500;
   const { downRate, upRate } = settings.sensors;
   const showNetGraph = settings.netGraph;
 
@@ -27,49 +30,21 @@ export function NetSection({ isHorizontal }: NetSectionProps) {
   return (
     <Pill title="NET" isHorizontal={isHorizontal}>
       {downRate.isEnabled && (
+        // Figma 2169:5351 NET sub-pill: [value, arrow] order, gap 4. Arrow is a
+        // white ↓ text glyph at label size (not a colored icon).
         <div className="flex items-center gap-1">
-          {/* Download arrow */}
-          <svg
-            width="10"
-            height="10"
-            viewBox="0 0 10 10"
-            fill="none"
-            style={{ opacity: Math.min(0.3 + downVal / 1000000, 1) }}
-          >
-            <path
-              d="M5 2V8M5 8L2.5 5.5M5 8L7.5 5.5"
-              stroke="var(--overlay-arrow-down)"
-              strokeWidth="1.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <span style={{ fontSize: valueFontSize, fontWeight: 400, color: "var(--overlay-text)", fontFamily: "Inter", minWidth: "5.5em", textAlign: "right" }} className="tabular-nums">
+          <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
             {formatNetworkRate(downVal)}
           </span>
+          <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>↓</span>
         </div>
       )}
       {upRate.isEnabled && (
         <div className="flex items-center gap-1">
-          {/* Upload arrow */}
-          <svg
-            width="10"
-            height="10"
-            viewBox="0 0 10 10"
-            fill="none"
-            style={{ opacity: Math.min(0.3 + upVal / 1000000, 1) }}
-          >
-            <path
-              d="M5 8V2M5 2L2.5 4.5M5 2L7.5 4.5"
-              stroke="var(--overlay-arrow-up)"
-              strokeWidth="1.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <span style={{ fontSize: valueFontSize, fontWeight: 400, color: "var(--overlay-text)", fontFamily: "Inter", minWidth: "5.5em", textAlign: "right" }} className="tabular-nums">
+          <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
             {formatNetworkRate(upVal)}
           </span>
+          <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>↑</span>
         </div>
       )}
       {showNetGraph && (

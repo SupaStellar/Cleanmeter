@@ -16,6 +16,8 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
 
   const valueFontSize = settings.fontSizeValue ?? 12;
   const labelFontSize = settings.fontSizeLabel ?? 12;
+  const valueFontWeight = settings.fontWeight ?? 500;
+  const labelFontWeight = settings.labelFontWeight ?? 500;
   const { gpuTemp, gpuUsage, vramUsage, totalVramUsed, gpuConsumption } =
     settings.sensors;
   const progressType = settings.progressType;
@@ -58,11 +60,11 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
             boundaries={gpuTemp.boundaries}
           />
         ) : (
-          <div className="flex items-baseline gap-0.5">
-            <span style={{ fontSize: valueFontSize, fontWeight: 400, color: "var(--overlay-text)", fontFamily: "Inter", minWidth: "3em", textAlign: "right", display: "inline-block" }} className="tabular-nums">
+          <div className="flex items-center gap-1">
+            <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
               {temp.label}
             </span>
-            <span style={{ fontSize: labelFontSize, fontWeight: 400, color: "var(--overlay-text-muted)" }}>{temp.symbol}</span>
+            <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{temp.symbol}</span>
           </div>
         )
       )}
@@ -76,49 +78,45 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
             boundaries={gpuUsage.boundaries}
           />
         ) : (
-          <div className="flex items-baseline gap-0.5">
-            <span style={{ fontSize: valueFontSize, fontWeight: 400, color: "var(--overlay-text)", fontFamily: "Inter", minWidth: "3em", textAlign: "right", display: "inline-block" }} className="tabular-nums">
+          <div className="flex items-center gap-1">
+            <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
               {formatValue(gpuUsageVal)}
             </span>
-            <span style={{ fontSize: labelFontSize, fontWeight: 400, color: "var(--overlay-text-muted)" }}>%</span>
+            <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>%</span>
           </div>
         )
       )}
-      {vramUsage.isEnabled && totalVramUsed.isEnabled && (
+      {/* VRAM is gated on vramUsage alone — totalVramUsed is a removed-from-UI
+          flag the settings can never re-enable, so requiring it hid VRAM
+          entirely. The GB number still comes from totalVramUsed's reading id
+          (auto-filled); fall back to % when no GB reading is available. */}
+      {vramUsage.isEnabled && (
         showProgress ? (
           <Progress
             value={vramUsageVal}
             max={100}
-            label={formatValue(vramUsedVal, 1)}
-            unit="GB"
+            label={vramUsedVal > 0 ? formatValue(vramUsedVal, 1) : formatValue(vramUsageVal, 0)}
+            unit={vramUsedVal > 0 ? "GB" : "%"}
             boundaries={vramUsage.boundaries}
           />
         ) : (
-          <div className="flex items-baseline gap-0.5">
-            <span style={{ fontSize: valueFontSize, fontWeight: 400, color: "var(--overlay-text)", fontFamily: "Inter", minWidth: "3em", textAlign: "right", display: "inline-block" }} className="tabular-nums">
-              {formatValue(vramUsedVal, 1)}
+          <div className="flex items-center gap-1">
+            <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
+              {vramUsedVal > 0 ? formatValue(vramUsedVal, 1) : formatValue(vramUsageVal, 0)}
             </span>
-            <span style={{ fontSize: labelFontSize, fontWeight: 400, color: "var(--overlay-text-muted)" }}>GB</span>
+            <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{vramUsedVal > 0 ? "GB" : "%"}</span>
           </div>
         )
       )}
+      {/* Power consumption has no threshold ring in the canonical build —
+          always a plain value + unit (matches v2.2.x early build). */}
       {gpuConsumption.isEnabled && (
-        showProgress ? (
-          <Progress
-            value={gpuPowerVal}
-            max={gpuConsumption.boundaries.high}
-            label={formatValue(gpuPowerVal)}
-            unit="W"
-            boundaries={gpuConsumption.boundaries}
-          />
-        ) : (
-          <div className="flex items-baseline gap-0.5">
-            <span style={{ fontSize: valueFontSize, fontWeight: 400, color: "var(--overlay-text)", fontFamily: "Inter", minWidth: "3em", textAlign: "right", display: "inline-block" }} className="tabular-nums">
-              {formatValue(gpuPowerVal)}
-            </span>
-            <span style={{ fontSize: labelFontSize, fontWeight: 400, color: "var(--overlay-text-muted)" }}>W</span>
-          </div>
-        )
+        <div className="flex items-center gap-1">
+          <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
+            {formatValue(gpuPowerVal)}
+          </span>
+          <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>W</span>
+        </div>
       )}
     </Pill>
   );
