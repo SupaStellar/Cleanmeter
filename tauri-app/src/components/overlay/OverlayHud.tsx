@@ -22,7 +22,6 @@ export function OverlayHud() {
         // outer pad 4 / inter-pill gap 4.
         gap: 4,
         padding: 4,
-        opacity: settings.opacity,
         border,
         // Body sets line-height:20px globally which clamps text height to 20px
         // regardless of fontSize, so the pill stopped growing past the 32px

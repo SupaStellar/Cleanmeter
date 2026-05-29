@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { getAutoStart, setAutoStart } from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
+import { POLLING_RATES } from "@/lib/types";
 import type { TemperatureUnit } from "@/lib/types";
 import {
   BrowserUpdatedIcon,
@@ -141,8 +142,6 @@ function TemperatureUnitsSection() {
     </SectionCard>
   );
 }
-
-const POLLING_RATES = [100, 250, 500, 1000];
 
 function PollingRateSection() {
   const pollingRate = useSettingsStore((s) => s.settings.pollingRate);

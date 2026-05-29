@@ -151,7 +151,10 @@ export interface AppPreferences {
 
 export type SensorKey = keyof SensorsConfig;
 
-export const POLLING_RATES = [33, 50, 100, 250, 300, 350, 400, 500] as const;
+// Polling intervals (ms) offered in Settings → Polling rate. Single source of
+// truth — the dropdown imports this. Lower = faster updates (numbers change
+// quicker), so HUD animation timings derive from the selected value.
+export const POLLING_RATES = [100, 250, 500, 1000] as const;
 
 export const DEFAULT_SETTINGS: OverlaySettings = {
   isDarkTheme: false,
@@ -168,10 +171,11 @@ export const DEFAULT_SETTINGS: OverlaySettings = {
   positionX: 0,
   positionY: 0,
   isPositionLocked: false,
-  opacity: 1.0,
-  // Pre-PR#8 sub-pill alpha. PR#8 had lowered this to 0.24 and derived the
-  // outer capsule from it; reverted to the prior look. Existing users keep
-  // their saved value via settings-store merge.
+  // Opacity now drives the pill background alpha (not whole-widget opacity).
+  // 0.3 = the Figma translucent-pill default; 1.0 (slider max) = solid pills.
+  opacity: 0.3,
+  // Legacy: pill alpha is now driven by `opacity` above. Kept on the settings
+  // shape (shared with the Rust struct) but no longer read by the UI.
   pillOpacity: 0.3,
   fontSizeValue: 12,
   fontSizeLabel: 12,

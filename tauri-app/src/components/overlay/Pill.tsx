@@ -8,13 +8,15 @@ interface PillProps {
 }
 
 export function Pill({ title, isHorizontal, children, tooltip }: PillProps) {
-  const pillOpacity = useSettingsStore((s) => s.settings.pillOpacity ?? 0.3);
+  // The Opacity slider drives the PILL background alpha only (max = solid
+  // black/white pills); the outer HUD background and text are unaffected.
+  const pillAlpha = useSettingsStore((s) => s.settings.opacity ?? 0.3);
   const labelSize = useSettingsStore((s) => s.settings.fontSizeLabel ?? 12);
   const labelFontWeight = useSettingsStore((s) => s.settings.labelFontWeight ?? 500);
   const valueFontSize = useSettingsStore((s) => s.settings.fontSizeValue ?? 12);
   const dark = useSettingsStore((s) => !s.settings.isMeterLight);
 
-  const pillBg = dark ? `rgba(0,0,0,${pillOpacity})` : `rgba(255,255,255,${pillOpacity})`;
+  const pillBg = dark ? `rgba(0,0,0,${pillAlpha})` : `rgba(255,255,255,${pillAlpha})`;
   // Figma labels (FPS/CPU/GPU/RAM/NET text nodes) have node-level opacity 0.7
   // while their white fill stays at opacity 1. CSS rgba(255,255,255,0.7)
   // renders identically. Values, units, and arrows stay full white.

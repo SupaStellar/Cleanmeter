@@ -56,10 +56,19 @@ export function formatBytes(bytes: number): string {
   return `${bytes.toFixed(0)} B`;
 }
 
+// Split form: the number and its rate unit, so the unit can be rendered with
+// the same label/unit styling as %, W, °C, GB (not as part of the value).
+export function formatNetworkRateParts(
+  bytesPerSec: number,
+): { value: string; unit: string } {
+  if (bytesPerSec >= 1048576) return { value: (bytesPerSec / 1048576).toFixed(1), unit: "MB/s" };
+  if (bytesPerSec >= 1024) return { value: (bytesPerSec / 1024).toFixed(1), unit: "KB/s" };
+  return { value: bytesPerSec.toFixed(0), unit: "B/s" };
+}
+
 export function formatNetworkRate(bytesPerSec: number): string {
-  if (bytesPerSec >= 1048576) return `${(bytesPerSec / 1048576).toFixed(1)} MB/s`;
-  if (bytesPerSec >= 1024) return `${(bytesPerSec / 1024).toFixed(1)} KB/s`;
-  return `${bytesPerSec.toFixed(0)} B/s`;
+  const { value, unit } = formatNetworkRateParts(bytesPerSec);
+  return `${value} ${unit}`;
 }
 
 export function findSensorByTypeAndHardware(
