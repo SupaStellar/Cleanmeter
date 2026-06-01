@@ -15,13 +15,13 @@ function Key({
   return (
     <kbd
       className={cn(
-        "relative flex h-8 items-center justify-center overflow-clip rounded-[5px] bg-[var(--bgBrand)] px-[5px] pb-[10px] pt-[8px]",
+        "relative flex h-8 items-center justify-center overflow-clip rounded-[5px] bg-[var(--componentKeycapsBg)] px-[5px] pb-[10px] pt-[8px]",
         className
       )}
       {...props}
     >
-      <span className="absolute inset-x-0 top-0 h-[29px] rounded-[5px] bg-gradient-to-b from-[var(--gradientStops1)] from-[11%] to-[var(--gradientStops2)]" />
-      <span className="relative text-label-md-regular text-[var(--textInverse)] tracking-[-0.26px]">
+      <span className="absolute inset-x-0 top-0 h-[29px] rounded-[5px] bg-gradient-to-b from-[var(--componentKeycapsGradientStops1)] from-[11%] to-[var(--componentKeycapsGradientStops2)]" />
+      <span className="relative text-label-md-regular text-[var(--componentKeycapsText)] tracking-[-0.26px]">
         {props.children}
       </span>
     </kbd>

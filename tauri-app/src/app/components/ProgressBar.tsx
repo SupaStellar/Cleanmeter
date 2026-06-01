@@ -87,10 +87,10 @@ function ProgressBar({ className, value = 0, onChange, "aria-label": ariaLabel, 
       className={cn("flex flex-col gap-[var(--spacingS)] w-full", className)}
       {...props}
     >
-      {/* Bar */}
+      {/* Bar — 20px hit area with an 8px-tall track centered inside */}
       <div
         ref={trackRef}
-        className="relative h-3 w-full cursor-pointer touch-none"
+        className="relative h-5 w-full cursor-pointer touch-none"
         role="slider"
         aria-valuenow={clamped}
         aria-valuemin={0}
@@ -102,23 +102,23 @@ function ProgressBar({ className, value = 0, onChange, "aria-label": ariaLabel, 
         onKeyDown={handleKeyDown}
       >
         {/* Track */}
-        <div className="absolute inset-0 rounded-[var(--cornerRound)] bg-[var(--bgSurfaceSunkenSubtle)]" />
+        <div className="absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-[var(--cornerRound)] bg-[var(--bgSurfaceSunkenSubtle)]" />
 
         {/* Filled portion — stretches from left edge to the thumb center */}
         <div
-          className="absolute inset-y-0 left-0 rounded-[var(--cornerRound)] bg-[var(--bgBrand)]"
+          className="absolute top-1/2 left-0 h-2 -translate-y-1/2 rounded-[var(--cornerRound)] bg-[var(--bgBrand)]"
           style={{ width: `calc(10px + ${clamped}% * (100% - 20px) / 100%)` }}
         />
 
         {/* Dots & midpoint line — single layer on top of track + fill */}
-        <TrackDots />
+        <TrackDots value={clamped} />
 
         {/* Thumb indicator — positioned within the 10px-inset dot range */}
         <div
-          className="absolute top-1/2 z-20 size-[24px] -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+          className="absolute top-1/2 z-20 size-[20px] -translate-x-1/2 -translate-y-1/2 pointer-events-none"
           style={{ left: `calc(10px + ${clamped}% * (100% - 20px) / 100%)` }}
         >
-          <div className="size-full rounded-[var(--cornerRound)] border-[2px] border-[var(--bgBrand)] bg-[var(--bgSurfaceRaised)] drop-shadow-[0_8px_12px_rgba(0,0,0,0.06)]" />
+          <div className="size-full rounded-[var(--cornerRound)] border-[2px] border-[var(--borderBrand)] bg-[var(--bgSurfaceRaised)] drop-shadow-[0_8px_12px_rgba(0,0,0,0.06)]" />
         </div>
       </div>
 
@@ -132,18 +132,27 @@ function ProgressBar({ className, value = 0, onChange, "aria-label": ariaLabel, 
   );
 }
 
-function TrackDots() {
+function TrackDots({ value }: { value: number }) {
+  const step = 100 / STEPS;
   return (
     <div className="absolute inset-x-[10px] top-1/2 z-10 flex -translate-y-1/2 items-center justify-between">
-      {Array.from({ length: DOT_COUNT }, (_, i) => (
-        <div
-          key={i}
-          className={cn(
-            "shrink-0 rounded-[var(--cornerRound)] bg-[var(--bgSurfaceSunken)]",
-            i === MIDPOINT ? "h-1.5 w-px" : "size-0.5"
-          )}
-        />
-      ))}
+      {Array.from({ length: DOT_COUNT }, (_, i) => {
+        const isMidpoint = i === MIDPOINT;
+        // Dots within the filled (black) portion use the brand-hover color;
+        // dots over the unfilled (gray) track use the sunken color. The center
+        // midpoint line always stays sunken, even when the fill passes it.
+        const filled = !isMidpoint && i * step < value;
+        return (
+          <div
+            key={i}
+            className={cn(
+              "shrink-0 rounded-[var(--cornerRound)]",
+              filled ? "bg-[var(--bgBrandHover)]" : "bg-[var(--bgSurfaceSunken)]",
+              isMidpoint ? "h-1.5 w-px" : "size-0.5"
+            )}
+          />
+        );
+      })}
     </div>
   );
 }

@@ -68,4 +68,13 @@
   --borderSuccessDarker: #067647;
   --gradientStops1: #f0f1f1;
   --gradientStops2: #ececed;
+  --componentKeycapsGradientStops1: #f0f1f1;
+  --componentKeycapsGradientStops2: #ececed;
+  --componentKeycapsBg: #cecfd2;
+  --componentKeycapsText: #0c111d;
+  --componentTabsBg: #1f242f;
+  --componentTabsActiveBg: #0c111d;
+  --componentTabsActiveForeground: #fafafa;
+  --componentTabsInactiveForeground: #94969c;
+  --componentTabsBorder: #5f61694d;
 }

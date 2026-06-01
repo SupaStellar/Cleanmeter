@@ -1,0 +1,11 @@
+{
+  "name": "storybook-host",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "http-server . -p $PORT --silent"
+  },
+  "dependencies": {
+    "http-server": "^14.1.1"
+  }
+}

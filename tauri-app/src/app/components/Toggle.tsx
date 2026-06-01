@@ -60,7 +60,7 @@ function Toggle({
       {/* Thumb */}
       <span
         className={cn(
-          "pointer-events-none size-4 shrink-0 rounded-full bg-[var(--bgSurfaceRaised)] shadow-[0px_4px_8px_0px_rgba(0,0,0,0.02)] transition-transform duration-150",
+          "pointer-events-none size-4 shrink-0 rounded-full bg-[var(--bgSurfaceOverlay)] shadow-[var(--shadow-card)] transition-transform duration-150",
           checked ? "translate-x-4" : "translate-x-0"
         )}
       />

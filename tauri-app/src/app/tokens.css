@@ -144,6 +144,15 @@
   --borderSuccessDarker: #067647;
   --gradientStops1: #404040;
   --gradientStops2: #303030;
+  --componentKeycapsGradientStops1: #404040;
+  --componentKeycapsGradientStops2: #303030;
+  --componentKeycapsBg: #0c111d;
+  --componentKeycapsText: #ffffff;
+  --componentTabsBg: #ececed;
+  --componentTabsActiveBg: #ffffff;
+  --componentTabsActiveForeground: #0c111d;
+  --componentTabsInactiveForeground: #61646c;
+  --componentTabsBorder: #cecfd280;
   --spacingXxxxs: 2px;
   --spacingS: 12px;
   --spacingXxl: 32px;
