@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicegui/toolkits/refs/heads/main/tauri/schema.json",
-  "productName": "CleanMeter",
+  "productName": "Cleanmeter",
   "identifier": "com.cleanmeter.desktop",
   "version": "2.2.1",
   "build": {
@@ -14,7 +14,7 @@
     "windows": [
       {
         "label": "settings",
-        "title": "CleanMeter",
+        "title": "Cleanmeter",
         "url": "/",
         "width": 651,
         "height": 900,

@@ -4,7 +4,7 @@
       <env name="env" value="dev" />
     </envs>
     <option name="MAIN_CLASS_NAME" value="app.cleanmeter.target.desktop.DesktopMainKt" />
-    <module name="CleanMeter.target.desktop.main" />
+    <module name="Cleanmeter.target.desktop.main" />
     <shortenClasspath name="NONE" />
     <method v="2">
       <option name="Make" enabled="true" />

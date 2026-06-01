@@ -17,10 +17,6 @@ const FAQ_ITEMS: FaqItem[] = [
       "Yes, you can refine the stats. All stats are completely customizable.",
   },
   {
-    question: "Is Cleanmeter free to use?",
-    answer: "Yes, clean meter is currently free to use for everyone!",
-  },
-  {
     question: "Can Cleanmeter make me better at games?",
     answer:
       "No, but it'll make sure your PC isn't having a meltdown mid-match. And hey, if your skills are still lacking, at least your overlay will be clean and accurate.",

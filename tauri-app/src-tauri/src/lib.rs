@@ -82,7 +82,7 @@ pub fn run() {
             }
         }))
         .setup(|app| {
-            info!("CleanMeter starting up...");
+            info!("Cleanmeter starting up...");
 
             // Initialize the settings manager early so startup can read the
             // start_minimized preference before deciding whether to show the
@@ -234,7 +234,7 @@ pub fn run() {
             // dies, so a startup race or a crash self-heals within ~1s. The live
             // child is tracked so app exit can kill it instead of orphaning it
             // (an orphaned sidecar is what created the stale-pipe race to begin
-            // with). CleanMeter runs elevated (requireAdministrator manifest), so
+            // with). Cleanmeter runs elevated (requireAdministrator manifest), so
             // the child inherits admin and can read every sensor + drive PresentMon.
             #[cfg(windows)]
             {

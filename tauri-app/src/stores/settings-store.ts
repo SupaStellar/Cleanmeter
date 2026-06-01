@@ -256,6 +256,16 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       if (settings.pillOpacity === 0.24) {
         settings.pillOpacity = 0.3;
       }
+      // Bar graph is temporarily disabled (pending Figma 2075:7833). Heal any
+      // saved "bar" selection back to the circular ring so existing installs
+      // never render the unfinished bar progress. "none" (graph off) is left
+      // untouched.
+      if (settings.progressType === "bar") {
+        settings.progressType = "circular";
+      }
+      if (settings.graphType === "bar") {
+        settings.graphType = "ring";
+      }
       set({ settings });
       tauri.setOverlayClickThrough(!settings.useCustomPosition && settings.isPositionLocked);
       // Push the persisted target-app to the C# poller so it starts in sync.

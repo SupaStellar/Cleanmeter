@@ -188,7 +188,7 @@ export function HotkeyBar() {
   return (
     <div
       className="w-full rounded-[12px] border"
-      style={{ borderColor: "rgba(206,207,210,0.5)" }}
+      style={{ borderColor: "var(--borderBold)" }}
     >
       <div className="flex items-center justify-between gap-3 p-4">
         <div className="flex min-w-0 items-center gap-2">

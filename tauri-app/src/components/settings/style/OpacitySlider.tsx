@@ -72,8 +72,8 @@ export function OpacitySlider() {
           className="relative flex h-5 w-full touch-none select-none items-center"
           aria-label="Opacity"
         >
-          <SliderPrimitive.Track className="relative h-2 grow rounded-full bg-[#F5F5F6]">
-            <SliderPrimitive.Range className="absolute h-full rounded-full bg-[#0C111D]" />
+          <SliderPrimitive.Track className="relative h-2 grow rounded-full bg-[var(--bgSurfaceSunkenSubtle)]">
+            <SliderPrimitive.Range className="absolute h-full rounded-full bg-[var(--bgBrand)]" />
             <div className="pointer-events-none absolute inset-0 flex items-center justify-between px-[10px]">
               {Array.from({ length: TICK_COUNT }).map((_, i) => {
                 const isCenter = i === 5;
@@ -86,14 +86,14 @@ export function OpacitySlider() {
                         ? "h-[6px] w-px rounded-full"
                         : "size-[2px] rounded-full"
                     }
-                    style={{ backgroundColor: filled ? "#85888E" : "#CECFD2" }}
+                    style={{ backgroundColor: filled ? "var(--iconSubtle)" : "var(--bgSurfaceSunken)" }}
                   />
                 );
               })}
             </div>
           </SliderPrimitive.Track>
           <SliderPrimitive.Thumb
-            className="block size-5 rounded-full border-2 border-[#0C111D] bg-white outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+            className="block size-5 rounded-full border-2 border-[var(--borderBrand)] bg-[var(--bgSurfaceRaised)] outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
             style={{ boxShadow: "0px 8px 12px 0px rgba(0,0,0,0.06)" }}
             aria-label="Opacity"
           />

@@ -2,7 +2,7 @@
 name = "cleanmeter"
 version = "2.2.1"
 description = "Gaming performance overlay"
-authors = ["CleanMeter"]
+authors = ["Cleanmeter"]
 edition = "2021"
 
 [lib]

@@ -105,7 +105,7 @@ object HardwareMonitorProcessManager {
         val command = listOf(
             "cmd.exe",
             "/c",
-            "sc create svcleanmeter displayname= \"CleanMeter Service\" binPath= $file start= auto group= LocalServiceNoNetworkFirewall"
+            "sc create svcleanmeter displayname= \"Cleanmeter Service\" binPath= $file start= auto group= LocalServiceNoNetworkFirewall"
         )
         ProcessBuilder().apply {
             command(command)

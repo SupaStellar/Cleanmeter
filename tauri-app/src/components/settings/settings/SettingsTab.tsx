@@ -101,14 +101,14 @@ function FigmaRadio({ value }: { value: string }) {
       value={value}
       className={cn(
         "group relative size-[19.2px] shrink-0 rounded-full",
-        "bg-[#CECFD2] data-[state=checked]:bg-[#0C111D]",
+        "bg-[var(--bgSurfaceSunken)] data-[state=checked]:bg-[var(--bgBrand)]",
         "transition-colors duration-150 motion-reduce:transition-none",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
       )}
     >
       <span
         className={cn(
-          "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white",
+          "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--bgSurfaceRaised)]",
           "size-[15.6px] group-data-[state=checked]:size-[9.6px]",
           "transition-[width,height] duration-150 ease-out motion-reduce:transition-none",
         )}
@@ -237,8 +237,8 @@ function AppearanceSection() {
               )}
               style={{
                 boxShadow: selected
-                  ? "inset 0 0 0 2px #0C111D, 0 4px 8px 0 rgba(0,0,0,0.02)"
-                  : "inset 0 0 0 1px rgba(206,207,210,0.5), 0 4px 8px 0 rgba(0,0,0,0.02)",
+                  ? "inset 0 0 0 2px var(--borderBrand), 0 4px 8px 0 rgba(0,0,0,0.02)"
+                  : "inset 0 0 0 1px var(--borderBold), 0 4px 8px 0 rgba(0,0,0,0.02)",
               }}
             >
               <div className="h-[104px] w-full pb-0 pl-1 pr-1 pt-1">
@@ -259,34 +259,52 @@ function FooterLinkButton({
   icon,
   label,
   href,
+  disabled,
 }: {
   icon: React.ReactNode;
   label: string;
-  href: string;
+  href?: string;
+  disabled?: boolean;
 }) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer"
-      className={cn(
-        "flex flex-1 items-center justify-between gap-3 rounded-[12px] border border-[var(--borderBolder)]/50 p-3",
-        "transition-colors hover:border-[var(--borderBolder)]",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
-      )}
-    >
+  const className = cn(
+    "flex flex-1 items-center justify-between gap-3 rounded-[12px] border border-[var(--borderBolder)]/50 p-3",
+    "transition-colors",
+    disabled
+      ? "cursor-not-allowed opacity-50"
+      : "hover:border-[var(--borderBolder)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+  );
+  const content = (
+    <>
       <div className="flex items-center gap-3">
         {icon}
         <span className="text-[14px] font-medium text-foreground">{label}</span>
       </div>
       <ChevronRightIcon className="size-5 text-muted-foreground" />
+    </>
+  );
+
+  // Disabled renders an inert placeholder (e.g. update hosting not wired yet).
+  if (disabled) {
+    return (
+      <div
+        className={className}
+        aria-disabled="true"
+        title="Update hosting coming soon"
+      >
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <a href={href} target="_blank" rel="noreferrer" className={className}>
+      {content}
     </a>
   );
 }
 
-// TODO: replace with API data (canonical release / discord URLs from product)
-const GITHUB_RELEASES_URL =
-  "https://github.com/SupaStellar/Cleanmeter/releases/latest";
+// TODO: replace with API data (canonical discord URL from product). The
+// "Check for latest updates" button is disabled until update hosting exists.
 const DISCORD_INVITE_URL = "https://discord.gg/CN2b7d4c9";
 
 export function SettingsTab() {
@@ -305,7 +323,9 @@ export function SettingsTab() {
           <FooterLinkButton
             icon={<BrowserUpdatedIcon className="size-8" />}
             label="Check for latest updates"
-            href={GITHUB_RELEASES_URL}
+            // TODO: re-enable once update hosting exists; should trigger an
+            // in-app update check rather than opening an external page.
+            disabled
           />
           <FooterLinkButton
             icon={<DiscordIcon className="size-8" />}
@@ -313,9 +333,9 @@ export function SettingsTab() {
             href={DISCORD_INVITE_URL}
           />
         </div>
-        <div className="flex items-center justify-between text-[12px] font-medium text-[#94969C]">
-          <span>Built by the Team Crispy</span>
-          <span>Version v{appVersion}</span>
+        <div className="flex items-center justify-between text-[12px] font-medium text-subtle-foreground">
+          <span>Built by Crispy Studio</span>
+          <span>Version v{appVersion} beta</span>
         </div>
       </div>
     </div>

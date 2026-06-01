@@ -130,17 +130,17 @@ function OrientationTile({
       )}
       style={{
         boxShadow: selected
-          ? "inset 0 0 0 2px #0C111D, 0 4px 8px 0 rgba(0,0,0,0.02)"
-          : "inset 0 0 0 1px rgba(206,207,210,0.5), 0 4px 8px 0 rgba(0,0,0,0.02)",
+          ? "inset 0 0 0 2px var(--borderBrand), 0 4px 8px 0 rgba(0,0,0,0.02)"
+          : "inset 0 0 0 1px var(--borderBold), 0 4px 8px 0 rgba(0,0,0,0.02)",
       }}
     >
       <div className="flex flex-1 px-1 pt-1">
-        <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-[4px] bg-[#F5F5F6]">
+        <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-[4px] bg-[var(--bgSurfaceSunkenSubtle)]">
           {children}
         </div>
       </div>
       <div className="flex w-full items-center p-4">
-        <span className="text-[14px] font-medium leading-none text-[#0C111D]">
+        <span className="text-[14px] font-medium leading-none text-foreground">
           {label}
         </span>
       </div>

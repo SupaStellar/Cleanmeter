@@ -74,7 +74,10 @@ export const getMonitors = () =>
       ] as MonitorInfo[])
     : safeInvoke<MonitorInfo[]>("get_monitors");
 export const getAppVersion = () =>
-  isBrowser ? Promise.resolve("dev") : safeInvoke<string>("get_app_version");
+  // No Tauri runtime in the browser preview, so fall back to the package.json
+  // version injected at build time (see vite.config.ts) rather than a literal
+  // placeholder. The packaged app reads CARGO_PKG_VERSION via the Rust command.
+  isBrowser ? Promise.resolve(__APP_VERSION__) : safeInvoke<string>("get_app_version");
 export const grantAdminConsent = () => safeInvoke("grant_admin_consent");
 export const launchHardwareMonitor = () => safeInvoke("launch_hardware_monitor");
 export const setAutoStart = (enabled: boolean) => safeInvoke("set_auto_start", { enabled });
