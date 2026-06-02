@@ -275,7 +275,7 @@ function darkTokenFilter(token) {
   const pathFirst = token.path[0]?.toLowerCase() ?? "";
   // Include only semantic color categories that differ between themes
   const semanticGroups = [
-    "text", "bg", "icon", "border", "gradient", "plain",
+    "text", "bg", "icon", "border", "gradient", "plain", "component",
   ];
   return semanticGroups.some((g) => pathFirst.startsWith(g));
 }

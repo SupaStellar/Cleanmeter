@@ -4,23 +4,16 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const tabVariants = cva(
-  "inline-flex flex-1 min-w-0 cursor-pointer items-center justify-center rounded-[var(--cornerRound)] text-body-md-medium transition-colors duration-150 shadow-focus-default",
+  "inline-flex flex-1 min-w-0 cursor-pointer items-center justify-center gap-[var(--spacingXxxs)] rounded-[var(--cornerRound)] pl-[var(--spacingM)] pr-[var(--spacingL)] py-[var(--spacingSx)] text-body-md-medium transition-colors duration-150 shadow-focus-default",
   {
     variants: {
       active: {
-        false:
-          "bg-transparent text-[var(--textParagraph1)] [&_[data-tab-icon]]:text-[var(--iconBolderActive)]",
-        true: "bg-[var(--bgSurfaceRaised)] text-[var(--textHeading)] drop-shadow-[0px_4px_4px_rgba(0,0,0,0.02)] [&_[data-tab-icon]]:text-[var(--iconBolder)]",
-      },
-      iconOnly: {
-        false:
-          "gap-[var(--spacingXxxs)] pl-[var(--spacingM)] pr-[var(--spacingL)] py-[var(--spacingSx)]",
-        true: "px-[var(--spacingL)] py-[var(--spacingSx)]",
+        false: "bg-transparent text-[var(--componentTabsInactiveForeground)]",
+        true: "bg-[var(--componentTabsActiveBg)] text-[var(--componentTabsActiveForeground)] shadow-[var(--shadow-card)]",
       },
     },
     defaultVariants: {
       active: false,
-      iconOnly: false,
     },
   }
 );
@@ -33,7 +26,6 @@ type TabProps = React.ComponentProps<"button"> &
 function Tab({
   className,
   active,
-  iconOnly,
   asChild = false,
   type,
   ...props
@@ -42,7 +34,7 @@ function Tab({
   return (
     <Comp
       type={asChild ? type : type ?? "button"}
-      className={cn(tabVariants({ active, iconOnly }), className)}
+      className={cn(tabVariants({ active }), className)}
       {...props}
     />
   );
@@ -85,7 +77,7 @@ function NavigationTabs({
   return (
     <Comp
       className={cn(
-        "flex items-center rounded-[var(--cornerRound)] border border-[var(--borderBold)] bg-[var(--bgSubtle)] p-[var(--spacingXxxs)]",
+        "flex items-center justify-center rounded-[var(--cornerRound)] border border-[var(--componentTabsBorder)] bg-[var(--componentTabsBg)] p-[var(--spacingXxxs)]",
         className
       )}
       {...props}
@@ -101,7 +93,7 @@ function NavigationTabsGroup({
   const Comp = asChild ? Slot : "div";
   return (
     <Comp
-      className={cn("flex flex-1 min-w-0 items-stretch", className)}
+      className={cn("flex flex-1 min-w-0 items-center", className)}
       {...props}
     />
   );
