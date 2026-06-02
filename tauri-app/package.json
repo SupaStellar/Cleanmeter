@@ -14,7 +14,8 @@
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build && node scripts/deploy-storybook.cjs"
+    "build-storybook": "storybook build",
+    "deploy-storybook": "node scripts/deploy-storybook.cjs"
   },
   "dependencies": {
     "@fluentui/react-components": "^9.73.4",
