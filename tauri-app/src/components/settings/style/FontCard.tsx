@@ -30,7 +30,7 @@ function weightLabel(value: number) {
 const triggerClasses = cn(
   "h-10 flex-1 rounded-[8px] border-[var(--borderBolder)] bg-[var(--bgSurfaceRaised)] px-3 py-2 font-medium",
   "shadow-[0px_1px_1px_0px_rgba(16,24,40,0.05)]",
-  "text-[14px] text-[#0C111D] [&_svg]:size-5 [&_svg]:opacity-100",
+  "text-[14px] text-foreground [&_svg]:size-5 [&_svg]:opacity-100",
 );
 
 function FontRow({
@@ -48,7 +48,7 @@ function FontRow({
 }) {
   return (
     <div className="flex w-full items-center gap-3">
-      <span className="flex-1 text-[14px] font-medium leading-none text-[#0C111D]">
+      <span className="flex-1 text-[14px] font-medium leading-none text-foreground">
         {label}
       </span>
       <Select

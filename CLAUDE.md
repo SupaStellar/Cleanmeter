@@ -1,4 +1,4 @@
-# CleanMeter — Design System Conventions
+# Cleanmeter — Design System Conventions
 
 ## Token Naming Patterns
 

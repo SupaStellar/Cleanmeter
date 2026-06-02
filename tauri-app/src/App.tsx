@@ -48,7 +48,7 @@ function MonitoringBanner() {
           >
             Download it here
           </a>
-          , install it, then restart CleanMeter.
+          , install it, then restart Cleanmeter.
         </span>
       ) : (
         <span>

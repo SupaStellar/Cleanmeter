@@ -1,16 +1,10 @@
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/dd41db59-e6d0-4eb8-aff0-c79590401de3" width="100%" alt="CleanMeter" />
-</p>
-
-<p align="left">
-  <a href="https://github.com/apyfz/CleanMeter/releases/latest"><img alt="GitHub Release" src="https://img.shields.io/github/v/release/apyfz/CleanMeter?style=flat-square"></a>
-  &nbsp;
-  <a href="https://github.com/apyfz/CleanMeter/graphs/contributors"><img alt="Contributors" src="https://img.shields.io/github/contributors-anon/apyfz/CleanMeter?color=yellow&style=flat-square"/></a>
+  <img src="https://github.com/user-attachments/assets/dd41db59-e6d0-4eb8-aff0-c79590401de3" width="100%" alt="Cleanmeter" />
 </p>
 
 ---
 
-# CleanMeter
+# Cleanmeter
 
 A clean, minimal performance overlay for gamers. Monitor your system stats without the ugly fluorescent numbers.
 
@@ -33,16 +27,10 @@ A clean, minimal performance overlay for gamers. Monitor your system stats witho
 
 ## Install
 
-Download the latest installer from [Releases](https://github.com/apyfz/CleanMeter/releases/latest) and run it. The app requests admin access to read hardware sensors.
+Download the latest installer from [Releases](https://github.com/SupaStellar/Cleanmeter/releases/latest) and run it. The app requests admin access to read hardware sensors.
 
 ## Tech Stack
 
 - **Frontend**: React + TypeScript (Tauri v2)
 - **Backend**: Rust (Tauri) + C# (.NET 8, LibreHardwareMonitor, PresentMon)
 - **IPC**: Windows named pipes
-
----
-
-<p align="left">
-  by <a href="https://instagram.com/apyfz">@apyfz</a>
-</p>

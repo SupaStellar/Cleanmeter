@@ -2,7 +2,7 @@ import { CollapsibleCard } from "./CollapsibleCard";
 import { Switch } from "@/components/shadcn/switch";
 import { cn } from "@/lib/utils";
 import { useSettingsStore } from "@/stores/settings-store";
-import type { GraphType, ProgressType } from "@/lib/types";
+import type { GraphType } from "@/lib/types";
 
 // SHOW GRAPH card — Figma 2075:7833. Section title + switch + chevron in
 // header. Body has two large option tiles (Ring / Bar) with a 64×64 muted
@@ -27,24 +27,27 @@ function RingPreview() {
   );
 }
 
-function BarPreview() {
-  return (
-    <div className="flex flex-col gap-[2px]">
-      {Array.from({ length: 9 }, (_, i) => {
-        const filled = i >= 4;
-        return (
-          <div
-            key={i}
-            className={cn(
-              "h-[2px] w-[26px] rounded-full",
-              filled ? "bg-success" : "bg-foreground/10",
-            )}
-          />
-        );
-      })}
-    </div>
-  );
-}
+// TODO: Bar graph disabled until designed in Figma (2075:7833). Re-enable
+// BarPreview + the Bar tile + the "bar" branches in handleToggle/setType and
+// the loadSettings heal once the bar visual is finalized.
+// function BarPreview() {
+//   return (
+//     <div className="flex flex-col gap-[2px]">
+//       {Array.from({ length: 9 }, (_, i) => {
+//         const filled = i >= 4;
+//         return (
+//           <div
+//             key={i}
+//             className={cn(
+//               "h-[2px] w-[26px] rounded-full",
+//               filled ? "bg-success" : "bg-foreground/10",
+//             )}
+//           />
+//         );
+//       })}
+//     </div>
+//   );
+// }
 
 function GraphTile({
   selected,
@@ -68,8 +71,8 @@ function GraphTile({
       )}
       style={{
         boxShadow: selected
-          ? "inset 0 0 0 2px #0C111D, 0 4px 8px 0 rgba(0,0,0,0.02)"
-          : "inset 0 0 0 1px rgba(206,207,210,0.5), 0 4px 8px 0 rgba(0,0,0,0.02)",
+          ? "inset 0 0 0 2px var(--borderBrand), 0 4px 8px 0 rgba(0,0,0,0.02)"
+          : "inset 0 0 0 1px var(--borderBold), 0 4px 8px 0 rgba(0,0,0,0.02)",
       }}
     >
       <span className="flex size-16 shrink-0 items-center justify-center rounded-[4px] bg-muted">
@@ -88,17 +91,18 @@ export function GraphTypePicker() {
 
   const handleToggle = (enabled: boolean) => {
     if (enabled) {
-      const type: ProgressType = settings.graphType === "bar" ? "bar" : "circular";
-      updateSettings({ progressType: type });
+      // Bar graph disabled (pending Figma 2075:7833) — always enable as ring.
+      updateSettings({ progressType: "circular", graphType: "ring" });
     } else {
       updateSettings({ progressType: "none" });
     }
   };
 
   const setType = (type: GraphType) => {
+    // Bar disabled (2075:7833): coerce any selection to the circular ring.
     updateSettings({
-      graphType: type,
-      progressType: type === "ring" ? "circular" : "bar",
+      graphType: type === "bar" ? "ring" : type,
+      progressType: "circular",
     });
   };
 
@@ -120,12 +124,13 @@ export function GraphTypePicker() {
             icon={<RingPreview />}
             label="Ring graph"
           />
+          {/* TODO: Bar graph option disabled until designed in Figma (2075:7833).
           <GraphTile
             selected={currentType === "bar"}
             onClick={() => setType("bar")}
             icon={<BarPreview />}
             label="Bar graph"
-          />
+          /> */}
         </div>
       )}
     </CollapsibleCard>

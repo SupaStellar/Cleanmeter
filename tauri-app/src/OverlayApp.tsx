@@ -32,6 +32,28 @@ function computePresetPosition(
   return { x, y };
 }
 
+// Keep the HUD fully inside the monitor. A stale or out-of-range saved
+// position (resolution change, DPI shift, a drag released past the edge) could
+// otherwise park the overlay where it's invisible and undraggable — with no
+// in-app way to recover it. Physical pixels, matching MonitorInfo + positionX/Y.
+function clampToMonitor(
+  x: number,
+  y: number,
+  hudW: number,
+  hudH: number,
+  monitor: MonitorInfo,
+): { x: number; y: number } {
+  // max(0, …) guards a HUD larger than the monitor: maxX/maxY collapse to the
+  // monitor origin rather than going negative, so the HUD pins to the top-left
+  // instead of being clamped off the opposite edge.
+  const maxX = monitor.x + Math.max(0, monitor.width - hudW);
+  const maxY = monitor.y + Math.max(0, monitor.height - hudH);
+  return {
+    x: Math.min(Math.max(x, monitor.x), maxX),
+    y: Math.min(Math.max(y, monitor.y), maxY),
+  };
+}
+
 export default function OverlayApp() {
   const loadSettings = useSettingsStore((s) => s.loadSettings);
   const updateSettings = useSettingsStore((s) => s.updateSettings);
@@ -106,8 +128,22 @@ export default function OverlayApp() {
       let x: number;
       let y: number;
       if (settings.useCustomPosition) {
-        x = monitor.x + Math.round(settings.positionX);
-        y = monitor.y + Math.round(settings.positionY);
+        // Clamp for DISPLAY only — never persist from here. apply() fires on
+        // every ResizeObserver tick while the HUD lays out (and the HUD size
+        // swings as sensor rows populate) and on the cross-window settings
+        // echo, so writing back from here caused a save storm that drifted the
+        // stored position. The saved value is left untouched (always clamped
+        // on display); the drag handlers below clamp the origin and persist a
+        // corrected value only on user release.
+        const clamped = clampToMonitor(
+          monitor.x + Math.round(settings.positionX),
+          monitor.y + Math.round(settings.positionY),
+          hudW,
+          hudH,
+          monitor,
+        );
+        x = clamped.x;
+        y = clamped.y;
       } else {
         const p = computePresetPosition(settings.positionIndex, monitor, hudW, hudH);
         x = p.x;
@@ -143,8 +179,19 @@ export default function OverlayApp() {
     if (monitors.length === 0) return;
     e.preventDefault();
     const monitor = monitors[settings.selectedDisplayIndex] ?? monitors[0];
-    const winX = monitor.x + Math.round(settings.positionX);
-    const winY = monitor.y + Math.round(settings.positionY);
+    // Start from where the HUD is actually shown (clamped), not the raw saved
+    // value — so a drag begun while the stored position is out of bounds
+    // (e.g. healed-on-display only) doesn't jump on first mouse move.
+    const { w: hudW, h: hudH } = hudSizeRef.current;
+    const origin = clampToMonitor(
+      monitor.x + Math.round(settings.positionX),
+      monitor.y + Math.round(settings.positionY),
+      hudW,
+      hudH,
+      monitor,
+    );
+    const winX = origin.x;
+    const winY = origin.y;
     dragStart.current = {
       mouseX: e.screenX,
       mouseY: e.screenY,
@@ -189,10 +236,14 @@ export default function OverlayApp() {
         }
       }
       const m = monitors[idx] ?? monitors[0];
+      // Clamp before persisting so a drag released past the monitor edge lands
+      // back in bounds rather than saving an off-screen position. apply() will
+      // reposition the window to the same clamped spot on the next effect run.
+      const clamped = clampToMonitor(s.lastWinX, s.lastWinY, hudW, hudH, m);
       updateSettings({
         selectedDisplayIndex: idx,
-        positionX: Math.round(s.lastWinX - m.x),
-        positionY: Math.round(s.lastWinY - m.y),
+        positionX: Math.round(clamped.x - m.x),
+        positionY: Math.round(clamped.y - m.y),
       });
     };
     window.addEventListener("mousemove", onMove);

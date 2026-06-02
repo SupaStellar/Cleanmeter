@@ -14,9 +14,12 @@ export function StatsTab() {
   const sensors = sensorData?.sensors ?? [];
   const hardwares = sensorData?.hardwares ?? [];
 
-  // TODO: replace with updater API. Mocked locally so the banner UI can be
-  // exercised end-to-end (idle → downloading → complete).
-  const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>("idle");
+  // Hidden by default: the "Check for latest updates" button is disabled until
+  // update hosting exists, so nothing triggers this banner yet. The mock state
+  // machine (idle → downloading → complete) is kept so the banner can be
+  // re-enabled once the updater API + hosting land.
+  // TODO: replace with updater API and reveal on an explicit update check.
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null);
   // Until the updater API is wired, surface the actual running version rather
   // than a stale literal. TODO: once the updater lands, show the *available*
   // update version here, not the current one.
@@ -44,7 +47,7 @@ export function StatsTab() {
         <UpdateBanner
           className="sticky bottom-4 z-10 mt-auto"
           status={updateStatus}
-          version={appVersion}
+          version={`${appVersion} beta`}
           onLater={() => setUpdateStatus(null)}
           onUpdate={() => setUpdateStatus("downloading")}
           onCancel={() => setUpdateStatus("idle")}

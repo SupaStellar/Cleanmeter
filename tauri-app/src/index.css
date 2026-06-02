@@ -62,27 +62,31 @@
 }
 
 [data-theme="dark"] {
-  --background: #0a0a0a;         /* window shell bg (near black) */
+  /* Dark surfaces are aligned to the Figma slate gray ramp (see tokens-dark.css)
+     so these shadcn-based surfaces match the Figma-token cards instead of
+     clashing with a separate neutral-gray palette. Lightness order:
+     gray950 #0c111d < gray900 #161b26 < gray800 #1f242f < gray700 #333741. */
+  --background: #0c111d;         /* window shell bg (= --bgSurface) */
   --foreground: #f5f5f5;         /* primary text */
-  --card: #171717;               /* card bg */
+  --card: #1f242f;               /* card bg (= --bgSurfaceRaised) */
   --card-foreground: #f5f5f5;
-  --sub-card: #0f0f0f;           /* nested sub-card bg (darker than card) */
-  --popover: #171717;
+  --sub-card: #161b26;           /* nested sub-card bg (= --bgSurfaceSunkenSubtle) */
+  --popover: #1f242f;
   --popover-foreground: #f5f5f5;
   --primary: #f5f5f5;
-  --primary-foreground: #0a0a0a;
-  --secondary: #1f1f1f;          /* tab track */
+  --primary-foreground: #0c111d;
+  --secondary: #161b26;          /* tab track / subtle surface */
   --secondary-foreground: #f5f5f5;
-  --muted: #1f1f1f;
+  --muted: #161b26;
   --muted-foreground: #a3a3a3;
   --subtle-foreground: #737373;
-  --accent: #1f1f1f;
+  --accent: #161b26;
   --accent-foreground: #f5f5f5;
-  --border: #262626;
-  --divider: #262626;
-  --input: #262626;
+  --border: #333741;
+  --divider: #333741;
+  --input: #333741;
   --ring: #f5f5f5;
-  --switch-off: #262626;
+  --switch-off: #333741;
 
   --color-warning: var(--yellow-400);
   --color-danger: var(--red-600);

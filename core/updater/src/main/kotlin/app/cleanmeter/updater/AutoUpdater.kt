@@ -37,7 +37,7 @@ sealed class UpdateState {
 object AutoUpdater {
 
     private const val propertiesUrl =
-        "https://raw.githubusercontent.com/Danil0v3s/CleanMeter/refs/heads/main/gradle.properties"
+        "https://raw.githubusercontent.com/SupaStellar/Cleanmeter/refs/heads/main/gradle.properties"
 
     private var _state = MutableStateFlow<UpdateState>(UpdateState.NotAvailable)
     val state: StateFlow<UpdateState> = _state
@@ -102,7 +102,7 @@ object AutoUpdater {
             return
         }
 
-        val url = "https://github.com/Danil0v3s/CleanMeter/releases/download/$liveVersion/cleanmeter.windows.zip"
+        val url = "https://github.com/SupaStellar/Cleanmeter/releases/download/$liveVersion/cleanmeter.windows.zip"
         _state.update { UpdateState.Downloading(currentLiveVersion, 0f) }
 
         downloadJob = CoroutineScope(Dispatchers.IO).launch {

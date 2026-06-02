@@ -102,13 +102,13 @@ internal fun HelpSettingsUi(
                         append("--verbose (eg: cleanmeter.exe --verbose)")
                     }
                     append(" params and ping us on our ")
-                    pushStringAnnotation("click", "https://discord.gg/phqwe89cvE")
+                    pushStringAnnotation("click", "https://discord.gg/CN2b7d4c9")
                     withStyle(SpanStyle(textDecoration = TextDecoration.Underline)) {
                         append("Discord Server")
                     }
                     pop()
                     append(" or ")
-                    pushStringAnnotation("click", "https://github.com/Danil0v3s/CleanMeter/issues")
+                    pushStringAnnotation("click", "https://github.com/SupaStellar/Cleanmeter/issues")
                     withStyle(SpanStyle(textDecoration = TextDecoration.Underline)) {
                         append("GitHub Issues")
                     }
@@ -116,7 +116,7 @@ internal fun HelpSettingsUi(
                 },
                 "Still has questions?" to buildAnnotatedString {
                     append("Join our ")
-                    pushStringAnnotation("click", "https://discord.gg/phqwe89cvE")
+                    pushStringAnnotation("click", "https://discord.gg/CN2b7d4c9")
                     withStyle(SpanStyle(textDecoration = TextDecoration.Underline)) {
                         append("Discord Server")
                     }

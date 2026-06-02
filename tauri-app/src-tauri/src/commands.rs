@@ -342,7 +342,7 @@ pub fn launch_hardware_monitor(app: AppHandle) -> Result<(), String> {
     let script = format!(
         "$exe = '{}'\n\
          $svc = Get-Service -Name 'CleanMeterHW' -ErrorAction SilentlyContinue\n\
-         if (-not $svc) {{ New-Service -Name 'CleanMeterHW' -BinaryPathName $exe -DisplayName 'CleanMeter Hardware Monitor' -StartupType Automatic }}\n\
+         if (-not $svc) {{ New-Service -Name 'CleanMeterHW' -BinaryPathName ('\"' + $exe + '\"') -DisplayName 'Cleanmeter Hardware Monitor' -StartupType Automatic }}\n\
          $svc = Get-Service -Name 'CleanMeterHW' -ErrorAction SilentlyContinue\n\
          if ($svc.Status -ne 'Running') {{ Start-Service 'CleanMeterHW' }}",
         exe_str.replace('\'', "''")

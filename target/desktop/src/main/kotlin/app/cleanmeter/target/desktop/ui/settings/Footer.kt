@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material.Icon
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
@@ -28,10 +27,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.cleanmeter.core.designsystem.LocalColorScheme
@@ -52,7 +47,6 @@ fun FooterUi(modifier: Modifier = Modifier) {
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Discord(uriHandler)
-            Donate(uriHandler)
         }
 
         Row(
@@ -60,34 +54,12 @@ fun FooterUi(modifier: Modifier = Modifier) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val text = remember {
-                buildAnnotatedString {
-                    append("Built by ")
-                    pushStringAnnotation("click", "https://github.com/Danil0v3s")
-                    withStyle(SpanStyle(textDecoration = TextDecoration.Underline)) {
-                        append("Danil0v3s")
-                    }
-                    pop()
-                    append(" & designed by ")
-                    pushStringAnnotation("click", "https://www.instagram.com/mars.designs")
-                    withStyle(SpanStyle(textDecoration = TextDecoration.Underline)) {
-                        append("Mars")
-                    }
-                    pop()
-                }
-            }
-
-            ClickableText(
-                text = text,
+            Text(
+                text = "Built by Crispy Studio",
                 style = LocalTypography.current.labelS.copy(
                     color = LocalColorScheme.current.text.disabled,
                     letterSpacing = 0.14.sp,
-                ),
-                onClick = { offset ->
-                    text.getStringAnnotations("click", offset, offset).firstOrNull()?.let {
-                        uriHandler.openUri(it.item)
-                    }
-                }
+                )
             )
 
             Row(
@@ -97,7 +69,7 @@ fun FooterUi(modifier: Modifier = Modifier) {
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
                 ) {
-                    uriHandler.openUri("https://github.com/Danil0v3s/CleanMeter/releases/latest")
+                    uriHandler.openUri("https://github.com/SupaStellar/Cleanmeter/releases/latest")
                 }) {
 
                 Text(
@@ -118,7 +90,7 @@ private fun Github(uriHandler: UriHandler) {
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
             .clickable {
-                uriHandler.openUri("https://github.com/Danil0v3s/CleanMeter/releases/latest")
+                uriHandler.openUri("https://github.com/SupaStellar/Cleanmeter/releases/latest")
             }
             .fillMaxWidth()
             .background(Color.Transparent, RoundedCornerShape(12.dp))
@@ -143,42 +115,12 @@ private fun Github(uriHandler: UriHandler) {
 }
 
 @Composable
-private fun RowScope.Donate(uriHandler: UriHandler) {
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
-            .clickable {
-                uriHandler.openUri("https://ko-fi.com/danil0v3s")
-            }
-            .weight(.5f)
-            .background(Color.Transparent, RoundedCornerShape(12.dp))
-            .border(1.dp, LocalColorScheme.current.border.bold, RoundedCornerShape(12.dp))
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Image(painterResource("icons/ko-fi.png"), "")
-            Text(
-                text = "Like the work? Support us!",
-                color = LocalColorScheme.current.text.heading,
-                style = LocalTypography.current.labelLMedium,
-            )
-        }
-        Image(Icons.Rounded.ChevronRight, "")
-    }
-}
-
-@Composable
 private fun RowScope.Discord(uriHandler: UriHandler) {
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
             .clickable {
-                uriHandler.openUri("https://discord.gg/phqwe89cvE")
+                uriHandler.openUri("https://discord.gg/CN2b7d4c9")
             }
             .weight(.5f)
             .background(Color.Transparent, RoundedCornerShape(12.dp))

@@ -154,7 +154,7 @@ jobs:
         with:
           projectPath: tauri-app
           tagName: v__VERSION__
-          releaseName: "CleanMeter v__VERSION__"
+          releaseName: "Cleanmeter v__VERSION__"
           releaseBody: "See the assets to download and install this version."
           releaseDraft: true
           prerelease: false

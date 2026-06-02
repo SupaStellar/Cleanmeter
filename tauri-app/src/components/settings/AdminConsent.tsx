@@ -46,7 +46,7 @@ export function AdminConsent() {
             Administrator Access
           </Title2>
           <Body1 style={{ color: tokens.colorNeutralForeground3 }}>
-            CleanMeter needs administrator access to read hardware sensors from
+            Cleanmeter needs administrator access to read hardware sensors from
             your system. This is required for monitoring CPU, GPU, RAM, and
             network statistics.
           </Body1>

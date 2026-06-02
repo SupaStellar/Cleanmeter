@@ -53,7 +53,7 @@ export function PositionGrid() {
         <div className="flex items-center gap-3">
           <div
             className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--bgSurfaceRaised)] text-foreground"
-            style={{ boxShadow: "inset 0 0 0 1px rgba(206,207,210,0.5)" }}
+            style={{ boxShadow: "inset 0 0 0 1px var(--borderBold)" }}
           >
             <DragPanIcon className="size-5" />
           </div>
@@ -73,7 +73,7 @@ export function PositionGrid() {
 
         {!useCustomPosition && (
           <>
-            <div className="h-px w-full bg-[#ECECED]" aria-hidden />
+            <div className="h-px w-full bg-divider" aria-hidden />
 
             <div className="grid grid-cols-3 gap-3">
               {PRESETS.map((p) => {
@@ -90,17 +90,17 @@ export function PositionGrid() {
                     )}
                     style={{
                       boxShadow: selected
-                        ? "inset 0 0 0 2px #0C111D, 0 4px 8px 0 rgba(0,0,0,0.02)"
-                        : "inset 0 0 0 1px rgba(206,207,210,0.5), 0 4px 8px 0 rgba(0,0,0,0.02)",
+                        ? "inset 0 0 0 2px var(--borderBrand), 0 4px 8px 0 rgba(0,0,0,0.02)"
+                        : "inset 0 0 0 1px var(--borderBold), 0 4px 8px 0 rgba(0,0,0,0.02)",
                     }}
                   >
-                    <span className="relative size-12 shrink-0 rounded-[4px] bg-[#F5F5F6]">
+                    <span className="relative size-12 shrink-0 rounded-[4px] bg-[var(--bgSurfaceSunkenSubtle)]">
                       <span
                         className={cn(
                           "absolute size-2",
                           selected
                             ? "rounded-full bg-foreground"
-                            : "rounded-[4px] bg-[#CECFD2]",
+                            : "rounded-[4px] bg-[var(--bgSurfaceSunken)]",
                           p.pipClass,
                         )}
                       />

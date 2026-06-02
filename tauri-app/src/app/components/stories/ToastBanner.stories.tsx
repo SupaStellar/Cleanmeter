@@ -81,7 +81,7 @@ export const NoActions: Story = {
       <ToastBannerContent>
         <ToastBannerTitle>Download complete</ToastBannerTitle>
         <ToastBannerDescription>
-          CleanMeter v0.1.0 installed successfully
+          Cleanmeter v0.1.0 installed successfully
         </ToastBannerDescription>
       </ToastBannerContent>
     </ToastBanner>

@@ -105,7 +105,7 @@ private fun RowScope.BodyText() {
             modifier = Modifier.wrapContentHeight(),
         )
         Text(
-            text = "Please re-open CleanMeter after the installation.",
+            text = "Please re-open Cleanmeter after the installation.",
             color = LocalColorScheme.current.text.disabled,
             style = LocalTypography.current.labelLMedium,
             modifier = Modifier.wrapContentHeight(),
