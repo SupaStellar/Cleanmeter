@@ -10,17 +10,11 @@ const meta: Meta<typeof FeedbackDialog> = {
 export default meta;
 type Story = StoryObj<typeof FeedbackDialog>;
 
-// Stubbed picker so the story can show the attachment chip without an OS dialog.
+// Stubbed picker so "Add attachment" shows the chip without an OS file dialog.
 const fakePicker = async () => ({ path: "/tmp/Screenshot245.jpeg", name: "Screenshot245.jpeg" });
 
-export const Empty: Story = {
-  render: () => {
-    const [open, setOpen] = useState(true);
-    return <FeedbackDialog open={open} onOpenChange={setOpen} pickAttachment={fakePicker} />;
-  },
-};
-
-export const WithAttachment: Story = {
+// Click "Add attachment" in the rendered story to see the attachment-chip state.
+export const Default: Story = {
   render: () => {
     const [open, setOpen] = useState(true);
     return <FeedbackDialog open={open} onOpenChange={setOpen} pickAttachment={fakePicker} />;

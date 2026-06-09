@@ -388,7 +388,9 @@ pub async fn submit_feedback(input: FeedbackInput) -> Result<(), String> {
         .text("os", std::env::consts::OS);
 
     if let Some(path) = input.attachment_path.as_deref() {
-        let bytes = std::fs::read(path).map_err(|e| format!("read attachment: {e}"))?;
+        let bytes = tokio::fs::read(path)
+            .await
+            .map_err(|e| format!("read attachment: {e}"))?;
         let filename = std::path::Path::new(path)
             .file_name()
             .and_then(|n| n.to_str())
