@@ -9,7 +9,7 @@ import {
 } from "@/components/shadcn/dialog";
 import { Label } from "@/components/shadcn/label";
 import { Input } from "@/app/components/Input";
-import { Textarea } from "@/components/shadcn/textarea";
+import { Textarea } from "@/app/components/Textarea";
 import { Button } from "@/app/components/Button";
 import { cn } from "@/lib/utils";
 import { submitFeedback, pickImageAttachment } from "@/lib/tauri";

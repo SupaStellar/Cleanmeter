@@ -125,7 +125,14 @@ export const submitFeedback = (input: {
   name: string;
   message: string;
   attachmentPath?: string;
-}) => safeInvoke("submit_feedback", { input });
+}): Promise<void> => {
+  // Reject in the browser preview rather than no-op — otherwise the dialog
+  // would close as if the feedback sent when nothing actually happened.
+  if (isBrowser) {
+    return Promise.reject(new Error("Feedback can only be sent from the desktop app."));
+  }
+  return safeInvoke("submit_feedback", { input });
+};
 
 // Opens the OS image picker and returns the absolute path + display name.
 // Browser preview has no Tauri runtime, so it returns null (no-op).
