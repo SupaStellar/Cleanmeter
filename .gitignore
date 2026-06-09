@@ -163,3 +163,6 @@ bin/
 /dataSources/
 /dataSources.local.xml
 
+
+# Local Claude tooling
+.claude/
