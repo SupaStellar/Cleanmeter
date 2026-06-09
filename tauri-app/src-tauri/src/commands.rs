@@ -364,3 +364,53 @@ pub fn launch_hardware_monitor(app: AppHandle) -> Result<(), String> {
 
     Ok(())
 }
+
+#[derive(serde::Deserialize)]
+pub struct FeedbackInput {
+    pub name: String,
+    pub message: String,
+    #[serde(rename = "attachmentPath")]
+    pub attachment_path: Option<String>,
+}
+
+// POSTs feedback to the portal. URL + write key are injected at build time via
+// option_env!; if either is missing (e.g. a plain local dev build) the command
+// returns an error instead of attempting a request. Touches no app state.
+#[tauri::command]
+pub async fn submit_feedback(input: FeedbackInput) -> Result<(), String> {
+    let portal = option_env!("FEEDBACK_PORTAL_URL").ok_or("feedback portal not configured")?;
+    let key = option_env!("FEEDBACK_WRITE_KEY").ok_or("feedback key not configured")?;
+
+    let mut form = reqwest::multipart::Form::new()
+        .text("name", input.name)
+        .text("message", input.message)
+        .text("app_version", env!("CARGO_PKG_VERSION"))
+        .text("os", std::env::consts::OS);
+
+    if let Some(path) = input.attachment_path.as_deref() {
+        let bytes = tokio::fs::read(path)
+            .await
+            .map_err(|e| format!("read attachment: {e}"))?;
+        let filename = std::path::Path::new(path)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("attachment")
+            .to_string();
+        let part = reqwest::multipart::Part::bytes(bytes).file_name(filename);
+        form = form.part("attachment", part);
+    }
+
+    let resp = reqwest::Client::new()
+        .post(format!("{portal}/api/feedback"))
+        .header("x-feedback-key", key)
+        .multipart(form)
+        .send()
+        .await
+        .map_err(|e| format!("request failed: {e}"))?;
+
+    if resp.status().is_success() {
+        Ok(())
+    } else {
+        Err(format!("portal returned {}", resp.status()))
+    }
+}

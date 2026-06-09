@@ -118,3 +118,35 @@ export const onSetOpacity = (
   callback: (opacity: number) => void
 ): Promise<UnlistenFn> =>
   safeListen<number>("set-opacity", (event) => callback(event.payload));
+
+// ─── Feedback Commands ──────────────────────────────────────────
+
+export const submitFeedback = (input: {
+  name: string;
+  message: string;
+  attachmentPath?: string;
+}): Promise<void> => {
+  // Reject in the browser preview rather than no-op — otherwise the dialog
+  // would close as if the feedback sent when nothing actually happened.
+  if (isBrowser) {
+    return Promise.reject(new Error("Feedback can only be sent from the desktop app."));
+  }
+  return safeInvoke("submit_feedback", { input });
+};
+
+// Opens the OS image picker and returns the absolute path + display name.
+// Browser preview has no Tauri runtime, so it returns null (no-op).
+export const pickImageAttachment = async (): Promise<
+  { path: string; name: string } | null
+> => {
+  if (isBrowser) return null;
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const selected = await open({
+    multiple: false,
+    directory: false,
+    filters: [{ name: "Image", extensions: ["png", "jpg", "jpeg", "webp", "gif"] }],
+  });
+  if (typeof selected !== "string") return null;
+  const name = selected.split(/[/\\]/).pop() ?? "attachment";
+  return { path: selected, name };
+};
