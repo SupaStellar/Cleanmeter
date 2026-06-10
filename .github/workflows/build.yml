@@ -141,10 +141,30 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "signtool failed for $exe" }
           }
 
+      - name: Ensure feedback secrets on tagged releases
+        # Feedback config is compile-time (option_env!) — a missing secret
+        # doesn't fail the build, it silently ships a release that errors
+        # "feedback portal not configured" on every submit. Fail loudly for
+        # tags; workflow_dispatch dev builds may still build without them.
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          FEEDBACK_PORTAL_URL: ${{ secrets.FEEDBACK_PORTAL_URL }}
+          FEEDBACK_WRITE_KEY: ${{ secrets.FEEDBACK_WRITE_KEY }}
+        run: |
+          if (-not $env:FEEDBACK_PORTAL_URL -or -not $env:FEEDBACK_WRITE_KEY) {
+            throw "FEEDBACK_PORTAL_URL / FEEDBACK_WRITE_KEY secrets are missing - a tagged release must ship with feedback enabled."
+          }
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Compile-time (option_env!) config for the in-app feedback command.
+          # Without these the release builds with feedback disabled
+          # ("feedback portal not configured" on every submit).
+          FEEDBACK_PORTAL_URL: ${{ secrets.FEEDBACK_PORTAL_URL }}
+          FEEDBACK_WRITE_KEY: ${{ secrets.FEEDBACK_WRITE_KEY }}
           # Tauri's signCommand reads this thumbprint to sign the
           # installer + main exe via the cert imported in the step above.
           # When unset (no cert configured / non-Windows), the signCommand
