@@ -159,8 +159,8 @@ export function FeedbackDialog({
             </div>
 
             {/* Attachment chip (shown once a file is picked) — Figma 2488:6214:
-                Input shell (h-40, 12px padding, 8px radius, borderBolder) with
-                description icon + filename + remove ✕. */}
+                Input shell (40px height, 12px padding, 8px radius, borderBolder)
+                with description icon + filename + remove ✕. */}
             {attachment && (
               <div className="flex h-10 items-center gap-[var(--spacingXxs)] rounded-[var(--cornerL)] border border-[var(--borderBolder)] bg-[var(--bgSurfaceRaised)] p-[var(--spacingS)]">
                 <div className="flex min-w-0 flex-1 items-center gap-[var(--spacingXs)]">
