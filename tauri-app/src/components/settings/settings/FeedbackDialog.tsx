@@ -26,6 +26,18 @@ function CloseIcon({ className }: { className?: string }) {
   );
 }
 
+// File icon — Figma 2488:6236 (Material "description", 20×20, #1C1B1F — no token).
+function DescriptionIcon({ className }: { className?: string }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
+      <path
+        d="M7.5 15H12.5C12.7361 15 12.934 14.9201 13.0938 14.7604C13.2535 14.6007 13.3333 14.4028 13.3333 14.1667C13.3333 13.9306 13.2535 13.7326 13.0938 13.5729C12.934 13.4132 12.7361 13.3333 12.5 13.3333H7.5C7.26389 13.3333 7.06597 13.4132 6.90625 13.5729C6.74653 13.7326 6.66667 13.9306 6.66667 14.1667C6.66667 14.4028 6.74653 14.6007 6.90625 14.7604C7.06597 14.9201 7.26389 15 7.5 15ZM7.5 11.6667H12.5C12.7361 11.6667 12.934 11.5868 13.0938 11.4271C13.2535 11.2674 13.3333 11.0694 13.3333 10.8333C13.3333 10.5972 13.2535 10.3993 13.0938 10.2396C12.934 10.0799 12.7361 10 12.5 10H7.5C7.26389 10 7.06597 10.0799 6.90625 10.2396C6.74653 10.3993 6.66667 10.5972 6.66667 10.8333C6.66667 11.0694 6.74653 11.2674 6.90625 11.4271C7.06597 11.5868 7.26389 11.6667 7.5 11.6667ZM5 18.3333C4.54167 18.3333 4.14931 18.1701 3.82292 17.8437C3.49653 17.5174 3.33333 17.125 3.33333 16.6667V3.33333C3.33333 2.875 3.49653 2.48264 3.82292 2.15625C4.14931 1.82986 4.54167 1.66667 5 1.66667H10.9792C11.2014 1.66667 11.4132 1.70833 11.6146 1.79167C11.816 1.875 11.9931 1.99306 12.1458 2.14583L16.1875 6.1875C16.3403 6.34028 16.4583 6.51736 16.5417 6.71875C16.625 6.92014 16.6667 7.13194 16.6667 7.35417V16.6667C16.6667 17.125 16.5035 17.5174 16.1771 17.8437C15.8507 18.1701 15.4583 18.3333 15 18.3333H5ZM10.8333 6.66667V3.33333H5V16.6667H15V7.5H11.6667C11.4306 7.5 11.2326 7.42014 11.0729 7.26042C10.9132 7.10069 10.8333 6.90278 10.8333 6.66667Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
 // Add icon — Figma 2488:6010 (Material "add", 20×20).
 function PlusIcon({ className }: { className?: string }) {
   return (
@@ -146,19 +158,26 @@ export function FeedbackDialog({
               />
             </div>
 
-            {/* Attachment chip (shown once a file is picked) */}
+            {/* Attachment chip (shown once a file is picked) — Figma 2488:6214:
+                Input shell (h-40, 12px padding, 8px radius, borderBolder) with
+                description icon + filename + remove ✕. */}
             {attachment && (
-              <div className="flex items-center justify-between gap-2 rounded-[var(--cornerL)] border border-[var(--borderBolder)] px-3 py-2">
-                <span className="truncate text-body-sm-medium text-[var(--textHeading)]">
-                  {attachment.name}
-                </span>
+              <div className="flex h-10 items-center gap-[var(--spacingXxs)] rounded-[var(--cornerL)] border border-[var(--borderBolder)] bg-[var(--bgSurfaceRaised)] p-[var(--spacingS)]">
+                <div className="flex min-w-0 flex-1 items-center gap-[var(--spacingXs)]">
+                  {/* #1C1B1F has no token (Figma literal) and won't adapt —
+                      follow the adjacent filename color in dark mode. */}
+                  <DescriptionIcon className="size-5 shrink-0 text-[#1C1B1F] dark:text-[var(--textHeading)]" />
+                  <span className="truncate text-body-sm-medium text-[var(--textHeading)]">
+                    {attachment.name}
+                  </span>
+                </div>
                 <button
                   type="button"
                   aria-label="Remove attachment"
                   onClick={() => setAttachment(null)}
                   className="flex size-5 shrink-0 items-center justify-center rounded-[4px] text-[var(--iconBolderActive)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <CloseIcon className="size-4" />
+                  <CloseIcon className="size-5" />
                 </button>
               </div>
             )}
