@@ -376,10 +376,22 @@ pub struct FeedbackInput {
 // POSTs feedback to the portal. URL + write key are injected at build time via
 // option_env!; if either is missing (e.g. a plain local dev build) the command
 // returns an error instead of attempting a request. Touches no app state.
+//
+// Strip a leading UTF-8 BOM and surrounding whitespace from the injected
+// values: secrets set via `gh secret set` from a BOM-encoded source (the
+// PowerShell default) otherwise bake the BOM into the string, which makes the
+// URL unparseable and the write-key header wrong. Trimming keeps the binary
+// resilient to that class of mistake.
+fn injected(value: Option<&'static str>) -> Option<&'static str> {
+    value
+        .map(|s| s.trim_start_matches('\u{feff}').trim())
+        .filter(|s| !s.is_empty())
+}
+
 #[tauri::command]
 pub async fn submit_feedback(input: FeedbackInput) -> Result<(), String> {
-    let portal = option_env!("FEEDBACK_PORTAL_URL").ok_or("feedback portal not configured")?;
-    let key = option_env!("FEEDBACK_WRITE_KEY").ok_or("feedback key not configured")?;
+    let portal = injected(option_env!("FEEDBACK_PORTAL_URL")).ok_or("feedback portal not configured")?;
+    let key = injected(option_env!("FEEDBACK_WRITE_KEY")).ok_or("feedback key not configured")?;
 
     let mut form = reqwest::multipart::Form::new()
         .text("name", input.name)

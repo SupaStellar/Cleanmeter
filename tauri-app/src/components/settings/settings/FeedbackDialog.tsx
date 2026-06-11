@@ -97,7 +97,10 @@ export function FeedbackDialog({
         attachmentPath: attachment?.path,
       });
       onOpenChange(false);
-    } catch {
+    } catch (err) {
+      // Surface the underlying Rust error (e.g. "request failed", "portal
+      // returned 401") so failures are diagnosable instead of opaque.
+      console.error("submit_feedback failed:", err);
       setStatus("error");
     }
   };
