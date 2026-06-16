@@ -171,6 +171,13 @@ jobs:
           # wrapper detects the missing thumbprint and skips signing
           # rather than failing the build.
           WINDOWS_CERTIFICATE_THUMBPRINT: ${{ env.WINDOWS_CERTIFICATE_THUMBPRINT }}
+          # Updater signing (Ed25519) — distinct from the Authenticode cert above.
+          # When set, tauri-action signs the bundles and emits the updater
+          # artifacts (.sig files + latest.json) onto the release. When unset
+          # (e.g. dev builds without the secret) the updater artifacts are simply
+          # not produced and the build still succeeds.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: tauri-app
           tagName: v__VERSION__

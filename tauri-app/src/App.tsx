@@ -8,6 +8,8 @@ import { HelpTab } from "@/components/settings/help/HelpTab";
 import { useSensorData } from "@/hooks/useSensorData";
 import { useHotkey } from "@/hooks/useHotkey";
 import { useSettingsStore } from "@/stores/settings-store";
+import { useUpdaterStore } from "@/stores/updater-store";
+import { UpdateBanner } from "@/components/settings/UpdateBanner";
 import { checkDotnetRuntime, onSettingsChanged } from "@/lib/tauri";
 
 function MonitoringBanner() {
@@ -66,6 +68,7 @@ export default function App() {
   const loadSettings = useSettingsStore((s) => s.loadSettings);
   const loadPreferences = useSettingsStore((s) => s.loadPreferences);
   const loadAppVersion = useSettingsStore((s) => s.loadAppVersion);
+  const checkForUpdates = useUpdaterStore((s) => s.check);
 
   useSensorData();
   useHotkey();
@@ -75,6 +78,12 @@ export default function App() {
     loadPreferences();
     loadAppVersion();
   }, [loadSettings, loadPreferences, loadAppVersion]);
+
+  // Silent check on launch — surfaces the update badge only if a newer
+  // release exists; stays quiet when up to date or offline.
+  useEffect(() => {
+    checkForUpdates({ silent: true });
+  }, [checkForUpdates]);
 
   // Stay in sync with changes saved by the overlay window (e.g. a drag move).
   // Without this the settings store keeps a stale positionX/Y and re-saving any
@@ -110,6 +119,7 @@ export default function App() {
     <div className="mx-auto flex h-screen w-full max-w-[651px] flex-col overflow-hidden rounded-[12px] border border-foreground/10 bg-background text-foreground shadow-sm">
       <TopBar />
       <MonitoringBanner />
+      <UpdateBanner />
       <div className="flex min-h-0 flex-1 flex-col gap-5 px-6 pb-6 pt-6">
         <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
         <div className="min-h-0 flex-1 overflow-y-auto">

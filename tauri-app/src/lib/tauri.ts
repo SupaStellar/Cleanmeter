@@ -83,6 +83,29 @@ export const launchHardwareMonitor = () => safeInvoke("launch_hardware_monitor")
 export const setAutoStart = (enabled: boolean) => safeInvoke("set_auto_start", { enabled });
 export const getAutoStart = () => isBrowser ? Promise.resolve(false) : safeInvoke<boolean>("get_auto_start");
 
+// ─── Updater ────────────────────────────────────────────────────
+// Thin wrappers over @tauri-apps/plugin-updater. The returned Update object is
+// stateful (its downloadAndInstall lives on the instance), so the updater store
+// holds it and drives download/install — these helpers only cross the Tauri
+// runtime boundary and guard the browser preview.
+
+export type AppUpdate = import("@tauri-apps/plugin-updater").Update;
+
+// Returns the pending Update when a newer release exists, or null when the app
+// is current (or running in the browser preview, which has no Tauri runtime).
+export const checkForUpdate = async (): Promise<AppUpdate | null> => {
+  if (isBrowser) return null;
+  const { check } = await import("@tauri-apps/plugin-updater");
+  return check();
+};
+
+// Relaunch the app after an update has been installed.
+export const relaunchApp = async (): Promise<void> => {
+  if (isBrowser) return;
+  const { relaunch } = await import("@tauri-apps/plugin-process");
+  await relaunch();
+};
+
 // ─── Event Listeners ────────────────────────────────────────────
 
 export const onSensorData = (
