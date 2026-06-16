@@ -345,6 +345,12 @@ pub struct OverlaySettings {
     pub polling_rate: u64,
     #[serde(rename = "isLoggingEnabled")]
     pub is_logging_enabled: bool,
+    // Burn-in mitigation: when true the overlay is nudged a few pixels on a
+    // slow cycle (applied entirely on the JS side). `default` keeps older save
+    // files loading cleanly. Must live here or serde drops it on save (see the
+    // struct comment above).
+    #[serde(rename = "pixelShift", default)]
+    pub pixel_shift: bool,
     pub sensors: SensorsConfig,
 }
 
@@ -375,6 +381,7 @@ impl Default for OverlaySettings {
             label_font_weight: 500,
             polling_rate: 500,
             is_logging_enabled: false,
+            pixel_shift: false,
             sensors: SensorsConfig::default(),
         }
     }

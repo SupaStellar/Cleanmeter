@@ -91,6 +91,39 @@ export function BrowserUpdatedIcon({ className }: IconProps) {
   );
 }
 
+// Computer / monitor icon — Figma node 2524:5178 (Pixel Shift row). 20px,
+// 1.5 stroke in currentColor. Geometry copied verbatim from the Figma export
+// (viewBox kept at the source 18.1667 units so paths stay exact).
+export function ComputerIcon({ className }: IconProps) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 18.1667 18.1667"
+      fill="none"
+      className={className}
+      aria-hidden
+    >
+      <g stroke="currentColor" strokeWidth="1.5">
+        <path
+          d="M10.75 0.75H7.41667C4.68398 0.75 3.31763 0.75 2.34909 1.42818C1.99076 1.67909 1.67909 1.99076 1.42818 2.34909C0.75 3.31763 0.75 4.68398 0.75 7.41667C0.75 10.1494 0.75 11.5157 1.42818 12.4842C1.67909 12.8426 1.99076 13.1542 2.34909 13.4052C3.31763 14.0833 4.68398 14.0833 7.41667 14.0833H10.75C13.4827 14.0833 14.849 14.0833 15.8176 13.4052C16.1759 13.1542 16.4876 12.8426 16.7385 12.4842C17.4167 11.5157 17.4167 10.1494 17.4167 7.41667C17.4167 4.68398 17.4167 3.31763 16.7385 2.34909C16.4876 1.99076 16.1759 1.67909 15.8176 1.42818C14.849 0.75 13.4827 0.75 10.75 0.75Z"
+          strokeLinecap="round"
+        />
+        <path
+          d="M8.25 11.5833H9.91667"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M11.1667 17.4167L10.9038 17.0676C10.3111 16.2807 10.1641 15.0787 10.539 14.0833M7 17.4167L7.26292 17.0676C7.85561 16.2807 8.00255 15.0787 7.62769 14.0833"
+          strokeLinecap="round"
+        />
+        <path d="M4.91667 17.4167H13.25" strokeLinecap="round" />
+      </g>
+    </svg>
+  );
+}
+
 // Info icon — Figma node 2075:8803 (Material Symbols rounded filled, 16px).
 export function InfoIcon({ className }: IconProps) {
   return (

@@ -2,6 +2,7 @@ import * as React from "react";
 import * as RadioGroupPrimitive from "@radix-ui/react-radio-group";
 import { Checkbox } from "@/components/shadcn/checkbox";
 import { RadioGroup } from "@/components/shadcn/radio-group";
+import { Switch } from "@/components/shadcn/switch";
 import {
   Select,
   SelectContent,
@@ -18,6 +19,7 @@ import type { TemperatureUnit } from "@/lib/types";
 import {
   BrowserUpdatedIcon,
   ChevronRightIcon,
+  ComputerIcon,
   DiscordIcon,
   InfoIcon,
   ThemePreviewDark,
@@ -46,6 +48,8 @@ function SectionCard({
 function GeneralSection() {
   const startMinimized = useSettingsStore((s) => s.preferences.startMinimized);
   const updatePreferences = useSettingsStore((s) => s.updatePreferences);
+  const pixelShift = useSettingsStore((s) => s.settings.pixelShift);
+  const updateSettings = useSettingsStore((s) => s.updateSettings);
   const [startWithWindows, setStartWithWindows] = React.useState(false);
   // Rapid toggles fire concurrent setAutoStart calls that can resolve out
   // of order, leaving the checkbox out of sync with the OS registry.
@@ -70,24 +74,45 @@ function GeneralSection() {
 
   return (
     <SectionCard title="General">
-      <div className="flex flex-col gap-3">
-        <label className="flex cursor-pointer items-center gap-2 text-[14px] font-medium text-foreground">
-          <Checkbox
-            checked={startWithWindows}
-            disabled={autoStartPending}
-            onCheckedChange={(v) => handleStartWithWindows(v === true)}
+      <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-3">
+          <label className="flex cursor-pointer items-center gap-2 text-[14px] font-medium text-foreground">
+            <Checkbox
+              checked={startWithWindows}
+              disabled={autoStartPending}
+              onCheckedChange={(v) => handleStartWithWindows(v === true)}
+            />
+            Start with windows
+          </label>
+          <label className="flex cursor-pointer items-center gap-2 text-[14px] font-medium text-foreground">
+            <Checkbox
+              checked={startMinimized}
+              onCheckedChange={(v) =>
+                updatePreferences({ startMinimized: v === true })
+              }
+            />
+            Start minimized
+          </label>
+        </div>
+        <div className="h-px w-full bg-[var(--borderSubtle)]" />
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-[var(--cornerRound)] border border-[var(--borderBold)] bg-[var(--bgSurfaceRaised)]">
+            <ComputerIcon className="size-5 text-[var(--textParagraph1)]" />
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col gap-[6px]">
+            <span className="text-[14px] font-medium text-[var(--textHeading)]">
+              Pixel Shift
+            </span>
+            <span className="text-[14px] font-normal text-[var(--textParagraph1)]">
+              Shifts the overlay periodically to avoid OLED burn-in.
+            </span>
+          </div>
+          <Switch
+            checked={pixelShift}
+            onCheckedChange={(v) => updateSettings({ pixelShift: v })}
+            aria-label="Pixel Shift"
           />
-          Start with windows
-        </label>
-        <label className="flex cursor-pointer items-center gap-2 text-[14px] font-medium text-foreground">
-          <Checkbox
-            checked={startMinimized}
-            onCheckedChange={(v) =>
-              updatePreferences({ startMinimized: v === true })
-            }
-          />
-          Start minimized
-        </label>
+        </div>
       </div>
     </SectionCard>
   );
@@ -357,10 +382,7 @@ function FeedbackPrompt() {
     <section className="flex w-full items-center justify-between gap-3 rounded-[12px] bg-[var(--bgSurfaceRaised)] p-5">
       <div className="flex flex-col gap-[6px]">
         <span className="text-body-sm-medium text-[var(--textHeading)]">
-          Encountered an issue or have suggestions?
-        </span>
-        <span className="text-body-sm-regular text-[var(--textParagraph2)]">
-          We&apos;d love to hear from you!
+          Have an issue or suggestions? We want to hear!
         </span>
       </div>
       <button
@@ -401,7 +423,7 @@ export function SettingsTab() {
           />
         </div>
         <div className="flex items-center justify-between text-[12px] font-medium text-subtle-foreground">
-          <span>Built by Crispy Studio</span>
+          <span>Built by Team Crispy</span>
           <span>Version v{appVersion} beta</span>
         </div>
       </div>
