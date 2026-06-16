@@ -2,6 +2,7 @@ import * as React from "react";
 import * as RadioGroupPrimitive from "@radix-ui/react-radio-group";
 import { Checkbox } from "@/components/shadcn/checkbox";
 import { RadioGroup } from "@/components/shadcn/radio-group";
+import { Switch } from "@/components/shadcn/switch";
 import {
   Select,
   SelectContent,
@@ -17,6 +18,7 @@ import type { TemperatureUnit } from "@/lib/types";
 import {
   BrowserUpdatedIcon,
   ChevronRightIcon,
+  ComputerIcon,
   DiscordIcon,
   InfoIcon,
   ThemePreviewDark,
@@ -67,26 +69,53 @@ function GeneralSection() {
       .finally(() => setAutoStartPending(false));
   };
 
+  // Pixel Shift — UI only for now. Local state so the toggle is interactive;
+  // not yet persisted or applied to the overlay.
+  // TODO: replace with API data — wire to a persisted pixelShift setting and
+  // the overlay shift behavior (see docs wiring plan).
+  const [pixelShift, setPixelShift] = React.useState(false);
+
   return (
     <SectionCard title="General">
-      <div className="flex flex-col gap-3">
-        <label className="flex cursor-pointer items-center gap-2 text-[14px] font-medium text-foreground">
-          <Checkbox
-            checked={startWithWindows}
-            disabled={autoStartPending}
-            onCheckedChange={(v) => handleStartWithWindows(v === true)}
+      <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-3">
+          <label className="flex cursor-pointer items-center gap-2 text-[14px] font-medium text-foreground">
+            <Checkbox
+              checked={startWithWindows}
+              disabled={autoStartPending}
+              onCheckedChange={(v) => handleStartWithWindows(v === true)}
+            />
+            Start with windows
+          </label>
+          <label className="flex cursor-pointer items-center gap-2 text-[14px] font-medium text-foreground">
+            <Checkbox
+              checked={startMinimized}
+              onCheckedChange={(v) =>
+                updatePreferences({ startMinimized: v === true })
+              }
+            />
+            Start minimized
+          </label>
+        </div>
+        <div className="h-px w-full bg-[var(--borderSubtle)]" />
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-[100px] border border-[var(--borderBold)] bg-[var(--bgSurfaceRaised)]">
+            <ComputerIcon className="size-5 text-[var(--textParagraph1)]" />
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col gap-[6px]">
+            <span className="text-[14px] font-medium text-[var(--textHeading)]">
+              Pixel Shift
+            </span>
+            <span className="text-[14px] font-normal text-[var(--textParagraph1)]">
+              Shifts the overlay periodically to avoid OLED burn-in.
+            </span>
+          </div>
+          <Switch
+            checked={pixelShift}
+            onCheckedChange={setPixelShift}
+            aria-label="Pixel Shift"
           />
-          Start with windows
-        </label>
-        <label className="flex cursor-pointer items-center gap-2 text-[14px] font-medium text-foreground">
-          <Checkbox
-            checked={startMinimized}
-            onCheckedChange={(v) =>
-              updatePreferences({ startMinimized: v === true })
-            }
-          />
-          Start minimized
-        </label>
+        </div>
       </div>
     </SectionCard>
   );
