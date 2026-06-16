@@ -34,3 +34,15 @@ Download the latest installer from [Releases](https://github.com/SupaStellar/Cle
 - **Frontend**: React + TypeScript (Tauri v2)
 - **Backend**: Rust (Tauri) + C# (.NET 8, LibreHardwareMonitor, PresentMon)
 - **IPC**: Windows named pipes
+
+## License
+
+Copyright (C) 2026 Crispy Studio (https://crispy.studio).
+
+Cleanmeter is **source-available**, licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0) with the Commons Clause** condition. In short:
+
+- You are free to use, study, modify, and self-host Cleanmeter — including for internal or business purposes.
+- If you distribute or run a modified version (including as a hosted network service), you must release the complete corresponding source under the same terms.
+- You may **not sell** Cleanmeter, or any product or service whose value derives substantially from its functionality. For commercial or resale licensing, contact Crispy Studio.
+
+See [`LICENSE`](./LICENSE) for the full terms — the Commons Clause condition followed by the complete AGPL-3.0 text.

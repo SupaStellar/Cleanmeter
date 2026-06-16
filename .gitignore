@@ -153,6 +153,7 @@ bin/
 /shelf/
 /workspace.xml
 # Rider ignored files
+*.DotSettings.user
 /contentModel.xml
 /.idea.Launcher.iml
 /projectSettingsUpdater.xml
