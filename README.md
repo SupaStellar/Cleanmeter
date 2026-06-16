@@ -46,3 +46,5 @@ Cleanmeter is **source-available**, licensed under the **GNU Affero General Publ
 - You may **not sell** Cleanmeter, or any product or service whose value derives substantially from its functionality. For commercial or resale licensing, contact Crispy Studio.
 
 See [`LICENSE`](./LICENSE) for the full terms — the Commons Clause condition followed by the complete AGPL-3.0 text.
+
+Cleanmeter also bundles third-party components under their own licenses — see [`THIRD-PARTY-NOTICES`](./THIRD-PARTY-NOTICES.md).
