@@ -95,7 +95,7 @@ function GeneralSection() {
         </div>
         <div className="h-px w-full bg-[var(--borderSubtle)]" />
         <div className="flex items-center gap-3">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-[100px] border border-[var(--borderBold)] bg-[var(--bgSurfaceRaised)]">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-[var(--cornerRound)] border border-[var(--borderBold)] bg-[var(--bgSurfaceRaised)]">
             <ComputerIcon className="size-5 text-[var(--textParagraph1)]" />
           </div>
           <div className="flex min-w-0 flex-1 flex-col gap-[6px]">
