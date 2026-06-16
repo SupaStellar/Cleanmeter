@@ -107,6 +107,9 @@ export interface OverlaySettings {
   labelFontWeight: number;
   pollingRate: number;
   isLoggingEnabled: boolean;
+  // When true, the overlay is nudged a few pixels on a slow cycle to spread
+  // OLED wear (burn-in mitigation). See pixel-shift logic in OverlayApp.
+  pixelShift: boolean;
   sensors: SensorsConfig;
 }
 
@@ -185,6 +188,7 @@ export const DEFAULT_SETTINGS: OverlaySettings = {
   labelFontWeight: 500,
   pollingRate: 500,
   isLoggingEnabled: false,
+  pixelShift: false,
   sensors: {
     framerate: { isEnabled: true, customReadingId: "", targetAppName: "" },
     frametime: { isEnabled: true, customReadingId: "" },

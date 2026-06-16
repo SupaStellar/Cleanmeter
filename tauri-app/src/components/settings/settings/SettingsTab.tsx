@@ -47,6 +47,8 @@ function SectionCard({
 function GeneralSection() {
   const startMinimized = useSettingsStore((s) => s.preferences.startMinimized);
   const updatePreferences = useSettingsStore((s) => s.updatePreferences);
+  const pixelShift = useSettingsStore((s) => s.settings.pixelShift);
+  const updateSettings = useSettingsStore((s) => s.updateSettings);
   const [startWithWindows, setStartWithWindows] = React.useState(false);
   // Rapid toggles fire concurrent setAutoStart calls that can resolve out
   // of order, leaving the checkbox out of sync with the OS registry.
@@ -68,12 +70,6 @@ function GeneralSection() {
       .catch(() => setStartWithWindows(!enabled))
       .finally(() => setAutoStartPending(false));
   };
-
-  // Pixel Shift — UI only for now. Local state so the toggle is interactive;
-  // not yet persisted or applied to the overlay.
-  // TODO: replace with API data — wire to a persisted pixelShift setting and
-  // the overlay shift behavior (see docs wiring plan).
-  const [pixelShift, setPixelShift] = React.useState(false);
 
   return (
     <SectionCard title="General">
@@ -112,7 +108,7 @@ function GeneralSection() {
           </div>
           <Switch
             checked={pixelShift}
-            onCheckedChange={setPixelShift}
+            onCheckedChange={(v) => updateSettings({ pixelShift: v })}
             aria-label="Pixel Shift"
           />
         </div>
