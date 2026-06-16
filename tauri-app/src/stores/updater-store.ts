@@ -72,6 +72,10 @@ export const useUpdaterStore = create<UpdaterStore>((set, get) => ({
 
   downloadAndInstall: async () => {
     if (!pendingUpdate) return;
+    // Guard re-entrancy (e.g. a rapid double-tap on "Update now") so two
+    // installs can't race on the same Update instance.
+    const s = get().status;
+    if (s === "downloading" || s === "installing") return;
     set({ status: "downloading", progress: 0, error: null });
 
     let downloaded = 0;
@@ -99,9 +103,9 @@ export const useUpdaterStore = create<UpdaterStore>((set, get) => ({
             break;
         }
       });
-      // Installer has run; relaunch into the new version. On Windows the NSIS
-      // installer may close the app itself, so this is best-effort.
-      set({ status: "installing" });
+      // Installer has run (the Finished event already set "installing");
+      // relaunch into the new version. On Windows the NSIS installer may close
+      // the app itself, so this is best-effort.
       await relaunchApp();
     } catch (e) {
       set({
