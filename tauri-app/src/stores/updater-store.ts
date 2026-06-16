@@ -1,5 +1,10 @@
 import { create } from "zustand";
-import { checkForUpdate, relaunchApp, type AppUpdate } from "@/lib/tauri";
+import {
+  checkForUpdate,
+  prepareForUpdate,
+  relaunchApp,
+  type AppUpdate,
+} from "@/lib/tauri";
 
 export type UpdaterStatus =
   | "idle" // no check run yet this session
@@ -81,6 +86,10 @@ export const useUpdaterStore = create<UpdaterStore>((set, get) => ({
     let downloaded = 0;
     let contentLength = 0;
     try {
+      // Kill the HardwareMonitor sidecar (+ PresentMon) and its supervisor
+      // first — a running sidecar holds its .exe open and the NSIS installer
+      // would fail to overwrite it ("Error opening file for writing").
+      await prepareForUpdate();
       await pendingUpdate.downloadAndInstall((event) => {
         switch (event.event) {
           case "Started":

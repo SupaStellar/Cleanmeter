@@ -106,6 +106,15 @@ export const relaunchApp = async (): Promise<void> => {
   await relaunch();
 };
 
+// Stop the HardwareMonitor sidecar (+ PresentMon) and its supervisor so the
+// updater's installer can overwrite their files. Without this the running
+// sidecar holds HardwareMonitor.exe open and the install fails. Must be awaited
+// before downloadAndInstall.
+export const prepareForUpdate = async (): Promise<void> => {
+  if (isBrowser) return;
+  await safeInvoke("prepare_for_update");
+};
+
 // ─── Event Listeners ────────────────────────────────────────────
 
 export const onSensorData = (
