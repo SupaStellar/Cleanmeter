@@ -437,6 +437,7 @@ pub fn run() {
             commands::launch_hardware_monitor,
             commands::ui_debug_log,
             commands::submit_feedback,
+            commands::prepare_for_update,
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

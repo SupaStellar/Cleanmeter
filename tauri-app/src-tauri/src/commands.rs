@@ -18,6 +18,54 @@ pub fn ui_debug_log(msg: String) {
     }
 }
 
+/// Tear down the HardwareMonitor sidecar before an in-app update installs.
+///
+/// The sidecar (and PresentMon) keep `HardwareMonitor.exe` / `presentmon.exe`
+/// open, and the supervisor in `lib.rs` respawns the sidecar within ~1s of it
+/// dying — so the updater's NSIS installer failed with "Error opening file for
+/// writing" when it tried to overwrite those files. Stop the supervisor first
+/// (so it can't respawn), then kill the processes and wait briefly for Windows
+/// to release the handles. Mirrors the Quit/exit teardown without exiting, so
+/// the updater can replace the files and relaunch.
+#[tauri::command]
+pub async fn prepare_for_update(app: AppHandle) {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    // Stop the supervisor loop so it won't respawn the sidecar we're killing.
+    if let Some(running) = app.try_state::<std::sync::Arc<AtomicBool>>() {
+        running.store(false, Ordering::Relaxed);
+    }
+    #[cfg(windows)]
+    {
+        // taskkill + the handle-release wait block, so run them off the async
+        // runtime and await completion before the installer starts.
+        let app = app.clone();
+        let _ = tauri::async_runtime::spawn_blocking(move || {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+            // Kill the tracked child first (graceful), then any strays.
+            if let Some(slot) = app
+                .try_state::<std::sync::Arc<std::sync::Mutex<Option<std::process::Child>>>>()
+            {
+                if let Ok(mut guard) = slot.lock() {
+                    if let Some(mut child) = guard.take() {
+                        let _ = child.kill();
+                        let _ = child.wait();
+                    }
+                }
+            }
+            for image in ["HardwareMonitor.exe", "presentmon.exe"] {
+                let _ = std::process::Command::new("taskkill")
+                    .args(["/f", "/im", image])
+                    .creation_flags(CREATE_NO_WINDOW)
+                    .status();
+            }
+            // Let the OS release the file handles before the installer overwrites.
+            std::thread::sleep(std::time::Duration::from_millis(500));
+        })
+        .await;
+    }
+}
+
 fn now_ms() -> u128 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
