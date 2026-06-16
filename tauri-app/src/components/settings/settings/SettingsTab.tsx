@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { getAutoStart, setAutoStart } from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
+import { useUpdaterStore } from "@/stores/updater-store";
 import { POLLING_RATES } from "@/lib/types";
 import type { TemperatureUnit } from "@/lib/types";
 import {
@@ -260,12 +261,16 @@ function FooterLinkButton({
   icon,
   label,
   href,
+  onClick,
   disabled,
+  title,
 }: {
   icon: React.ReactNode;
   label: string;
   href?: string;
+  onClick?: () => void;
   disabled?: boolean;
+  title?: string;
 }) {
   const className = cn(
     "flex flex-1 items-center justify-between gap-3 rounded-[12px] border border-[var(--borderBolder)]/50 p-3",
@@ -284,16 +289,20 @@ function FooterLinkButton({
     </>
   );
 
-  // Disabled renders an inert placeholder (e.g. update hosting not wired yet).
   if (disabled) {
     return (
-      <div
-        className={className}
-        aria-disabled="true"
-        title="Update hosting coming soon"
-      >
+      <div className={className} aria-disabled="true" title={title}>
         {content}
       </div>
+    );
+  }
+
+  // An action button (e.g. trigger the in-app update check) vs an external link.
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={cn(className, "text-left")}>
+        {content}
+      </button>
     );
   }
 
@@ -304,9 +313,43 @@ function FooterLinkButton({
   );
 }
 
-// TODO: replace with API data (canonical discord URL from product). The
-// "Check for latest updates" button is disabled until update hosting exists.
+// TODO: replace with API data (canonical discord URL from product).
 const DISCORD_INVITE_URL = "https://discord.gg/CN2b7d4c9";
+
+// Triggers an in-app update check and reflects the updater status in its label.
+// The actual "download & install" happens from the floating UpdateBanner.
+function UpdatesButton() {
+  const status = useUpdaterStore((s) => s.status);
+  const check = useUpdaterStore((s) => s.check);
+
+  const busy =
+    status === "checking" ||
+    status === "downloading" ||
+    status === "installing";
+
+  const label =
+    status === "checking"
+      ? "Checking for updates…"
+      : status === "available"
+        ? "Update available — see banner"
+        : status === "downloading" || status === "installing"
+          ? "Updating…"
+          : status === "uptodate"
+            ? "You're on the latest version"
+            : status === "error"
+              ? "Couldn't check — try again"
+              : "Check for latest updates";
+
+  return (
+    <FooterLinkButton
+      icon={<BrowserUpdatedIcon className="size-8" />}
+      label={label}
+      onClick={busy ? undefined : () => check({ silent: false })}
+      disabled={busy}
+      title={label}
+    />
+  );
+}
 
 function FeedbackPrompt() {
   const [open, setOpen] = React.useState(false);
@@ -350,13 +393,7 @@ export function SettingsTab() {
       <div className="flex w-full flex-col gap-6">
         <FeedbackPrompt />
         <div className="flex gap-3">
-          <FooterLinkButton
-            icon={<BrowserUpdatedIcon className="size-8" />}
-            label="Check for latest updates"
-            // TODO: re-enable once update hosting exists; should trigger an
-            // in-app update check rather than opening an external page.
-            disabled
-          />
+          <UpdatesButton />
           <FooterLinkButton
             icon={<DiscordIcon className="size-8" />}
             label="Join the discord server!"
