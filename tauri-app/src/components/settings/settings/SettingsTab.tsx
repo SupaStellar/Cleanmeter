@@ -339,10 +339,7 @@ function FeedbackPrompt() {
     <section className="flex w-full items-center justify-between gap-3 rounded-[12px] bg-[var(--bgSurfaceRaised)] p-5">
       <div className="flex flex-col gap-[6px]">
         <span className="text-body-sm-medium text-[var(--textHeading)]">
-          Encountered an issue or have suggestions?
-        </span>
-        <span className="text-body-sm-regular text-[var(--textParagraph2)]">
-          We&apos;d love to hear from you!
+          Have an issue or suggestions? We want to hear!
         </span>
       </div>
       <button
@@ -389,7 +386,7 @@ export function SettingsTab() {
           />
         </div>
         <div className="flex items-center justify-between text-[12px] font-medium text-subtle-foreground">
-          <span>Built by Crispy Studio</span>
+          <span>Built by Team Crispy</span>
           <span>Version v{appVersion} beta</span>
         </div>
       </div>
