@@ -152,6 +152,13 @@ export interface AppPreferences {
   startMinimized: boolean;
 }
 
+export interface ProcessInfo {
+  pid: number;
+  name: string;
+  cpuUsage: number;
+  memoryBytes: number;
+}
+
 export type SensorKey = keyof SensorsConfig;
 
 // Polling intervals (ms) offered in Settings → Polling rate. Single source of

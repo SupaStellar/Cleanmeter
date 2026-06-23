@@ -349,6 +349,85 @@ pub fn get_app_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
 
+// ─── Process Commands ───────────────────────────────────────────
+
+#[derive(serde::Serialize)]
+pub struct ProcessInfo {
+    pub pid: u32,
+    pub name: String,
+    #[serde(rename = "cpuUsage")]
+    pub cpu_usage: f32,
+    #[serde(rename = "memoryBytes")]
+    pub memory_bytes: u64,
+}
+
+// Activity-Monitor-style process listing. Accurate per-process CPU usage needs
+// two refreshes separated by MINIMUM_CPU_UPDATE_INTERVAL, so the work (which
+// sleeps) runs on the blocking pool rather than the async runtime.
+#[tauri::command]
+pub async fn list_processes() -> Result<Vec<ProcessInfo>, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, System};
+
+        let mut sys = System::new();
+        let refresh_kind = ProcessRefreshKind::nothing().with_cpu().with_memory();
+        // First pass establishes the CPU baseline; the second pass (after the
+        // minimum interval) yields a meaningful cpu_usage delta.
+        sys.refresh_processes_specifics(ProcessesToUpdate::All, true, refresh_kind);
+        std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
+        sys.refresh_processes_specifics(ProcessesToUpdate::All, true, refresh_kind);
+
+        let mut processes: Vec<ProcessInfo> = sys
+            .processes()
+            .iter()
+            .filter_map(|(pid, process)| {
+                let pid = pid.as_u32();
+                if pid == 0 {
+                    return None;
+                }
+                let name = process.name().to_string_lossy().to_string();
+                if name.is_empty() {
+                    return None;
+                }
+                Some(ProcessInfo {
+                    pid,
+                    name,
+                    cpu_usage: process.cpu_usage(),
+                    memory_bytes: process.memory(),
+                })
+            })
+            .collect();
+
+        processes.sort_by(|a, b| {
+            b.cpu_usage
+                .partial_cmp(&a.cpu_usage)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        processes
+    })
+    .await
+    .map_err(|e| format!("Failed to list processes: {}", e))
+}
+
+#[tauri::command]
+pub fn kill_process(pid: u32) -> Result<(), String> {
+    use sysinfo::{Pid, ProcessesToUpdate, System};
+
+    let mut sys = System::new();
+    sys.refresh_processes(ProcessesToUpdate::All, true);
+    match sys.process(Pid::from_u32(pid)) {
+        Some(process) => {
+            if process.kill() {
+                Ok(())
+            } else {
+                Err(format!("Failed to kill process {}", pid))
+            }
+        }
+        None => Err(format!("Process {} not found", pid)),
+    }
+}
+
 #[tauri::command]
 pub fn grant_admin_consent(settings_mgr: State<'_, SettingsManager>) {
     let mut prefs = settings_mgr.get_preferences();

@@ -438,6 +438,8 @@ pub fn run() {
             commands::ui_debug_log,
             commands::submit_feedback,
             commands::prepare_for_update,
+            commands::list_processes,
+            commands::kill_process,
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

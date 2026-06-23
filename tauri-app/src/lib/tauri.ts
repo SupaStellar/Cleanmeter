@@ -5,6 +5,7 @@ import type {
   PipeStatus,
   MonitorInfo,
   AppPreferences,
+  ProcessInfo,
 } from "./types";
 
 // ─── Browser detection ──────────────────────────────────────────
@@ -82,6 +83,13 @@ export const grantAdminConsent = () => safeInvoke("grant_admin_consent");
 export const launchHardwareMonitor = () => safeInvoke("launch_hardware_monitor");
 export const setAutoStart = (enabled: boolean) => safeInvoke("set_auto_start", { enabled });
 export const getAutoStart = () => isBrowser ? Promise.resolve(false) : safeInvoke<boolean>("get_auto_start");
+
+// ─── Process Commands ───────────────────────────────────────────
+// safeInvoke no-ops in the browser preview (returns undefined), so consumers
+// must guard for an undefined result (e.g. default to []).
+
+export const listProcesses = () => safeInvoke<ProcessInfo[]>("list_processes");
+export const killProcess = (pid: number) => safeInvoke<void>("kill_process", { pid });
 
 // ─── Updater ────────────────────────────────────────────────────
 // Thin wrappers over @tauri-apps/plugin-updater. The returned Update object is

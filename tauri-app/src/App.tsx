@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { TopBar } from "@/components/settings/TopBar";
 import { TabNav, type SettingsTab as TabKey } from "@/components/settings/TabNav";
 import { StatsTab } from "@/components/settings/stats/StatsTab";
+import { ProcessesTab } from "@/components/settings/processes/ProcessesTab";
 import { StyleTab } from "@/components/settings/style/StyleTab";
 import { SettingsTab } from "@/components/settings/settings/SettingsTab";
 import { HelpTab } from "@/components/settings/help/HelpTab";
@@ -124,6 +125,7 @@ export default function App() {
         <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
         <div className="min-h-0 flex-1 overflow-y-auto">
           {activeTab === "stats" && <StatsTab />}
+          {activeTab === "processes" && <ProcessesTab />}
           {activeTab === "style" && <StyleTab />}
           {activeTab === "settings" && <SettingsTab />}
           {activeTab === "help" && <HelpTab />}

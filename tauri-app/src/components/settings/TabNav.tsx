@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
-import { StatsIcon, StyleIcon, SettingsIcon, HelpIcon } from "./tab-icons";
+import { StatsIcon, StyleIcon, SettingsIcon, HelpIcon, ProcessesIcon } from "./tab-icons";
 
-export type SettingsTab = "stats" | "style" | "settings" | "help";
+export type SettingsTab = "stats" | "processes" | "style" | "settings" | "help";
 
 interface TabNavProps {
   activeTab: SettingsTab;
@@ -14,6 +14,7 @@ const TABS: {
   Icon: (p: { className?: string }) => React.JSX.Element;
 }[] = [
   { value: "stats", label: "Stats", Icon: StatsIcon },
+  { value: "processes", label: "Processes", Icon: ProcessesIcon },
   { value: "style", label: "Style", Icon: StyleIcon },
   { value: "settings", label: "Settings", Icon: SettingsIcon },
   { value: "help", label: "Help", Icon: HelpIcon },
