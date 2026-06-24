@@ -27,27 +27,27 @@ function RingPreview() {
   );
 }
 
-// TODO: Bar graph disabled until designed in Figma (2075:7833). Re-enable
-// BarPreview + the Bar tile + the "bar" branches in handleToggle/setType and
-// the loadSettings heal once the bar visual is finalized.
-// function BarPreview() {
-//   return (
-//     <div className="flex flex-col gap-[2px]">
-//       {Array.from({ length: 9 }, (_, i) => {
-//         const filled = i >= 4;
-//         return (
-//           <div
-//             key={i}
-//             className={cn(
-//               "h-[2px] w-[26px] rounded-full",
-//               filled ? "bg-success" : "bg-foreground/10",
-//             )}
-//           />
-//         );
-//       })}
-//     </div>
-//   );
-// }
+// Figma 2091:2570: 9 bars, 26×2, fully rounded, 2px stack gap. Top 4 are the
+// muted track (foreground @10%), bottom 5 filled success — a static preview of
+// a partially-filled bar gauge.
+function BarPreview() {
+  return (
+    <div className="flex flex-col gap-[2px]">
+      {Array.from({ length: 9 }, (_, i) => {
+        const filled = i >= 4;
+        return (
+          <div
+            key={i}
+            className={cn(
+              "h-[2px] w-[26px] rounded-full",
+              filled ? "bg-success" : "bg-foreground/10",
+            )}
+          />
+        );
+      })}
+    </div>
+  );
+}
 
 function GraphTile({
   selected,
@@ -91,18 +91,20 @@ export function GraphTypePicker() {
 
   const handleToggle = (enabled: boolean) => {
     if (enabled) {
-      // Bar graph disabled (pending Figma 2075:7833) — always enable as ring.
-      updateSettings({ progressType: "circular", graphType: "ring" });
+      // Re-enabling restores the last picked type: graphType remembers the
+      // choice while the graph is off, progressType is the live render state.
+      updateSettings({
+        progressType: settings.graphType === "bar" ? "bar" : "circular",
+      });
     } else {
       updateSettings({ progressType: "none" });
     }
   };
 
   const setType = (type: GraphType) => {
-    // Bar disabled (2075:7833): coerce any selection to the circular ring.
     updateSettings({
-      graphType: type === "bar" ? "ring" : type,
-      progressType: "circular",
+      graphType: type,
+      progressType: type === "bar" ? "bar" : "circular",
     });
   };
 
@@ -124,13 +126,12 @@ export function GraphTypePicker() {
             icon={<RingPreview />}
             label="Ring graph"
           />
-          {/* TODO: Bar graph option disabled until designed in Figma (2075:7833).
           <GraphTile
             selected={currentType === "bar"}
             onClick={() => setType("bar")}
             icon={<BarPreview />}
             label="Bar graph"
-          /> */}
+          />
         </div>
       )}
     </CollapsibleCard>
