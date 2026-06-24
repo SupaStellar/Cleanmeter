@@ -44,6 +44,22 @@ export function NetSection({ isHorizontal }: NetSectionProps) {
     fontFamily: "Inter",
     letterSpacing: "0.04em",
   };
+  // The ↓/↑ arrows are a fixed 12×15 glyph box (Figma node — TEXT "↓"/"↑"
+  // [12×15] @ size 12). They never scale with the Label/Stats font; the arrow
+  // is centered in the box so the NET row stays stable across font sizes.
+  const arrowStyle: React.CSSProperties = {
+    width: 12,
+    height: 15,
+    flexShrink: 0,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 12,
+    fontWeight: labelFontWeight,
+    color: "var(--overlay-text)",
+    fontFamily: "Inter",
+    letterSpacing: "0.04em",
+  };
 
   return (
     <Pill title="NET" isHorizontal={isHorizontal}>
@@ -54,14 +70,14 @@ export function NetSection({ isHorizontal }: NetSectionProps) {
         <div className="flex items-center gap-1">
           <span style={valueStyle} className="tabular-nums">{down.value}</span>
           <span style={labelStyle}>{down.unit}</span>
-          <span style={labelStyle}>↓</span>
+          <span style={arrowStyle}>↓</span>
         </div>
       )}
       {upRate.isEnabled && (
         <div className="flex items-center gap-1">
           <span style={valueStyle} className="tabular-nums">{up.value}</span>
           <span style={labelStyle}>{up.unit}</span>
-          <span style={labelStyle}>↑</span>
+          <span style={arrowStyle}>↑</span>
         </div>
       )}
       {showNetGraph && (
