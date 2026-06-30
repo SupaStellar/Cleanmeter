@@ -270,6 +270,10 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
             customReadingId: "/presentmon/presented",
           },
         };
+        // Persist immediately so a fully-configured install (where
+        // autoSelectSensors produces no patch) doesn't re-run this heal
+        // on every subsequent startup.
+        tauri.saveSettings(settings);
       }
       // pillOpacity has no UI control, so a saved 0.24 can only be PR#8's
       // (now reverted) default leaking in from a prior run. Heal it back to
