@@ -30,11 +30,10 @@ function MonitoringBanner() {
     return () => clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    if (sensorData) setShowBanner(false);
-  }, [sensorData]);
-
-  if (!showBanner) return null;
+  // Hide the banner as soon as data arrives — derived from sensorData rather
+  // than mirrored into state via an effect (which would cascade an extra
+  // render). showBanner still gates the 8s "no data yet" delay above.
+  if (!showBanner || sensorData) return null;
 
   return (
     <div className="border-b border-yellow-400 bg-yellow-50 px-4 py-2.5 text-[13px] leading-snug text-yellow-900 dark:border-yellow-700 dark:bg-yellow-950 dark:text-yellow-200">
