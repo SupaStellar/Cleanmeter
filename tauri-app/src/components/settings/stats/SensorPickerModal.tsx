@@ -92,8 +92,10 @@ export function SensorPickerModal({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Reset the search field whenever the modal closes.
+  // Reset the search field whenever the modal closes. Prop-sync effect, not a
+  // render cascade — the setState only fires on the open→closed transition.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!open) setQuery("");
   }, [open]);
 
@@ -107,12 +109,14 @@ export function SensorPickerModal({
   useEffect(() => {
     if (!open) return;
     const idx = options.findIndex((s) => s.identifier === value);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setActiveIndex(idx >= 0 ? idx : 0);
   }, [open, value, options]);
 
   // Every keystroke re-narrows the list. Snap to the top match so Enter
   // selects what the user is reading at the top.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setActiveIndex(0);
   }, [query]);
 
