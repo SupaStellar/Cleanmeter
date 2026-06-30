@@ -22,12 +22,22 @@ export function FpsSection({ isHorizontal }: FpsSectionProps) {
   const { framerate, frametime } = settings.sensors;
   if (!framerate.isEnabled && !frametime.isEnabled) return null;
 
-  // Find FPS sensor
-  const fpsSensor = framerate.customReadingId
-    ? findSensorById(sensors, framerate.customReadingId)
-    : sensors.find(
-        (s) => s.name.toLowerCase().includes("fps") || s.name.toLowerCase().includes("framerate")
-      );
+  // Resolve the FPS sensor: the configured reading first, then fall back to the
+  // PresentMon "presented" sensor (frametime-derived — populated on every GPU,
+  // including APUs/iGPUs). The old name-only fallback searched for "fps"/
+  // "framerate", but the PresentMon sensors are named "Presented Frames"/
+  // "Displayed Frames", so it never matched and unconfigured installs silently
+  // read 0.
+  const fpsSensor =
+    findSensorById(sensors, framerate.customReadingId) ??
+    sensors.find((s) => s.identifier === "/presentmon/presented") ??
+    sensors.find(
+      (s) =>
+        s.identifier.toLowerCase().includes("presented") ||
+        s.name.toLowerCase().includes("presented") ||
+        s.name.toLowerCase().includes("fps") ||
+        s.name.toLowerCase().includes("framerate")
+    );
 
   const fpsValue = Math.round(fpsSensor?.value ?? 0);
   const lastFrametime = frametimeHistory.length > 0 ? frametimeHistory[frametimeHistory.length - 1] : 0;
