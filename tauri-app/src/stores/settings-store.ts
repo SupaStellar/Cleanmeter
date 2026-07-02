@@ -47,10 +47,9 @@ function autoSelectSensors(
 
   const cpuHw = [HardwareType.Cpu];
   const gpuHw = [HardwareType.GpuNvidia, HardwareType.GpuAmd, HardwareType.GpuIntel];
-  const netHw = [HardwareType.Network];
 
-  const tryFill = (
-    key: SensorKey,
+  const tryFill = <K extends SensorKey>(
+    key: K,
     hwTypes: HardwareType[],
     sType: SensorType,
     prefer: string[]
@@ -59,7 +58,7 @@ function autoSelectSensors(
     if (!current.customReadingId) {
       const id = findBest(sensors, hardwares, hwTypes, sType, prefer);
       if (id) {
-        patch[key] = { ...current, customReadingId: id } as any;
+        patch[key] = { ...current, customReadingId: id } as OverlaySettings["sensors"][K];
         changed = true;
       }
     }
@@ -119,21 +118,28 @@ function autoSelectSensors(
     changed = true;
   }
 
-  // Framerate
-  const framerateSensor = sensors.find(
-    (s) =>
-      !settings.sensors.framerate.customReadingId &&
-      (s.name.toLowerCase().includes("display") ||
-        s.name.toLowerCase().includes("fps") ||
-        s.identifier.toLowerCase().includes("displayed") ||
-        s.identifier.toLowerCase().includes("framerate"))
-  );
-  if (framerateSensor) {
-    patch["framerate"] = {
-      ...settings.sensors.framerate,
-      customReadingId: framerateSensor.identifier,
-    };
-    changed = true;
+  // Framerate — prefer the PresentMon "presented" sensor. It's derived from
+  // present-to-present frametime, which PresentMon reports on every config
+  // (including AMD APUs / iGPUs). The "displayed" sensor needs display-timing
+  // telemetry that some GPUs don't expose, so it reads 0 there (and older
+  // builds surfaced -1) — see the displayed→presented heal in loadSettings.
+  if (!settings.sensors.framerate.customReadingId) {
+    const framerateSensor =
+      sensors.find((s) => s.identifier.toLowerCase().includes("presented")) ??
+      sensors.find(
+        (s) =>
+          s.name.toLowerCase().includes("fps") ||
+          s.name.toLowerCase().includes("framerate") ||
+          s.identifier.toLowerCase().includes("displayed") ||
+          s.identifier.toLowerCase().includes("framerate")
+      );
+    if (framerateSensor) {
+      patch["framerate"] = {
+        ...settings.sensors.framerate,
+        customReadingId: framerateSensor.identifier,
+      };
+      changed = true;
+    }
   }
 
   return changed ? patch : null;
@@ -249,6 +255,25 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
             customReadingId: "",
           },
         };
+      }
+      // FPS source heal: older builds auto-selected the PresentMon "displayed"
+      // sensor, which reads 0 on GPUs that don't expose display-timing telemetry
+      // (the same machines where the old reader surfaced -1). The "presented"
+      // sensor is frametime-derived and populates everywhere, so repoint
+      // existing installs at it. Only the auto-managed presentmon identifier is
+      // rewritten — a user's own custom pick is left untouched.
+      if (settings.sensors.framerate.customReadingId === "/presentmon/displayed") {
+        settings.sensors = {
+          ...settings.sensors,
+          framerate: {
+            ...settings.sensors.framerate,
+            customReadingId: "/presentmon/presented",
+          },
+        };
+        // Persist immediately so a fully-configured install (where
+        // autoSelectSensors produces no patch) doesn't re-run this heal
+        // on every subsequent startup.
+        tauri.saveSettings(settings);
       }
       // pillOpacity has no UI control, so a saved 0.24 can only be PR#8's
       // (now reverted) default leaking in from a prior run. Heal it back to
