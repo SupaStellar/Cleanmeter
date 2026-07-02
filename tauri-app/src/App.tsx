@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { TopBar } from "@/components/settings/TopBar";
 import { TabNav, type SettingsTab as TabKey } from "@/components/settings/TabNav";
 import { StatsTab } from "@/components/settings/stats/StatsTab";
@@ -11,6 +11,7 @@ import { useSettingsStore } from "@/stores/settings-store";
 import { useUpdaterStore } from "@/stores/updater-store";
 import { UpdateBanner } from "@/components/settings/UpdateBanner";
 import { checkDotnetRuntime, onSettingsChanged } from "@/lib/tauri";
+import { SplashScreen } from "@/components/SplashScreen";
 
 function MonitoringBanner() {
   const sensorData = useSettingsStore((s) => s.sensorData);
@@ -63,6 +64,13 @@ function MonitoringBanner() {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>("stats");
+  // Startup splash: shown on every launch from first paint, covering the UI
+  // (and the light→dark theme flash while saved settings load) until the
+  // logo's ring sweep completes, then fades out and unmounts. Stable callback
+  // so App re-renders (settings load ~200ms in) don't re-run the splash's
+  // timer effect and stretch the hold.
+  const [showSplash, setShowSplash] = useState(true);
+  const handleSplashDone = useCallback(() => setShowSplash(false), []);
   const settings = useSettingsStore((s) => s.settings);
   const loadSettings = useSettingsStore((s) => s.loadSettings);
   const loadPreferences = useSettingsStore((s) => s.loadPreferences);
@@ -115,7 +123,8 @@ export default function App() {
   }, [settings.isDarkTheme]);
 
   return (
-    <div className="mx-auto flex h-screen w-full max-w-[651px] flex-col overflow-hidden rounded-[12px] border border-foreground/10 bg-background text-foreground shadow-sm">
+    <div className="relative mx-auto flex h-screen w-full max-w-[651px] flex-col overflow-hidden rounded-[12px] border border-foreground/10 bg-background text-foreground shadow-sm">
+      {showSplash && <SplashScreen onDone={handleSplashDone} />}
       <TopBar />
       <MonitoringBanner />
       <UpdateBanner />
