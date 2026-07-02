@@ -1,4 +1,5 @@
 import { useSettingsStore } from "@/stores/settings-store";
+import { gaugeSize } from "./gauge-metrics";
 
 interface PillProps {
   title: string;
@@ -22,11 +23,12 @@ export function Pill({ title, isHorizontal, children, tooltip }: PillProps) {
   // renders identically. Values, units, and arrows stay full white.
   const labelColor = "var(--overlay-text-muted)";
   // Figma's auto-layout produces uniform sub-pill heights even when one pill
-  // has no ring (FPS, NET). Force a floor of ring + vertical-pad so ring-less
-  // pills don't sit shorter than ring-bearing ones, matching the Figma sweep
-  // (24/37 horizontal, 32/45 vertical).
-  const ringSize = valueFontSize <= 14 ? 16 : 20;
-  const minHeight = ringSize + (isHorizontal ? 8 : 16);
+  // has no gauge (FPS, NET). Force a floor of gauge + vertical-pad so
+  // gauge-less pills don't sit shorter than gauge-bearing ones, matching the
+  // Figma sweep (24/37 horizontal, 32/45 vertical). Shares the ring/bar size
+  // step via gaugeSize; text taller than the floor still grows the pill
+  // naturally (minHeight, not height).
+  const minHeight = gaugeSize(valueFontSize) + (isHorizontal ? 8 : 16);
   // Figma vertical (2169:286) pins every 3-char label to a uniform width so
   // values align across stacked sub-pills. Figma reports 28px @ fontSizeLabel
   // 12, but in CSS Inter "RAM" renders at 28.2px (rounding to 29) — wider
@@ -51,9 +53,10 @@ export function Pill({ title, isHorizontal, children, tooltip }: PillProps) {
   if (isHorizontal) {
     // Figma 2106:2313 sub-pill spec: r=100, bg rgba(0,0,0,0.24), pad 4/12/4/12,
     // gap 12 uniform between label AND between every metric cluster (e.g. GPU
-    // has temp/load/vram clusters all spaced at 12). minHeight removed so the
-    // pill hugs its tallest child — height grows with fontSizeValue exactly
-    // as the 7-size Figma sweep illustrates (24→37 inner row height).
+    // has temp/load/vram clusters all spaced at 12). Height hugs the tallest
+    // child — it grows with the fonts exactly as the 7-size Figma sweep
+    // illustrates (24→37 inner row height) — while minHeight only floors the
+    // gauge-less pills (FPS, NET) at gauge + pad so they match their siblings.
     return (
       <div
         title={tooltip}
