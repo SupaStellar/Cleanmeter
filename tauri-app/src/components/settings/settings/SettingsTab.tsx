@@ -26,7 +26,6 @@ import {
   ThemePreviewLight,
   ThemePreviewSystem,
 } from "./icons";
-import { FeedbackDialog } from "./FeedbackDialog";
 
 function SectionCard({
   title,
@@ -97,7 +96,10 @@ function GeneralSection() {
         <div className="h-px w-full bg-[var(--borderSubtle)]" />
         <div className="flex items-center gap-3">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-[var(--cornerRound)] border border-[var(--borderBold)] bg-[var(--bgSurfaceRaised)]">
-            <ComputerIcon className="size-5 text-[var(--textParagraph1)]" />
+            {/* The glyph is geometrically centered but top-heavy (solid
+                monitor body over thin legs), which reads as sitting high in
+                the circle — nudge down 1px for optical center. */}
+            <ComputerIcon className="size-5 translate-y-[1px] text-[var(--textParagraph1)]" />
           </div>
           <div className="flex min-w-0 flex-1 flex-col gap-[6px]">
             <span className="text-[14px] font-medium text-[var(--textHeading)]">
@@ -376,31 +378,6 @@ function UpdatesButton() {
   );
 }
 
-function FeedbackPrompt() {
-  const [open, setOpen] = React.useState(false);
-  return (
-    <section className="flex w-full items-center justify-between gap-3 rounded-[12px] bg-[var(--bgSurfaceRaised)] p-5">
-      <div className="flex flex-col gap-[6px]">
-        <span className="text-body-sm-medium text-[var(--textHeading)]">
-          Have an issue or suggestions? We want to hear!
-        </span>
-      </div>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className={cn(
-          "shrink-0 rounded-[var(--cornerRound)] border border-[var(--borderBolder)]/50 bg-[var(--bgSurfaceRaised)] px-5 py-3",
-          "text-body-sm-medium text-[var(--textHeading)] transition-colors",
-          "hover:border-[var(--borderBolder)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
-        )}
-      >
-        Give feedback
-      </button>
-      <FeedbackDialog open={open} onOpenChange={setOpen} />
-    </section>
-  );
-}
-
 export function SettingsTab() {
   const appVersion = useSettingsStore((s) => s.appVersion);
 
@@ -413,7 +390,6 @@ export function SettingsTab() {
         <AppearanceSection />
       </div>
       <div className="flex w-full flex-col gap-6">
-        <FeedbackPrompt />
         <div className="flex gap-3">
           <UpdatesButton />
           <FooterLinkButton

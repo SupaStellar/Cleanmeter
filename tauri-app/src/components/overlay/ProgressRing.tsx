@@ -1,6 +1,7 @@
 import { getBoundaryColor } from "@/lib/utils";
 import type { Boundaries } from "@/lib/types";
 import { useSettingsStore } from "@/stores/settings-store";
+import { gaugeSize } from "./gauge-metrics";
 
 interface ProgressRingProps {
   value: number;
@@ -22,11 +23,15 @@ export function ProgressRing({
   const valueFontWeight = useSettingsStore((s) => s.settings.fontWeight ?? 500);
   const labelFontWeight = useSettingsStore((s) => s.settings.labelFontWeight ?? 500);
   // Figma 2106:2313 ring sizing is a step function on fontSizeValue:
-  // 16px ring when value font ≤14, 20px ring when ≥16.
-  const ringSize = valueFontSize <= 14 ? 16 : 20;
-  // Ring→value gap is a flat 8 at every size per Figma (node 2106:2313 redline).
-  const ringToTextGap = 8;
-  const strokeWidth = 3;
+  // 16px ring when value font ≤14, 20px ring when ≥16 (shared with the bar
+  // gauge and the Pill minHeight floor via gaugeSize).
+  const ringSize = gaugeSize(valueFontSize);
+  // Ring→value gap steps with the ring per the Figma sweeps (2106:2313
+  // clusters): 6 at the 16 ring, 8 at the 20 ring — same as the bar gauge.
+  const ringToTextGap = ringSize === 16 ? 6 : 8;
+  // Figma draws the ring as an arc with innerRadius 0.7 — a band 15% of the
+  // diameter thick: 2.4 at 16, 3 at 20. A flat 3 made the small ring too heavy.
+  const strokeWidth = ringSize * 0.15;
   const radius = (ringSize - strokeWidth) / 2;
   const center = ringSize / 2;
   const percentage = Math.min(value / max, 1);
@@ -44,13 +49,15 @@ export function ProgressRing({
         viewBox={`0 0 ${ringSize} ${ringSize}`}
         className="shrink-0"
       >
+        {/* Track at 10% per Figma (2106:2313 Ellipse 2, node opacity 0.1) —
+            sourced from the same var as the bar track so both gauges and both
+            meter themes stay in lockstep. */}
         <circle
           cx={center}
           cy={center}
           r={radius}
           fill="none"
-          stroke="var(--overlay-text)"
-          strokeOpacity="0.15"
+          stroke="var(--overlay-track, rgba(255,255,255,0.1))"
           strokeWidth={strokeWidth}
         />
         <circle

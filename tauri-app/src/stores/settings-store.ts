@@ -289,16 +289,11 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       if (settings.pillOpacity === 0.24) {
         settings.pillOpacity = 0.3;
       }
-      // Bar graph is temporarily disabled (pending Figma 2075:7833). Heal any
-      // saved "bar" selection back to the circular ring so existing installs
-      // never render the unfinished bar progress. "none" (graph off) is left
-      // untouched.
-      if (settings.progressType === "bar") {
-        settings.progressType = "circular";
-      }
-      if (settings.graphType === "bar") {
-        settings.graphType = "ring";
-      }
+      // Font sizes are now capped (Stats ≤24, Label ≤18); clamp any larger
+      // value saved by an older build so the overlay never renders an
+      // unsupported size the picker can no longer represent.
+      if (settings.fontSizeValue > 24) settings.fontSizeValue = 24;
+      if (settings.fontSizeLabel > 18) settings.fontSizeLabel = 18;
       set({ settings });
       tauri.setOverlayClickThrough(!settings.useCustomPosition && settings.isPositionLocked);
       // Push the persisted target-app to the C# poller so it starts in sync.

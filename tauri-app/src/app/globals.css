@@ -213,3 +213,46 @@ body {
   color: var(--foreground);
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
+
+/* ============================================================
+   Collapsible open/close — Radix measures the panel into
+   --radix-collapsible-content-height so height can tween between
+   two known values. ease-out both ways (user-initiated reveal),
+   exit faster than enter.
+   ============================================================ */
+@keyframes collapsible-down {
+  from {
+    height: 0;
+    opacity: 0;
+  }
+  to {
+    height: var(--radix-collapsible-content-height);
+    opacity: 1;
+  }
+}
+@keyframes collapsible-up {
+  from {
+    height: var(--radix-collapsible-content-height);
+    opacity: 1;
+  }
+  to {
+    height: 0;
+    opacity: 0;
+  }
+}
+/* Tailwind v4 tree-shakes animation utilities declared outside
+   @layer utilities. */
+@layer utilities {
+  .animate-collapsible-down {
+    animation: collapsible-down 200ms cubic-bezier(0.165, 0.84, 0.44, 1);
+  }
+  .animate-collapsible-up {
+    animation: collapsible-up 150ms cubic-bezier(0.165, 0.84, 0.44, 1);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .animate-collapsible-down,
+    .animate-collapsible-up {
+      animation: none;
+    }
+  }
+}

@@ -137,10 +137,21 @@ export default function App() {
       <div className="flex min-h-0 flex-1 flex-col gap-5 px-6 pb-6 pt-6">
         <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {activeTab === "stats" && <StatsTab />}
-          {activeTab === "style" && <StyleTab />}
-          {activeTab === "settings" && <SettingsTab />}
-          {activeTab === "help" && <HelpTab />}
+          {/* Tabs stay mounted and hide via CSS so local UI state (expanded
+              collapsibles, dropdowns, scroll targets) survives tab switches —
+              conditional rendering reset it all on every switch. */}
+          <div className={activeTab === "stats" ? "h-full" : "hidden"}>
+            <StatsTab />
+          </div>
+          <div className={activeTab === "style" ? "h-full" : "hidden"}>
+            <StyleTab />
+          </div>
+          <div className={activeTab === "settings" ? "h-full" : "hidden"}>
+            <SettingsTab />
+          </div>
+          <div className={activeTab === "help" ? "h-full" : "hidden"}>
+            <HelpTab />
+          </div>
         </div>
       </div>
     </div>

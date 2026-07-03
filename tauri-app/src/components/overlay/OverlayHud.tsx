@@ -30,7 +30,9 @@ export function OverlayHud() {
         lineHeight: 1.2,
         "--overlay-text": dark ? "#fff" : "#000",
         "--overlay-text-muted": dark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.5)",
-        "--overlay-track": dark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.1)",
+        // Track (ring + bar) is 10% per Figma — 2106:2313 Ellipse 2 and the
+        // 2527:10167 bar swatches both carry node opacity 0.1.
+        "--overlay-track": dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
         "--overlay-arrow-down": dark ? "#22d3ee" : "#0891b2",
         "--overlay-arrow-up": dark ? "#a78bfa" : "#6d28d9",
         ...(isHorizontal

@@ -1,13 +1,19 @@
 import { useSettingsStore } from "@/stores/settings-store";
+import { gaugeSize } from "./gauge-metrics";
 
 interface PillProps {
   title: string;
   isHorizontal: boolean;
   children: React.ReactNode;
   tooltip?: string;
+  /** Full-width row rendered under the label/value row — vertical layout only
+   *  (Figma 2202:3255 Frame 81: the FPS graph spans the pill content width on
+   *  its own row, 8px below the value row). Ignored in horizontal layout,
+   *  where the graph sits inline (Figma 2202:2664). */
+  graphRow?: React.ReactNode;
 }
 
-export function Pill({ title, isHorizontal, children, tooltip }: PillProps) {
+export function Pill({ title, isHorizontal, children, tooltip, graphRow }: PillProps) {
   // The Opacity slider drives the PILL background alpha only (max = solid
   // black/white pills); the outer HUD background and text are unaffected.
   const pillAlpha = useSettingsStore((s) => s.settings.opacity ?? 0.3);
@@ -22,19 +28,21 @@ export function Pill({ title, isHorizontal, children, tooltip }: PillProps) {
   // renders identically. Values, units, and arrows stay full white.
   const labelColor = "var(--overlay-text-muted)";
   // Figma's auto-layout produces uniform sub-pill heights even when one pill
-  // has no ring (FPS, NET). Force a floor of ring + vertical-pad so ring-less
-  // pills don't sit shorter than ring-bearing ones, matching the Figma sweep
-  // (24/37 horizontal, 32/45 vertical).
-  const ringSize = valueFontSize <= 14 ? 16 : 20;
-  const minHeight = ringSize + (isHorizontal ? 8 : 16);
+  // has no gauge (FPS, NET). Force a floor of gauge + vertical-pad so
+  // gauge-less pills don't sit shorter than gauge-bearing ones, matching the
+  // Figma sweep (24/37 horizontal, 32/45 vertical). Shares the ring/bar size
+  // step via gaugeSize; text taller than the floor still grows the pill
+  // naturally (minHeight, not height).
+  const minHeight = gaugeSize(valueFontSize) + (isHorizontal ? 8 : 16);
   // Figma vertical (2169:286) pins every 3-char label to a uniform width so
-  // values align across stacked sub-pills. Figma reports 28px @ fontSizeLabel
-  // 12, but in CSS Inter "RAM" renders at 28.2px (rounding to 29) — wider
-  // than FPS/GPU/CPU/NET. Use a fixed width slightly larger than RAM's
-  // natural so every label slot is identical and value clusters start at
-  // the exact same x. Horizontal lets labels hug their text since pills
-  // sit side-by-side.
-  const labelWidth = isHorizontal ? undefined : Math.ceil(labelSize * 2.5);
+  // values align across stacked sub-pills: exactly 28px @ fontSizeLabel 12
+  // (2202:3255 annotates label→value as a 12px gap measured from that slot
+  // edge). Scale the same 28:12 ratio with the label font. In CSS Inter
+  // "RAM" renders ~28.2px — a hair over the slot — which just grazes into
+  // the gap; padding the slot instead (the old 30px) widened label→value
+  // past the Figma 12 on every pill. Horizontal lets labels hug their text
+  // since pills sit side-by-side.
+  const labelWidth = isHorizontal ? undefined : Math.ceil(labelSize * (28 / 12));
   // Figma TEXT nodes have letterSpacing +4% on labels/units/arrows, -2% on
   // values. Applied here for labels.
   const labelStyle: React.CSSProperties = {
@@ -51,9 +59,10 @@ export function Pill({ title, isHorizontal, children, tooltip }: PillProps) {
   if (isHorizontal) {
     // Figma 2106:2313 sub-pill spec: r=100, bg rgba(0,0,0,0.24), pad 4/12/4/12,
     // gap 12 uniform between label AND between every metric cluster (e.g. GPU
-    // has temp/load/vram clusters all spaced at 12). minHeight removed so the
-    // pill hugs its tallest child — height grows with fontSizeValue exactly
-    // as the 7-size Figma sweep illustrates (24→37 inner row height).
+    // has temp/load/vram clusters all spaced at 12). Height hugs the tallest
+    // child — it grows with the fonts exactly as the 7-size Figma sweep
+    // illustrates (24→37 inner row height) — while minHeight only floors the
+    // gauge-less pills (FPS, NET) at gauge + pad so they match their siblings.
     return (
       <div
         title={tooltip}
@@ -78,14 +87,17 @@ export function Pill({ title, isHorizontal, children, tooltip }: PillProps) {
   // Figma 2169:286 vertical sub-pill: r=8, bg rgba(0,0,0,0.24), pad 8/12/8/12,
   // gap 12 between label and value-cluster. Internally HORIZONTAL — same row
   // structure as the horizontal HUD, just rounder vertical padding so stacked
-  // pills sit comfortably one above the other.
+  // pills sit comfortably one above the other. The column wrapper only matters
+  // when a graphRow is present (Figma 2202:3255: content row, 8px gap, graph
+  // row); without one it renders a single centered row exactly as before.
   return (
     <div
       title={tooltip}
       style={{
         display: "flex",
-        alignItems: "center",
-        gap: 12,
+        flexDirection: "column",
+        justifyContent: "center",
+        gap: 8,
         background: pillBg,
         borderRadius: 8,
         padding: "8px 12px",
@@ -94,8 +106,11 @@ export function Pill({ title, isHorizontal, children, tooltip }: PillProps) {
         minHeight,
       }}
     >
-      <span style={labelStyle}>{title}</span>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>{children}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <span style={labelStyle}>{title}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>{children}</div>
+      </div>
+      {graphRow}
     </div>
   );
 }

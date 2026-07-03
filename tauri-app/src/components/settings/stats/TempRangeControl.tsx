@@ -6,7 +6,7 @@ const CLAMP = (v: number, min: number, max: number) =>
 
 /**
  * 3-segment range control from Figma. Defaults to a 0-100% scale (GPU/CPU
- * usage); pass `unit` + `max` to reuse for °C temperatures, watts, etc.
+ * usage); pass `isTemperature` + `max` (in °C) to reuse for temperatures.
  * Boundaries.low / .medium are the upper bounds of the Low / Medium segments.
  * Boundaries.high is the absolute max.
  */
@@ -15,42 +15,59 @@ export function TempRangeControl({
   onChange,
   unit = "%",
   max = 100,
+  isTemperature = false,
 }: {
   boundaries: Boundaries;
   onChange: (b: Boundaries) => void;
   unit?: string;
   max?: number;
+  /** Temperature thresholds: label °C/°F per the selected unit and, in
+   *  Fahrenheit mode, display + accept °F while storing °C. */
+  isTemperature?: boolean;
 }) {
   const graphEnabled = useSettingsStore(
     (s) => s.settings.progressType !== "none",
   );
+  const temperatureUnit = useSettingsStore((s) => s.settings.temperatureUnit);
   if (!graphEnabled) return null;
 
-  const lowMin = 0;
-  const lowMax = boundaries.low;
-  const medMin = boundaries.low;
-  const medMax = boundaries.medium;
-  const highMin = boundaries.medium;
-  const highMax = boundaries.high || max;
+  // Boundaries are always STORED and compared in °C (the overlay evaluates
+  // raw sensor °C against them). In Fahrenheit mode the inputs display and
+  // accept °F and convert per edit — since storage is whole °C, a typed °F
+  // value can settle ±1°F away after the round-trip.
+  const useF = isTemperature && temperatureUnit === "F";
+  const toDisplay = (c: number) => (useF ? Math.round((c * 9) / 5 + 32) : c);
+  const fromDisplay = (v: number) => (useF ? Math.round(((v - 32) * 5) / 9) : v);
+  const displayUnit = isTemperature ? (useF ? "°F" : "°C") : unit;
+  const displayInputMax = toDisplay(max);
 
+  const lowMin = toDisplay(0);
+  const lowMax = toDisplay(boundaries.low);
+  const medMin = toDisplay(boundaries.low);
+  const medMax = toDisplay(boundaries.medium);
+  const highMin = toDisplay(boundaries.medium);
+  const highMax = toDisplay(boundaries.high || max);
+
+  // Inputs hand over display-scale values; convert to °C first so the ±1
+  // segment-gap invariants keep holding in the stored scale.
   const setLowMax = (v: number) => {
-    const lv = CLAMP(v, 0, boundaries.medium - 1);
+    const lv = CLAMP(fromDisplay(v), 0, boundaries.medium - 1);
     onChange({ ...boundaries, low: lv });
   };
   const setMedMax = (v: number) => {
-    const mv = CLAMP(v, boundaries.low + 1, highMax - 1);
+    const mv = CLAMP(fromDisplay(v), boundaries.low + 1, (boundaries.high || max) - 1);
     onChange({ ...boundaries, medium: mv });
   };
   const setHighMax = (v: number) => {
-    const hv = CLAMP(v, boundaries.medium + 1, max);
+    const hv = CLAMP(fromDisplay(v), boundaries.medium + 1, max);
     onChange({ ...boundaries, high: hv });
   };
 
   return (
     <div className="flex gap-4">
-      <RangeSegment color="#17B26A" label="Low" min={lowMin} max={lowMax} unit={unit} inputMax={max} readOnlyMin onMaxChange={setLowMax} />
-      <RangeSegment color="#FEC84B" label="Medium" min={medMin} max={medMax} unit={unit} inputMax={max} readOnlyMin onMaxChange={setMedMax} />
-      <RangeSegment color="#F04438" label="High" min={highMin} max={highMax} unit={unit} inputMax={max} readOnlyMin onMaxChange={setHighMax} />
+      <RangeSegment color="#17B26A" label="Low" min={lowMin} max={lowMax} unit={displayUnit} inputMax={displayInputMax} readOnlyMin onMaxChange={setLowMax} />
+      <RangeSegment color="#FEC84B" label="Medium" min={medMin} max={medMax} unit={displayUnit} inputMax={displayInputMax} readOnlyMin onMaxChange={setMedMax} />
+      <RangeSegment color="#F04438" label="High" min={highMin} max={highMax} unit={displayUnit} inputMax={displayInputMax} readOnlyMin onMaxChange={setHighMax} />
     </div>
   );
 }
