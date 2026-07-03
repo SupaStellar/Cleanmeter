@@ -114,6 +114,7 @@ export function FrametimeGraph({ history, width }: FrametimeGraphProps) {
       <div ref={wrapperRef} style={{ position: "relative", height: BAND_HEIGHT }}>
         <canvas
           ref={canvasRef}
+          aria-hidden="true"
           style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
         />
       </div>
@@ -123,6 +124,7 @@ export function FrametimeGraph({ history, width }: FrametimeGraphProps) {
   return (
     <canvas
       ref={canvasRef}
+      aria-hidden="true"
       style={{ width, height: BAND_HEIGHT, display: "block" }}
     />
   );
