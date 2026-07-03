@@ -4,31 +4,47 @@ import "./splash-screen.css";
 // Startup splash: the animated CleanMeter logo (authored as a standalone
 // CSS-only HTML snippet, ported verbatim — see splash-screen.css) shown once
 // per launch over the settings window. Timeline: entrance + ring sweep
-// complete at ~1.93s into the 3480ms cycle; hold to 2.4s; fade the shell
-// 280ms; then onDone unmounts it before the authored loop seam (3.32s) can
-// show. Reduced motion renders the finished logo statically for the same
-// beat (the CSS handles it), so nobody gets a flashing startup.
+// complete at ~1.93s into the 3480ms cycle; hold to 2.4s; then a two-beat
+// exit — the rings/logo fade out (320ms) while the background still covers
+// the app, then the background eases out (560ms ease-in-out) so the app
+// screen fades in cleanly. onDone unmounts at ~3.28s; the logo is already
+// hidden by the first beat, so the authored loop seam (3.32s) never shows.
+// Reduced motion renders the finished logo statically for the same beat (the
+// CSS handles it), so nobody gets a flashing startup.
 const HOLD_MS = 2400;
-const FADE_MS = 280;
+const RINGS_FADE_MS = 320;
+const SCREEN_FADE_MS = 560;
 
 interface SplashScreenProps {
   onDone: () => void;
 }
 
 export function SplashScreen({ onDone }: SplashScreenProps) {
-  const [fading, setFading] = useState(false);
+  // Two-stage exit: rings fade out first, then the background clears.
+  const [ringsOut, setRingsOut] = useState(false);
+  const [screenIn, setScreenIn] = useState(false);
 
   useEffect(() => {
-    const fadeTimer = setTimeout(() => setFading(true), HOLD_MS);
-    const doneTimer = setTimeout(onDone, HOLD_MS + FADE_MS);
+    const ringsTimer = setTimeout(() => setRingsOut(true), HOLD_MS);
+    const screenTimer = setTimeout(() => setScreenIn(true), HOLD_MS + RINGS_FADE_MS);
+    const doneTimer = setTimeout(onDone, HOLD_MS + RINGS_FADE_MS + SCREEN_FADE_MS);
     return () => {
-      clearTimeout(fadeTimer);
+      clearTimeout(ringsTimer);
+      clearTimeout(screenTimer);
       clearTimeout(doneTimer);
     };
   }, [onDone]);
 
+  const className = [
+    "cm-splash",
+    ringsOut && "cm-splash--rings-out",
+    screenIn && "cm-splash--screen-in",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <div className={fading ? "cm-splash cm-splash--fading" : "cm-splash"}>
+    <div className={className}>
       <div className="cm-logo" role="img" aria-label="CleanMeter">
         <div className="cm-logo__slide">
           <svg viewBox="0 0 172 66" fill="none" xmlns="http://www.w3.org/2000/svg">
