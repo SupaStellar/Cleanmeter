@@ -98,7 +98,7 @@ export function CpuSection({ sensors, hardwares }: Props) {
             <TempRangeControl
               boundaries={cpuTemp.boundaries}
               onChange={(b) => updateBoundary("cpuTemp", b)}
-              unit="°"
+              isTemperature
               max={120}
             />
           </div>

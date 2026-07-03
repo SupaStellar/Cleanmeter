@@ -123,7 +123,7 @@ export function GpuSection({ sensors, hardwares }: Props) {
             <TempRangeControl
               boundaries={gpuTemp.boundaries}
               onChange={(b) => updateBoundary("gpuTemp", b)}
-              unit="°"
+              isTemperature
               max={120}
             />
           </div>
