@@ -115,11 +115,17 @@ export default function App() {
     };
   }, []);
 
+  // Keep <html data-theme> in sync and mirror the resolved theme into
+  // localStorage so the pre-hydration script in index.html can paint the
+  // correct theme on the next launch before settings load — no startup flash.
   useEffect(() => {
-    document.documentElement.setAttribute(
-      "data-theme",
-      settings.isDarkTheme ? "dark" : "light",
-    );
+    const theme = settings.isDarkTheme ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", theme);
+    try {
+      localStorage.setItem("cm-theme", theme);
+    } catch {
+      /* localStorage unavailable — theme still applies for this session */
+    }
   }, [settings.isDarkTheme]);
 
   return (

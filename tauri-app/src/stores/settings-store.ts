@@ -195,8 +195,16 @@ interface SettingsStore {
   loadAppVersion: () => Promise<void>;
 }
 
+// Seed isDarkTheme from the <html data-theme> the pre-hydration script in
+// index.html set from the persisted localStorage mirror. This makes the first
+// React render (and App's data-theme effect) match what the splash already
+// painted, so the theme doesn't flip when the async loadSettings() resolves.
+const prehydratedDark =
+  typeof document !== "undefined" &&
+  document.documentElement.getAttribute("data-theme") === "dark";
+
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
-  settings: DEFAULT_SETTINGS,
+  settings: { ...DEFAULT_SETTINGS, isDarkTheme: prehydratedDark },
   preferences: { adminConsent: false, startMinimized: false },
   sensorData: null,
   presentMonApps: [],
