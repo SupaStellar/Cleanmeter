@@ -37,14 +37,14 @@ export function RamSection({ isHorizontal }: RamSectionProps) {
   const ramSensor = sensors.find(
     (s) =>
       s.sensorType === SensorType.Load &&
-      s.name === "Memory" &&
+      s.name.toLowerCase() === "memory" &&
       !s.identifier.startsWith("/vram")
   );
   // Find RAM data sensor (used GB)
   const ramDataSensor = sensors.find(
     (s) =>
       s.sensorType === SensorType.Data &&
-      s.name === "Memory Used" &&
+      s.name.toLowerCase() === "memory used" &&
       !s.identifier.startsWith("/vram")
   );
 
