@@ -26,24 +26,26 @@ export function RamSection({ isHorizontal }: RamSectionProps) {
   const Progress = progressType === "bar" ? ProgressBar : ProgressRing;
   const showProgress = progressType !== "none";
 
-  // Find RAM load sensor. Both name-matches must exclude the virtual-memory
-  // sensors: "Virtual Memory"/"Virtual Memory Used" match the same substrings,
-  // and which of physical/virtual enumerates first is not stable across
-  // sidecar restarts — the first-match used to flip to committed memory
-  // (~total RAM) instead of physical used after a restart.
+  // Match the exact sensor names the previous builds (and the legacy app)
+  // relied on: on LHM <= 0.9.5 "Memory"/"Memory Used" are unique because the
+  // virtual sensors carry a "Virtual " name prefix. LHM 0.9.6 instead splits
+  // memory into Total (/ram) and Virtual (/vram) hardware nodes whose sensors
+  // share the SAME names, so additionally reject /vram identifiers — the
+  // match stays pinned to physical memory under either layout (first-match
+  // over the raw sensor array otherwise flips to committed memory, ~total
+  // RAM, depending on enumeration order).
   const ramSensor = sensors.find(
     (s) =>
       s.sensorType === SensorType.Load &&
-      s.name.toLowerCase().includes("memory") &&
-      !s.name.toLowerCase().includes("virtual")
+      s.name === "Memory" &&
+      !s.identifier.startsWith("/vram")
   );
   // Find RAM data sensor (used GB)
   const ramDataSensor = sensors.find(
     (s) =>
       s.sensorType === SensorType.Data &&
-      s.name.toLowerCase().includes("memory") &&
-      s.name.toLowerCase().includes("used") &&
-      !s.name.toLowerCase().includes("virtual")
+      s.name === "Memory Used" &&
+      !s.identifier.startsWith("/vram")
   );
 
   const ramPercent = ramSensor?.value ?? 0;
