@@ -14,7 +14,10 @@ import { useSettingsStore } from "@/stores/settings-store";
 //   [Stats]  [size ▾]   [weight ▾]
 // All three columns share equal flex-1 width; gap-3 horizontally & vertically.
 
-const SIZE_OPTIONS = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32] as const;
+// Stats (value) tops out at 24px, Label at 18px — larger sizes read cluttered
+// in the overlay, so they're not offered.
+const STATS_SIZE_OPTIONS = [8, 10, 12, 14, 16, 18, 20, 24] as const;
+const LABEL_SIZE_OPTIONS = [8, 10, 12, 14, 16, 18] as const;
 
 const WEIGHT_OPTIONS: { value: number; label: string }[] = [
   { value: 400, label: "Regular" },
@@ -36,30 +39,44 @@ const triggerClasses = cn(
 function FontRow({
   label,
   size,
+  sizeOptions,
   onSizeChange,
   weight,
   onWeightChange,
 }: {
   label: string;
   size: number;
+  sizeOptions: readonly number[];
   onSizeChange: (v: number) => void;
   weight: number;
   onWeightChange: (v: number) => void;
 }) {
+  // Never show an out-of-range saved value as a blank trigger — clamp the
+  // displayed selection to the largest offered size.
+  const maxSize = sizeOptions[sizeOptions.length - 1];
+  const selectedSize = Math.min(size, maxSize);
   return (
     <div className="flex w-full items-center gap-3">
       <span className="flex-1 text-[14px] font-medium leading-none text-foreground">
         {label}
       </span>
       <Select
-        value={String(size)}
+        value={String(selectedSize)}
         onValueChange={(v) => onSizeChange(parseInt(v, 10))}
       >
         <SelectTrigger className={triggerClasses}>
           <SelectValue placeholder="Size" />
         </SelectTrigger>
-        <SelectContent>
-          {SIZE_OPTIONS.map((s) => (
+        {/* Force the list downward — this card sits mid-panel and Radix
+            otherwise flips the tall size list upward. Cap to the space below
+            and scroll so it never runs off the window. */}
+        <SelectContent
+          side="bottom"
+          sideOffset={4}
+          avoidCollisions={false}
+          className="max-h-[var(--radix-select-content-available-height)] overflow-y-auto"
+        >
+          {sizeOptions.map((s) => (
             <SelectItem key={s} value={String(s)}>
               {s}px
             </SelectItem>
@@ -73,7 +90,12 @@ function FontRow({
         <SelectTrigger className={triggerClasses}>
           <SelectValue placeholder="Weight">{weightLabel(weight)}</SelectValue>
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent
+          side="bottom"
+          sideOffset={4}
+          avoidCollisions={false}
+          className="max-h-[var(--radix-select-content-available-height)] overflow-y-auto"
+        >
           {WEIGHT_OPTIONS.map((w) => (
             <SelectItem key={w.value} value={String(w.value)}>
               {w.label}
@@ -95,6 +117,7 @@ export function FontCard() {
         <FontRow
           label="Label"
           size={settings.fontSizeLabel}
+          sizeOptions={LABEL_SIZE_OPTIONS}
           onSizeChange={(v) => updateSettings({ fontSizeLabel: v })}
           weight={settings.labelFontWeight}
           onWeightChange={(v) => updateSettings({ labelFontWeight: v })}
@@ -102,6 +125,7 @@ export function FontCard() {
         <FontRow
           label="Stats"
           size={settings.fontSizeValue}
+          sizeOptions={STATS_SIZE_OPTIONS}
           onSizeChange={(v) => updateSettings({ fontSizeValue: v })}
           weight={settings.fontWeight}
           onWeightChange={(v) => updateSettings({ fontWeight: v })}
