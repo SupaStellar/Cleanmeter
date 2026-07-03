@@ -7,8 +7,11 @@ Cleanmeter uses [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/L
 WinRing0 is **a known-vulnerable driver** ([CVE-2020-14979](https://nvd.nist.gov/vuln/detail/CVE-2020-14979)). Microsoft Defender therefore flags it under names like:
 
 - `VulnerableDriver:WinNT/Winring0`
+- `VulnerableDriver:WinNT/Winring0.G` (a newer, more aggressive variant that rolled out in 2025)
 - `HackTool:Win32/Winring0`
 - `Trojan:Win32/Vigorf.A`
+
+Because the detection ships in Defender's definitions, it can **re-appear after any Defender definition update** even if you previously allowed the file — so you may see it quarantined "again" on a machine where Cleanmeter was working fine the day before.
 
 **These detections are not false positives.** Microsoft has [explicitly stated](https://support.microsoft.com/en-us/windows/microsoft-defender-antivirus-alert-vulnerabledriver-winnt-winring0-eb057830-d77b-41a2-9a34-015a5d203c42) that the driver is vulnerable in a generic sense — not that Cleanmeter or LibreHardwareMonitor is malicious. The same flag affects MSI Afterburner, FanControl, OpenHardwareMonitor, HWiNFO, and many other hardware-monitoring tools that share this driver.
 
@@ -16,8 +19,9 @@ If you do not want this driver on your machine, **do not install Cleanmeter**. H
 
 ## What Cleanmeter does about it
 
-- Cleanmeter's CI has **Authenticode signing infrastructure wired up** for the installer, main executable (`cleanmeter.exe`), background sidecar (`HardwareMonitor.exe`), and bundled `presentmon.exe`. As of v2.1.3 the project does not yet have a code-signing certificate funded, so tagged release builds are currently shipped unsigned. Once a certificate is added to the repository's GitHub secrets, every subsequent tag will produce signed bundles automatically with no further code changes — the signing path is conditional on the secret being present.
+- Cleanmeter's CI has **Authenticode signing infrastructure wired up** for the installer, main executable (`cleanmeter.exe`), background sidecar (`HardwareMonitor.exe`), and bundled `presentmon.exe`. The project does not yet have a code-signing certificate funded, so tagged release builds are currently shipped unsigned. Once a certificate is added to the repository's GitHub secrets, every subsequent tag will produce signed bundles automatically with no further code changes — the signing path is conditional on the secret being present. (Note: signing the Cleanmeter binaries would clear the SmartScreen prompt below, but it would **not** clear the WinRing0 driver flag — that detection is on the driver's contents, independent of our signatures.)
 - Cleanmeter does not bundle a separately-signed kernel driver of its own. The WinRing0 driver lives inside `LibreHardwareMonitorLib`.
+- **Cleanmeter keeps running if the driver is blocked.** If Defender (or HVCI / Smart App Control) quarantines or refuses to load the driver, the app does not crash: the FPS counter (PresentMon) and every sensor that doesn't need kernel access keep working. Only low-level readings that require the driver — chiefly CPU temperature and package power via MSRs — drop out until the driver is restored/allowed.
 
 ## What you'll see today (unsigned releases)
 

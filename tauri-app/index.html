@@ -5,6 +5,20 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Cleanmeter</title>
+    <script>
+      // Apply the persisted theme before first paint so the startup splash and
+      // settings window never flash the default (light) theme while the real
+      // setting loads async from the backend. The app mirrors the resolved
+      // theme into localStorage (see App.tsx); unknown/first run falls back to
+      // light, matching DEFAULT_SETTINGS.
+      try {
+        var cmTheme =
+          localStorage.getItem("cm-theme") === "dark" ? "dark" : "light";
+        document.documentElement.setAttribute("data-theme", cmTheme);
+      } catch (e) {
+        /* localStorage unavailable — leave the CSS default (light) */
+      }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

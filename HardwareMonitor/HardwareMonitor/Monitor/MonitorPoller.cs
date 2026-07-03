@@ -40,8 +40,27 @@ public class MonitorPoller(
     {
         logger.LogInformation("Starting monitor");
 
-        _computer.Open();
-        _computer.Accept(new UpdateVisitor());
+        // The LibreHardwareMonitor kernel driver (WinRing0) can be quarantined
+        // or blocked — Windows Defender flags it as
+        // "VulnerableDriver:WinNT/Winring0", and HVCI / Smart App Control can
+        // refuse to load it. If Open() throws, swallow it so the sidecar keeps
+        // running: FPS (PresentMon) and any sensors that don't need ring0 stay
+        // alive instead of crashing the process into the supervisor's respawn
+        // loop. Only low-level readings (CPU temperature/power via MSRs) are
+        // lost. See SECURITY.md.
+        try
+        {
+            _computer.Open();
+            _computer.Accept(new UpdateVisitor());
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex,
+                "LibreHardwareMonitor failed to initialize — the kernel driver may be " +
+                "blocked or quarantined (Windows Defender 'VulnerableDriver:WinNT/Winring0'). " +
+                "Continuing with FPS and any sensors that initialized; low-level CPU sensors " +
+                "may be unavailable.");
+        }
 
         // Log discovered hardware and sensor counts for diagnostics
         int hwCount = 0, sensorCount = 0;

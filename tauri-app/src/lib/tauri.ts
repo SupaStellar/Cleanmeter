@@ -11,13 +11,10 @@ import type {
 // When running via `npm run dev` in a browser (no Tauri runtime),
 // all invoke/listen calls are no-ops so the UI can be previewed.
 
-export const isBrowser = !(window as any).__TAURI_INTERNALS__;
-
-const noop = () => Promise.resolve(undefined as any);
-const noopListen = (): Promise<UnlistenFn> => Promise.resolve(() => {});
+export const isBrowser = !("__TAURI_INTERNALS__" in window);
 
 async function safeInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
-  if (isBrowser) return undefined as any;
+  if (isBrowser) return undefined as T;
   const { invoke } = await import("@tauri-apps/api/core");
   return invoke<T>(cmd, args);
 }

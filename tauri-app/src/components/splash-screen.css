@@ -1,0 +1,93 @@
+/* ============ CleanMeter animated logo (scoped to .cm-logo) ============
+   Ported verbatim from the authored standalone HTML (self-contained, no JS).
+   The keyframes are designed as an infinite loop with a fade-out seam at
+   95.5–100%; the splash unmounts during its own container fade (~2.7s),
+   well before the seam, so a single pass is all that's ever visible. */
+.cm-logo { --cm-loop: 3480ms; --cm-track: #E3E5E4;
+           display: inline-block; width: 220px; line-height: 0; }
+.cm-logo svg { width: 100%; height: auto; display: block; overflow: visible; }
+
+/* entrance: slide in from the RIGHT (ease-out, 30px over ~1363ms), then hold.
+   Opacity fade-in stays short (tracks below), so the logo keeps gently
+   drifting into place after it's already fully opaque. */
+.cm-logo__slide { animation: cm-slide var(--cm-loop) cubic-bezier(0.16,1,0.3,1) infinite; }
+@keyframes cm-slide { 0% { transform: translateX(30px); } 39.2%,100% { transform: translateX(0); } }
+
+/* gray tracks fade in — green (left) leads, then yellow, then red */
+.cm-logo .cm-track { fill: var(--cm-track); opacity: 0; }
+.cm-logo .cm-track--g { animation: cm-trackG var(--cm-loop) ease-out infinite; }
+.cm-logo .cm-track--y { animation: cm-trackY var(--cm-loop) ease-out infinite; }
+.cm-logo .cm-track--r { animation: cm-trackR var(--cm-loop) ease-out infinite; }
+@keyframes cm-trackG { 0%,1%   { opacity:0; } 5%   { opacity:1; } 72% { opacity:1; } 95.5%,100% { opacity:0; } }
+@keyframes cm-trackY { 0%,2.5% { opacity:0; } 6.5% { opacity:1; } 72% { opacity:1; } 95.5%,100% { opacity:0; } }
+@keyframes cm-trackR { 0%,4%   { opacity:0; } 8%   { opacity:1; } 72% { opacity:1; } 95.5%,100% { opacity:0; } }
+
+/* colored fills: held empty through the fade-in, revealed only by the sweep */
+.cm-logo .cm-fill { animation: cm-fill var(--cm-loop) ease infinite; }
+@keyframes cm-fill {
+  0%, 17.2%   { opacity: 0; }   /* no colored fill during the fade-in     */
+  17.4%, 72%  { opacity: 1; }   /* on, in time for the sweep at 17.2%      */
+  95.5%, 100% { opacity: 0; }   /* fade out                               */
+}
+
+/* clockwise sweep — ease sampled frame-by-frame from the reference video.
+   dash 100 / gap 200 keeps the whole path inside the gap when closed, so
+   no round-cap poke leaks the fill. */
+.cm-logo .cm-trim {
+  stroke:#fff; fill:none; stroke-width:12; stroke-linecap:round;
+  stroke-dasharray:100 200; stroke-dashoffset:100;
+  animation: cm-trim var(--cm-loop) linear infinite;
+}
+@keyframes cm-trim {
+  0%,17.2% { stroke-dashoffset:100; } 21.5% { stroke-dashoffset:93; }
+  25.8%    { stroke-dashoffset:85;  } 30.1% { stroke-dashoffset:62; }
+  34.4%    { stroke-dashoffset:33;  } 38.8% { stroke-dashoffset:15; }
+  43.1%    { stroke-dashoffset:9;   } 47.4% { stroke-dashoffset:5;  }
+  51.7%    { stroke-dashoffset:2;   } 55.5% { stroke-dashoffset:0;  }
+  95.5%    { stroke-dashoffset:0;   } 100%  { stroke-dashoffset:100; } /* re-close before loop seam */
+}
+
+/* accessibility: reduced motion = show the finished logo instantly, and the
+   exit stays a plain opacity fade (no entrance slide, no leftward exit slide). */
+@media (prefers-reduced-motion: reduce) {
+  .cm-logo__slide { animation:none; transform:none; }
+  .cm-logo .cm-track { animation:none; opacity:0; }
+  .cm-logo .cm-fill  { animation:none; opacity:1; }
+  .cm-logo .cm-trim  { animation:none; stroke-dashoffset:0; }
+  .cm-splash .cm-logo { transition-property: opacity; }
+  .cm-splash--rings-out .cm-logo { transform: none; }
+}
+
+/* ============ Splash shell (startup overlay around the logo) ============
+   Covers the settings window from first paint until the sweep completes:
+   entrance + sweep finish at ~55.5% of the 3480ms cycle (~1.93s); hold to
+   2.4s, then a two-beat exit — first the rings/logo fade out (320ms) while
+   this shell still covers the app, then the shell itself eases out (560ms
+   ease-in-out) so the app screen fades in cleanly, and unmount. bg-background
+   keeps it theme-aware and hides the light→dark flash while the saved theme
+   loads. */
+.cm-splash {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--background);
+  opacity: 1;
+  transition: opacity 560ms ease-in-out;
+}
+
+/* beat 1 — rings/logo fade out on their own, background stays opaque.
+   The logo slides further left as it fades, continuing the entrance's
+   right→left motion into one pass; the exit ease is the time-reverse of the
+   entrance's cubic-bezier(0.16,1,0.3,1), so it accelerates out as the
+   entrance decelerated in. */
+.cm-splash .cm-logo {
+  transition: opacity 320ms ease-out,
+              transform 320ms cubic-bezier(0.7, 0, 0.84, 0);
+}
+.cm-splash--rings-out .cm-logo { opacity: 0; transform: translateX(-30px); }
+
+/* beat 2 — shell clears (logo already gone) so the app screen fades in */
+.cm-splash--screen-in { opacity: 0; }

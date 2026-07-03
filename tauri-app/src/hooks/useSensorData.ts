@@ -39,6 +39,12 @@ export function useFrametimeHistory(maxPoints = 30) {
   const prevData = useRef<HardwareMonitorData | null>(null);
   const [history, setHistory] = useState<number[]>([]);
 
+  // Accumulate a rolling buffer by comparing the incoming store value against a
+  // ref and updating state during render — React's documented "adjust state
+  // when an input changes" pattern, which avoids the extra paint a useEffect
+  // would cost. react-hooks/refs flags the render-phase ref reads; they're
+  // intentional and safe here (single overlay instance, polled ~every 500ms).
+  /* eslint-disable react-hooks/refs */
   if (sensorData && sensorData !== prevData.current) {
     prevData.current = sensorData;
 
@@ -52,6 +58,7 @@ export function useFrametimeHistory(maxPoints = 30) {
       setHistory([...buf]);
     }
   }
+  /* eslint-enable react-hooks/refs */
 
   return history;
 }
@@ -64,6 +71,9 @@ export function useNetworkHistory(maxPoints = 30) {
   const prevData = useRef<HardwareMonitorData | null>(null);
   const [histories, setHistories] = useState<{ downHistory: number[]; upHistory: number[] }>({ downHistory: [], upHistory: [] });
 
+  // Same render-phase rolling-buffer pattern as useFrametimeHistory above —
+  // see that hook for why the react-hooks/refs reads are intentional.
+  /* eslint-disable react-hooks/refs */
   if (sensorData && sensorData !== prevData.current) {
     prevData.current = sensorData;
 
@@ -89,6 +99,7 @@ export function useNetworkHistory(maxPoints = 30) {
       setHistories({ downHistory: [...downRef.current], upHistory: [...upRef.current] });
     }
   }
+  /* eslint-enable react-hooks/refs */
 
   return histories;
 }
