@@ -105,9 +105,11 @@ export function SubCollapsible({
         />
         <span className="text-[14px] font-medium text-foreground">{label}</span>
         <CollapsibleTrigger asChild>
+          {/* Chevron pairs with the panel animation: same ease-out-quart,
+              same 200ms (paired elements move as a unit). */}
           <button
             type="button"
-            className="ml-auto flex size-5 items-center justify-center text-muted-foreground transition-transform data-[state=open]:rotate-180"
+            className="ml-auto flex size-5 items-center justify-center text-muted-foreground transition-transform duration-200 ease-[cubic-bezier(0.165,0.84,0.44,1)] motion-reduce:transition-none data-[state=open]:rotate-180"
             aria-label={open ? "Collapse" : "Expand"}
           >
             <ChevronDown className="size-[18px]" strokeWidth={2} />
@@ -115,7 +117,7 @@ export function SubCollapsible({
         </CollapsibleTrigger>
       </div>
       {children && (
-        <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-none">
+        <CollapsibleContent className="overflow-hidden data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up">
           <div className="flex gap-5 pl-3">
             <div className="w-[2px] shrink-0 rounded-full bg-divider" />
             <div className="flex-1 rounded-[8px] bg-sub-card p-4">
