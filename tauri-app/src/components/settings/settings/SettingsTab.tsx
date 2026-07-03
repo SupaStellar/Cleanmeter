@@ -96,7 +96,10 @@ function GeneralSection() {
         <div className="h-px w-full bg-[var(--borderSubtle)]" />
         <div className="flex items-center gap-3">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-[var(--cornerRound)] border border-[var(--borderBold)] bg-[var(--bgSurfaceRaised)]">
-            <ComputerIcon className="size-5 text-[var(--textParagraph1)]" />
+            {/* The glyph is geometrically centered but top-heavy (solid
+                monitor body over thin legs), which reads as sitting high in
+                the circle — nudge down 1px for optical center. */}
+            <ComputerIcon className="size-5 translate-y-[1px] text-[var(--textParagraph1)]" />
           </div>
           <div className="flex min-w-0 flex-1 flex-col gap-[6px]">
             <span className="text-[14px] font-medium text-[var(--textHeading)]">
