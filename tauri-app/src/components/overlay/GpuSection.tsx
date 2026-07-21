@@ -3,6 +3,7 @@ import { ProgressRing } from "./ProgressRing";
 import { ProgressBar } from "./ProgressBar";
 import { useSettingsStore } from "@/stores/settings-store";
 import { SensorType } from "@/lib/types";
+import type { Sensor } from "@/lib/types";
 import { findSensorById, formatValue, formatTemperature } from "@/lib/utils";
 
 interface GpuSectionProps {
@@ -36,15 +37,38 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
 
   const gpuTempVal = findSensorById(sensors, gpuTemp.customReadingId)?.value ?? 0;
   const gpuUsageVal = findSensorById(sensors, gpuUsage.customReadingId)?.value ?? 0;
-  const vramUsageVal = findSensorById(sensors, vramUsage.customReadingId)?.value ?? 0;
-  const vramUsedSensor = findSensorById(sensors, totalVramUsed.customReadingId);
-  // LibreHardwareMonitor's "GPU Memory Used" is SmallData (MB). Pass through
-  // when the user picked a Data-typed sensor that's already in GB.
-  const vramUsedVal =
-    vramUsedSensor?.sensorType === SensorType.SmallData
-      ? (vramUsedSensor.value ?? 0) / 1024
-      : vramUsedSensor?.value ?? 0;
   const gpuPowerVal = findSensorById(sensors, gpuConsumption.customReadingId)?.value ?? 0;
+
+  // LibreHardwareMonitor's "GPU Memory *" readings are SmallData (MB); a
+  // Data-typed sensor the user picked manually is already in GB.
+  const toGigabytes = (s: Sensor | undefined): number =>
+    s == null ? 0 : s.sensorType === SensorType.SmallData ? (s.value ?? 0) / 1024 : s.value ?? 0;
+
+  // Anchor VRAM lookups to the GPU of the configured "GPU Memory Used" sensor.
+  const vramUsedConfigured = findSensorById(sensors, totalVramUsed.customReadingId);
+  const gpuHwId = vramUsedConfigured?.hardwareIdentifier;
+  const onGpu = (re: RegExp): Sensor | undefined =>
+    gpuHwId ? sensors.find((s) => s.hardwareIdentifier === gpuHwId && re.test(s.name)) : undefined;
+
+  // Prefer LHM's D3D "Dedicated Memory Used" counter — it matches Task Manager
+  // and nvidia-smi. The NVAPI "GPU Memory Used" reading it would otherwise use
+  // runs a few hundred MB high (e.g. 15.0 GB vs a true 14.7 GB), which both
+  // inflates the GB label and pushes the ring a couple points past reality.
+  const vramUsedSensor = onGpu(/dedicated memory used/i) ?? vramUsedConfigured;
+  const vramUsedVal = toGigabytes(vramUsedSensor);
+
+  // Ring fill = allocated fraction = used / total dedicated memory. We
+  // deliberately do NOT trust the "GPU Memory" Load sensor
+  // (vramUsage.customReadingId): on NVIDIA/LibreHardwareMonitor it reports
+  // memory-*controller* utilization (bandwidth), not allocation — a nearly-full
+  // 15.5/16 GB card reads ~10% there. Fall back to that Load sensor only when no
+  // total reading is exposed (some AMD/Intel setups).
+  const vramLoadVal = findSensorById(sensors, vramUsage.customReadingId)?.value ?? 0;
+  const vramTotalVal = toGigabytes(onGpu(/memory total/i));
+  const vramUsageVal =
+    vramTotalVal > 0
+      ? Math.min((vramUsedVal / vramTotalVal) * 100, 100)
+      : vramLoadVal;
 
   const temp = formatTemperature(gpuTempVal, settings.temperatureUnit);
 
