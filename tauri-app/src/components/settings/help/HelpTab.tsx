@@ -1,6 +1,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { FaqSection } from "./FaqSection";
+import { AboutSection } from "./AboutSection";
 import { FeedbackDialog } from "../settings/FeedbackDialog";
 
 function FeedbackPrompt() {
@@ -32,6 +33,7 @@ export function HelpTab() {
   return (
     <div className="flex h-full w-full flex-col gap-4">
       <FaqSection />
+      <AboutSection />
       <FeedbackPrompt />
     </div>
   );
