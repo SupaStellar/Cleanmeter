@@ -26,7 +26,11 @@ export default defineConfig({
   clearScreen: false,
   server: {
     port: 1420,
-    strictPort: true
+    strictPort: true,
+    // Don't let the dev-server file watcher descend into the Rust build output —
+    // watching target/ races with cargo relinking (`EBUSY` on freshly written
+    // .dll/.exe) and crashes `tauri dev`.
+    watch: { ignored: ['**/src-tauri/**'] }
   },
   envPrefix: ['VITE_', 'TAURI_'],
   build: {
