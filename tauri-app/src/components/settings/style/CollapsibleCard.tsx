@@ -40,7 +40,7 @@ export function CollapsibleCard({
   React.useLayoutEffect(() => {
     const el = bodyRef.current;
     if (!el) return;
-    // Honour defaultOpen instantly — never animate the initial paint.
+    // Honour defaultOpen instantly: never animate the initial paint.
     if (firstRender.current) {
       firstRender.current = false;
       return;
@@ -50,15 +50,27 @@ export function CollapsibleCard({
       return;
     }
     if (open) {
-      // 0 -> measured, then release to auto once the slide finishes.
+      // 0 (or a pinned px from an interrupted close) -> measured, then release
+      // to auto. Release on transitionend, with a timeout fallback: if the
+      // height doesn't actually change (reopened mid-close, same px) no
+      // transition fires, and without the fallback the body would stay pinned
+      // and later clip when its content grows.
       setHeight(el.scrollHeight);
-      const onEnd = (e: TransitionEvent) => {
-        if (e.propertyName !== "height") return;
+      let released = false;
+      const release = () => {
+        if (released) return;
+        released = true;
         setHeight("auto");
-        el.removeEventListener("transitionend", onEnd);
+      };
+      const onEnd = (e: TransitionEvent) => {
+        if (e.propertyName === "height") release();
       };
       el.addEventListener("transitionend", onEnd);
-      return () => el.removeEventListener("transitionend", onEnd);
+      const t = setTimeout(release, DURATION + 50);
+      return () => {
+        el.removeEventListener("transitionend", onEnd);
+        clearTimeout(t);
+      };
     }
     // auto -> pin to current px, then next frame collapse to 0.
     setHeight(el.scrollHeight);

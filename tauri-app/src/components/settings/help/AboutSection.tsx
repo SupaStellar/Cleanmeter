@@ -1,7 +1,7 @@
 import { CollapsibleCard } from "../style/CollapsibleCard";
 
 // Copy transcribed verbatim from Figma node 2664:2793 (curly quotes and all).
-// Line breaks are pinned to match the Figma layout exactly — this is a
+// Line breaks are pinned to match the Figma layout exactly: this is a
 // fixed-width (563px) panel, so each line is an explicit break; blank lines
 // between paragraphs are the double newline.
 const ABOUT_PARAGRAPHS: string[][] = [
