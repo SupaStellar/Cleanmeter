@@ -14,11 +14,14 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <!-- 0.9.6 switched Ryzen MSR access to the PawnIO driver, which nothing
-             installs — CPU temperature/power silently read 0 for every user
-             (shipped broken in v2.2.9/v2.2.10). Stay on the last WinRing0-based
-             version until PawnIO installation ships with the app. -->
-        <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.5-pre392" />
+        <!-- PawnIO-based build. WinRing0 was removed upstream (LHM PR #1857) and
+             replaced by the PawnIO driver, which Defender does not flag. The
+             driver is installed at first launch by the elevated Cleanmeter
+             process (see tauri-app/src-tauri/src/lib.rs, ensure_pawnio_installed).
+             The Pawn sensor modules ship embedded in this package (modules 2.2),
+             so only the driver itself needs installing. The earlier broken bump
+             (v2.2.9/v2.2.10) failed because nothing installed the driver. -->
+        <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.6" />
         <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.0"/>
         <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="9.0.0"/>
         <PackageReference Include="Serilog.Settings.Configuration" Version="8.0.0"/>

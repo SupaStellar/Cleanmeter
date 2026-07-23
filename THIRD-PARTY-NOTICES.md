@@ -45,7 +45,26 @@ SOFTWARE.
 The source for the MPL-licensed files is available at the URL above. As permitted
 by the MPL, these files are distributed in binary form as part of Cleanmeter.
 
-LibreHardwareMonitor includes the **WinRing0** kernel driver (OpenLibSys.org),
-used for low-level hardware sensor access. See
-[`SECURITY.md`](./SECURITY.md) for details on why anti-virus software may flag
-this driver.
+For low-level hardware sensor access, LibreHardwareMonitor uses the **PawnIO**
+kernel driver (see below). See [`SECURITY.md`](./SECURITY.md) for details.
+
+---
+
+## PawnIO
+
+- Source: https://pawnio.eu/ and https://github.com/namazso/PawnIO
+- Bundled as: `PawnIO_setup.exe` (the signed official installer, version-matched
+  to LibreHardwareMonitor v0.9.6; installed at first launch, see `SECURITY.md`)
+- License: GNU General Public License v2.0 (GPL-2.0), with the author's linking
+  exception permitting combination with independent modules that communicate
+  through the driver's device IO-control interface
+
+PawnIO is a separate, self-contained kernel driver. Cleanmeter runs its installer
+and communicates with the driver through IO control (via LibreHardwareMonitor);
+it is not linked into the Cleanmeter application. The installer is redistributed
+verbatim from LibreHardwareMonitor's v0.9.6 resources; its authenticity is
+verifiable by Authenticode signature (signed by namazso.eu) and by SHA-256:
+
+```
+a3a46226c5e2824f4cdd42be0eecbabfc672c86f7889710f5ab1e6ad385b47a0  PawnIO_setup.exe
+```

@@ -58,6 +58,65 @@ fn relaunch_as_admin() {
     std::process::exit(0);
 }
 
+/// True when the PawnIO kernel driver service is registered on this machine.
+/// PawnIO replaced WinRing0 upstream (LHM 0.9.6); LibreHardwareMonitor needs it
+/// present to read MSR/SuperIO sensors (CPU temperature/power, board voltages).
+#[cfg(windows)]
+fn pawnio_service_present() -> bool {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    std::process::Command::new("sc.exe")
+        .args(["query", "PawnIO"])
+        .creation_flags(CREATE_NO_WINDOW)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
+/// Install the PawnIO driver from the bundled signed installer if it is not
+/// already present. Uses `-install -silent` so the installer does not pop its
+/// "PawnIO Setup" window on first launch — Cleanmeter installs it in the
+/// background, unlike LibreHardwareMonitor's own user-initiated `-install` where
+/// a window is acceptable. Best-effort: any failure is logged and swallowed so
+/// startup is never blocked. A missing driver only costs the ring0 sensors
+/// (which the sidecar already degrades gracefully around), exactly as when
+/// WinRing0 was quarantined by Defender.
+#[cfg(windows)]
+fn ensure_pawnio_installed(setup_path: &std::path::Path) {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+    if pawnio_service_present() {
+        info!("PawnIO driver already installed");
+        return;
+    }
+    if !setup_path.exists() {
+        warn!(
+            "PawnIO installer not found at {}; low-level sensors may be unavailable",
+            setup_path.display()
+        );
+        return;
+    }
+    info!("PawnIO driver not found; installing from {}", setup_path.display());
+    match std::process::Command::new(setup_path)
+        .args(["-install", "-silent"])
+        .creation_flags(CREATE_NO_WINDOW)
+        .status()
+    {
+        Ok(status) if status.success() => info!("PawnIO driver installed"),
+        Ok(status) => warn!(
+            "PawnIO installer exited with {:?}; continuing without low-level sensors",
+            status.code()
+        ),
+        Err(e) => warn!(
+            "Failed to run PawnIO installer: {}; continuing without low-level sensors",
+            e
+        ),
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Self-elevate on Windows if not already running as admin
@@ -263,11 +322,33 @@ pub fn run() {
                     })
                     .unwrap_or_else(|| std::path::PathBuf::from("HardwareMonitor.exe"));
 
+                // The PawnIO installer is bundled beside the sidecar as a Tauri
+                // resource; resolve it the same way so first-launch driver setup
+                // works in packaged builds and falls back for `cargo tauri dev`.
+                let pawnio_setup = app
+                    .path()
+                    .resource_dir()
+                    .ok()
+                    .map(|p| p.join("PawnIO_setup.exe"))
+                    .filter(|p| p.exists())
+                    .or_else(|| {
+                        std::env::current_exe()
+                            .ok()
+                            .and_then(|p| p.parent().map(|d| d.join("PawnIO_setup.exe")))
+                    })
+                    .unwrap_or_else(|| std::path::PathBuf::from("PawnIO_setup.exe"));
+
                 let child_slot: Arc<StdMutex<Option<Child>>> = Arc::new(StdMutex::new(None));
                 app.manage(child_slot.clone());
 
                 let hw_running = running_for_hw;
                 std::thread::spawn(move || {
+                    // Ensure the PawnIO driver is present before the sidecar
+                    // reads sensors. PawnIO replaced WinRing0 upstream; without
+                    // it, LibreHardwareMonitor cannot read MSR/SuperIO sensors.
+                    // Non-blocking and best-effort (see ensure_pawnio_installed).
+                    ensure_pawnio_installed(&pawnio_setup);
+
                     // One-time cleanup: drop any service or instance left behind
                     // by a previous version or a previous run before we take over.
                     let _ = std::process::Command::new("sc.exe")
