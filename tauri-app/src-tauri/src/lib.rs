@@ -76,11 +76,13 @@ fn pawnio_service_present() -> bool {
 }
 
 /// Install the PawnIO driver from the bundled signed installer if it is not
-/// already present. Uses `-install`, matching LibreHardwareMonitor's own
-/// invocation. Best-effort: any failure is logged and swallowed so startup is
-/// never blocked. A missing driver only costs the ring0 sensors (which the
-/// sidecar already degrades gracefully around), exactly as when WinRing0 was
-/// quarantined by Defender.
+/// already present. Uses `-install -silent` so the installer does not pop its
+/// "PawnIO Setup" window on first launch — Cleanmeter installs it in the
+/// background, unlike LibreHardwareMonitor's own user-initiated `-install` where
+/// a window is acceptable. Best-effort: any failure is logged and swallowed so
+/// startup is never blocked. A missing driver only costs the ring0 sensors
+/// (which the sidecar already degrades gracefully around), exactly as when
+/// WinRing0 was quarantined by Defender.
 #[cfg(windows)]
 fn ensure_pawnio_installed(setup_path: &std::path::Path) {
     use std::os::windows::process::CommandExt;
@@ -99,7 +101,7 @@ fn ensure_pawnio_installed(setup_path: &std::path::Path) {
     }
     info!("PawnIO driver not found; installing from {}", setup_path.display());
     match std::process::Command::new(setup_path)
-        .arg("-install")
+        .args(["-install", "-silent"])
         .creation_flags(CREATE_NO_WINDOW)
         .status()
     {
