@@ -17,7 +17,7 @@ jobs:
         include:
           # Windows-only release. The HardwareMonitor sidecar depends on
           # PresentMon (ETW, Windows-only) and LibreHardwareMonitor's
-          # WinRing0 driver (Windows-only) for FPS + sensor data, so the
+          # PawnIO driver (Windows-only) for FPS + sensor data, so the
           # macOS/Linux bundles ship a non-functional service. Keep the
           # matrix structure for future re-introduction.
           - platform: windows-latest
