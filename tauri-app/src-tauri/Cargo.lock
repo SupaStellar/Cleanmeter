@@ -523,7 +523,7 @@ dependencies = [
 
 [[package]]
 name = "cleanmeter"
-version = "2.2.12"
+version = "2.2.13"
 dependencies = [
  "byteorder",
  "dirs",
