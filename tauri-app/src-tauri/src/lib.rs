@@ -437,6 +437,10 @@ pub fn run() {
 
             // Periodically reassert overlay always-on-top so games can't push it behind.
             // Only reasserts when overlay is currently visible (user hasn't hidden it).
+            // The click-through gate is recomputed on the same tick, which is what
+            // makes it self-correcting rather than dependent on having seen every
+            // Focused event. Both calls are no-ops at the OS level when nothing
+            // changed (tao's apply_diff early-returns on an empty flag diff).
             {
                 let app_handle_top = app.handle().clone();
                 tauri::async_runtime::spawn(async move {
@@ -445,6 +449,7 @@ pub fn run() {
                         if let Some(overlay) = app_handle_top.get_webview_window("overlay") {
                             if overlay.is_visible().unwrap_or(false) {
                                 let _ = overlay.set_always_on_top(true);
+                                commands::sync_overlay_interactive(&app_handle_top);
                             }
                         }
                     }
@@ -454,16 +459,44 @@ pub fn run() {
             // Handle settings window close → minimize to tray,
             // and convert native maximize (double-click) into "full height"
             // so the window never actually fullscreens.
+            //
+            // This handler also drives the overlay's click-through gate. The gate is
+            // never stored, only derived: the overlay accepts mouse input while the
+            // settings window is visible AND Cleanmeter is the app in front. See
+            // commands::sync_overlay_interactive for why it is process-wide foreground
+            // rather than settings-window focus. Requiring foreground means Settings
+            // left open behind a game still leaves the HUD click-through.
             if let Some(settings_window) = app.get_webview_window("settings") {
                 let app_handle3 = app.handle().clone();
                 let w_for_event = settings_window.clone();
                 settings_window.on_window_event(move |event| {
                     match event {
+                        // Recompute rather than trusting the event's boolean. A
+                        // Focused(false) here can mean "the user switched to their
+                        // game" (close the gate) or "the user pressed the mouse on
+                        // the HUD, which activated the overlay" (keep it open, a
+                        // drag just started). sync_overlay_interactive tells those
+                        // apart by asking whether any window of ours is in front.
+                        tauri::WindowEvent::Focused(_) => {
+                            commands::sync_overlay_interactive(&app_handle3);
+                        }
                         tauri::WindowEvent::CloseRequested { api, .. } => {
                             api.prevent_close();
                             if let Some(window) = app_handle3.get_webview_window("settings") {
                                 let _ = window.hide();
                             }
+                            // hide() is not guaranteed to emit Focused(false), so
+                            // close the gate explicitly on the hide-to-tray path.
+                            //
+                            // Force it to false rather than calling
+                            // sync_overlay_interactive: that reads is_visible(), a
+                            // window_getter! that blocks until the event loop replies,
+                            // and this handler runs while the loop is already blocked
+                            // on the prevent_close channel. apply_overlay_interactive
+                            // only sends one-way messages, so it cannot wedge the
+                            // close. The 500ms heartbeat reconciles the value anyway,
+                            // so forcing it here cannot leave a wrong state behind.
+                            commands::apply_overlay_interactive(&app_handle3, false);
                         }
                         tauri::WindowEvent::Resized(_) => {
                             if w_for_event.is_maximized().unwrap_or(false) {
@@ -504,7 +537,6 @@ pub fn run() {
             commands::set_overlay_visible,
             commands::set_overlay_position,
             commands::set_overlay_size,
-            commands::set_overlay_click_through,
             commands::set_overlay_opacity,
             commands::select_present_mon_app,
             commands::refresh_present_mon_apps,

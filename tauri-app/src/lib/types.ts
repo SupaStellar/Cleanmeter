@@ -96,7 +96,6 @@ export interface OverlaySettings {
   graphType: GraphType;
   positionX: number;
   positionY: number;
-  isPositionLocked: boolean;
   opacity: number;
   pillOpacity: number;
   fontSizeValue: number;
@@ -173,7 +172,6 @@ export const DEFAULT_SETTINGS: OverlaySettings = {
   graphType: "ring",
   positionX: 0,
   positionY: 0,
-  isPositionLocked: false,
   // Opacity now drives the pill background alpha (not whole-widget opacity).
   // 0.3 = the Figma translucent-pill default; 1.0 (slider max) = solid pills.
   opacity: 0.3,

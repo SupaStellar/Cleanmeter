@@ -242,12 +242,6 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       if (!saved?.themeMode) {
         settings.themeMode = settings.isDarkTheme ? "dark" : "light";
       }
-      // No UI exposes isPositionLocked, so a stale `true` from an older
-      // install would freeze the HUD with no way to recover — both the
-      // React drag handlers and the cursor:grab style gate on !locked.
-      if (settings.useCustomPosition && settings.isPositionLocked) {
-        settings.isPositionLocked = false;
-      }
       // Migrate older builds that wrote the chosen PresentMon app into
       // framerate.customReadingId. customReadingId is now strictly a sensor
       // identifier (e.g. "/presentmon/displayed"); the chosen app lives in
@@ -295,28 +289,22 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       if (settings.fontSizeValue > 24) settings.fontSizeValue = 24;
       if (settings.fontSizeLabel > 18) settings.fontSizeLabel = 18;
       set({ settings });
-      tauri.setOverlayClickThrough(!settings.useCustomPosition && settings.isPositionLocked);
       // Push the persisted target-app to the C# poller so it starts in sync.
       // Empty string means Auto (foreground-window detection on the C# side).
       tauri.selectPresentMonApp(settings.sensors.framerate.targetAppName || "Auto");
-    } catch {
-      tauri.setOverlayClickThrough(false);
+    } catch (err) {
+      // The store keeps DEFAULT_SETTINGS, which is a usable overlay — but say so
+      // rather than swallowing it, otherwise a settings file that fails to parse
+      // looks identical to a fresh install.
+      console.error("loadSettings failed:", err);
     }
   },
 
   updateSettings: (patch) => {
     const newSettings = { ...get().settings, ...patch };
-    // Mirror the loadSettings guard — when custom-position is on, never
-    // carry a stale lock that would silently re-disable drag.
-    if (newSettings.useCustomPosition && newSettings.isPositionLocked) {
-      newSettings.isPositionLocked = false;
-    }
     set({ settings: newSettings });
     debouncedSave(newSettings);
 
-    if (patch.isPositionLocked !== undefined || patch.useCustomPosition !== undefined) {
-      tauri.setOverlayClickThrough(!newSettings.useCustomPosition && newSettings.isPositionLocked);
-    }
     if (patch.opacity !== undefined) {
       tauri.setOverlayOpacity(patch.opacity);
     }
