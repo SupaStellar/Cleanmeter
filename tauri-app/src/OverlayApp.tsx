@@ -225,7 +225,7 @@ export default function OverlayApp() {
   // monitors + settings (instead of an async Tauri round-trip) so mousemove
   // events that fire on the same tick as mousedown aren't dropped.
   const onMouseDown = (e: React.MouseEvent) => {
-    if (!settings.useCustomPosition || settings.isPositionLocked) return;
+    if (!settings.useCustomPosition) return;
     if (e.button !== 0) return;
     if (monitors.length === 0) return;
     e.preventDefault();
@@ -305,7 +305,12 @@ export default function OverlayApp() {
     };
   }, [monitors, updateSettings, settings.selectedDisplayIndex]);
 
-  const draggable = settings.useCustomPosition && !settings.isPositionLocked;
+  // Whether the HUD *can* be dragged at all. Whether the mouse can even reach it is
+  // a separate, Rust-owned gate: the overlay is click-through unless the settings
+  // window is visible and Cleanmeter is the app in front (see
+  // sync_overlay_interactive in commands.rs). So these handlers simply never fire
+  // while the user is gaming.
+  const draggable = settings.useCustomPosition;
   const rootStyle: React.CSSProperties = {
     cursor: draggable ? (isDragging ? "grabbing" : "grab") : "default",
     userSelect: "none",

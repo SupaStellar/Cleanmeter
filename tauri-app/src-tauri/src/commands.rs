@@ -115,12 +115,90 @@ pub fn save_preferences(prefs: AppPreferences, settings_mgr: State<'_, SettingsM
 
 // ─── Overlay Window Commands ────────────────────────────────────
 
+/// Apply the overlay's click-through state. `interactive == false` is click-through:
+/// tao sets `WS_EX_TRANSPARENT`, so hit-testing skips the overlay entirely and the
+/// click lands on the game or desktop underneath.
+///
+/// Nothing persists this. The state is derived from settings-window visibility plus
+/// process foreground (see `sync_overlay_interactive`), so no saved flag exists that
+/// could strand the HUD somewhere the user can't undo — an older build shipped
+/// `isPositionLocked`, and a stale `true` did exactly that.
+///
+/// Safe to call before the overlay has ever been shown, and a no-op at the OS level
+/// when the flag already matches, since tao's `apply_diff` early-returns on an
+/// empty flag diff.
+pub fn apply_overlay_interactive(app: &AppHandle, interactive: bool) {
+    if let Some(overlay) = app.get_webview_window("overlay") {
+        let _ = overlay.set_ignore_cursor_events(!interactive);
+    }
+}
+
+/// True when the foreground window belongs to this process, i.e. the user is
+/// interacting with Cleanmeter rather than with another application.
+///
+/// Deliberately process-wide rather than "is the settings window focused". Clicking
+/// the HUD makes the *overlay* the foreground window — `WS_EX_NOACTIVATE` does not
+/// prevent it, because WebView2's child HWND answers `WM_MOUSEACTIVATE` with
+/// `MA_ACTIVATE` — which defocuses the settings window. Keying the gate on settings
+/// focus alone therefore closed it on mouse-down and cut the drag off mid-gesture:
+/// the interaction destroyed its own precondition. Asking "is any window of ours in
+/// front" covers both the settings window and the overlay, so a drag completes.
+#[cfg(windows)]
+fn foreground_is_ours() -> bool {
+    use windows::Win32::System::Threading::GetCurrentProcessId;
+    use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId};
+    unsafe {
+        let hwnd = GetForegroundWindow();
+        if hwnd.0.is_null() {
+            return false;
+        }
+        let mut pid = 0u32;
+        GetWindowThreadProcessId(hwnd, Some(&mut pid));
+        pid != 0 && pid == GetCurrentProcessId()
+    }
+}
+
+/// Non-Windows stub. Returning `false` leaves the overlay permanently click-through
+/// off Windows, which is the honest answer: there is no foreground check implemented
+/// there, and the app is Windows-only in every load-bearing part (requireAdministrator
+/// manifest, the PawnIO driver, PresentMon, the HardwareMonitor sidecar). CI builds a
+/// single `windows-latest` matrix entry, so a second real implementation here could
+/// never be compiled or tested and would only rot.
+#[cfg(not(windows))]
+fn foreground_is_ours() -> bool {
+    false
+}
+
+/// Recompute the gate from live window state and apply it.
+///
+/// The overlay accepts mouse input only while the settings window is visible *and*
+/// Cleanmeter is the app in front — the one moment the user can be positioning it.
+/// Requiring foreground and not mere visibility means Settings left open behind a
+/// game still leaves the HUD click-through.
+///
+/// Deriving it here, rather than trusting whichever `Focused` event fired last,
+/// makes the state self-correcting. A launch where the settings window is shown but
+/// never wins foreground (autostart at logon, or another app grabbing focus first)
+/// would otherwise leave the overlay eating clicks until the user's next focus
+/// change; this settles it within one heartbeat.
+pub fn sync_overlay_interactive(app: &AppHandle) {
+    let settings_shown = app
+        .get_webview_window("settings")
+        .map(|w| w.is_visible().unwrap_or(false))
+        .unwrap_or(false);
+    apply_overlay_interactive(app, settings_shown && foreground_is_ours());
+}
+
 #[tauri::command]
 pub fn set_overlay_visible(visible: bool, app: AppHandle) {
     if let Some(overlay) = app.get_webview_window("overlay") {
         if visible {
             let _ = overlay.show();
             let _ = overlay.set_always_on_top(true);
+            // The overlay is created hidden and first shown on initial sensor
+            // data, which can land after the gate was already decided. Recompute
+            // so it never comes up interactive while Settings is unfocused.
+            sync_overlay_interactive(&app);
         } else {
             let _ = overlay.hide();
         }
@@ -138,13 +216,6 @@ pub fn set_overlay_position(x: i32, y: i32, app: AppHandle) {
 pub fn set_overlay_size(width: u32, height: u32, app: AppHandle) {
     if let Some(overlay) = app.get_webview_window("overlay") {
         let _ = overlay.set_size(tauri::Size::Physical(tauri::PhysicalSize::new(width, height)));
-    }
-}
-
-#[tauri::command]
-pub fn set_overlay_click_through(enabled: bool, app: AppHandle) {
-    if let Some(overlay) = app.get_webview_window("overlay") {
-        let _ = overlay.set_ignore_cursor_events(enabled);
     }
 }
 

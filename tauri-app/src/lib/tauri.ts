@@ -46,8 +46,10 @@ export const setOverlayPosition = (x: number, y: number) =>
   safeInvoke("set_overlay_position", { x, y });
 export const setOverlaySize = (width: number, height: number) =>
   safeInvoke("set_overlay_size", { width, height });
-export const setOverlayClickThrough = (enabled: boolean) =>
-  safeInvoke("set_overlay_click_through", { enabled });
+// Click-through has no wrapper on purpose: Rust owns it, derived from settings-window
+// visibility plus process foreground (see sync_overlay_interactive in commands.rs).
+// Nothing in the frontend should be able to put the overlay into a state the user
+// can't undo — a saved flag doing exactly that is what PR #10 had to unpick.
 export const setOverlayOpacity = (opacity: number) =>
   safeInvoke("set_overlay_opacity", { opacity });
 
