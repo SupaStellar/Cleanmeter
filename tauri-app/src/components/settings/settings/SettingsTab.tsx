@@ -340,8 +340,9 @@ function FooterLinkButton({
   );
 }
 
-// TODO: replace with API data (canonical discord URL from product).
-const DISCORD_INVITE_URL = "https://discord.gg/CN2b7d4c9";
+// Canonical invite to the official Cleanmeter community server, set to never
+// expire (the invite this replaced had lapsed and returned Unknown Invite).
+const DISCORD_INVITE_URL = "https://discord.gg/SCgXtTMNvJ";
 
 // Triggers an in-app update check and reflects the updater status in its label.
 // The actual "download & install" happens from the floating UpdateBanner.
