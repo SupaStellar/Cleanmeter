@@ -31,8 +31,19 @@ export function getBoundaryColor(
   // The semantic `--color-{danger,warning,success}` tokens point at darker
   // shades (red700, yellow700) chosen for the settings UI — don't reuse
   // them in the overlay, the overlay palette is intentionally brighter.
-  if (value >= boundaries.high) return "var(--red500)";
-  if (value >= boundaries.medium) return "var(--yellow300)";
+  //
+  // Thresholds are the UPPER bound of each segment, matching what the settings
+  // control paints (TempRangeControl: Low 0→low, Medium low→medium, High
+  // medium→high) and the legacy app's Progress.kt:
+  //   value <= low             → green
+  //   low < value <= medium    → yellow
+  //   value > medium           → red
+  // `boundaries.high` is the top of the High segment for display only, never a
+  // threshold. Comparing against .high/.medium instead (the bug this replaced)
+  // shifted every color one segment late, so green ran past the whole Medium
+  // band and red only appeared at the very top of the scale.
+  if (value > boundaries.medium) return "var(--red500)";
+  if (value > boundaries.low) return "var(--yellow300)";
   return "var(--green500)";
 }
 
