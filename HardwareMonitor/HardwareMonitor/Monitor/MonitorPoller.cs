@@ -36,6 +36,9 @@ public class MonitorPoller(
     private short _pollingRate = 500;
     private const short MinimalPollingRate = 33;
 
+    // How many times a change to the active sensor set is worth logging.
+    private const int SensorSetChangeLogLimit = 5;
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         logger.LogInformation("Starting monitor");
@@ -97,6 +100,8 @@ public class MonitorPoller(
         _socketHost.OnClientConnected += OnClientConnected;
 
         var sharedMemoryData = QueryHardwareData();
+        var knownSensorCount = CountActiveSensors();
+        var sensorSetChanges = 0;
 
         using var memoryStream = new MemoryStream();
         using var writer = new BinaryWriter(memoryStream);
@@ -124,6 +129,37 @@ public class MonitorPoller(
                     hardware.StopUpdates();
                     logger.LogError("Stopping updates of {HardwareName} - {HardwareIdentifier}", hardware.Name, hardware.Identifier);
                 }
+            }
+
+            // LibreHardwareMonitor only exposes a sensor once it has produced a
+            // reading (Hardware.Sensors returns the activated set). AMD GPUs read
+            // temperature, power, core load and memory load through ADL's PMLog
+            // sampling session, which has no sample yet on the first Update(),
+            // so those sensors activate a poll or two later: after the snapshot
+            // above was taken, and so were never sent to the app. Re-map the
+            // sensor list when that set changes so late arrivals still land.
+            //
+            // Hardware is re-mapped alongside it so a sensor is never sent
+            // referencing hardware the client has no entry for; MapHardwares
+            // reuses existing entries, so a StopUpdates() suspension above
+            // survives. On GPUs that activate everything up front (e.g. NVIDIA
+            // via NvAPI) the count never moves and this whole block is a no-op.
+            var activeSensorCount = CountActiveSensors();
+            if (activeSensorCount != knownSensorCount)
+            {
+                // Capped: a sensor that flaps in and out would otherwise write a
+                // line every poll (CPU core temperatures deactivate themselves
+                // when a read fails). Only the logging is capped, never the
+                // re-map, so the data stays correct either way.
+                if (sensorSetChanges++ < SensorSetChangeLogLimit)
+                {
+                    logger.LogInformation(
+                        "Active sensor set changed ({Previous} -> {Current}); refreshing sensor list",
+                        knownSensorCount, activeSensorCount);
+                }
+
+                knownSensorCount = activeSensorCount;
+                MapHardwareData(sharedMemoryData);
             }
 
             WriteDataToStream(writer, sharedMemoryData);
@@ -253,20 +289,71 @@ public class MonitorPoller(
 
     private SharedMemoryData QueryHardwareData()
     {
-        var hardwareList = new List<SharedMemoryHardware>();
-        var sensorList = new List<SharedMemorySensor>();
         var sharedMemoryData = new SharedMemoryData();
 
-        foreach (var hardware in _computer.Hardware)
+        MapHardwareData(sharedMemoryData);
+
+        return sharedMemoryData;
+    }
+
+    /// <summary>
+    /// Re-maps hardware and sensors from a single snapshot of the hardware
+    /// tree. Taking one snapshot for both is what guarantees the two lists
+    /// agree: Computer.Hardware is rebuilt on every access, so mapping them
+    /// from separate reads could emit a sensor whose hardware is missing.
+    /// </summary>
+    private void MapHardwareData(SharedMemoryData sharedMemoryData)
+    {
+        var hardwares = _computer.Hardware;
+
+        MapHardwares(sharedMemoryData, hardwares);
+        MapSensors(sharedMemoryData, hardwares);
+    }
+
+    /// <summary>
+    /// Rebuilds the hardware list. Entries already present are reused rather
+    /// than recreated, so a hardware suspended by StopUpdates() after throwing
+    /// stays suspended instead of being resurrected on the next re-map.
+    /// </summary>
+    private void MapHardwares(SharedMemoryData sharedMemoryData, IList<IHardware> hardwares)
+    {
+        var known = new Dictionary<string, SharedMemoryHardware>();
+        foreach (var hardware in sharedMemoryData.Hardwares)
         {
-            hardwareList.Add(MapHardware(hardware));
+            known[hardware.Identifier] = hardware;
+        }
+
+        var hardwareList = new List<SharedMemoryHardware>();
+
+        void Add(IHardware hardware)
+        {
+            hardwareList.Add(known.TryGetValue(hardware.Identifier.ToString(), out var existing)
+                ? existing
+                : MapHardware(hardware));
+        }
+
+        foreach (var hardware in hardwares)
+        {
+            Add(hardware);
             foreach (var subHardware in hardware.SubHardware)
             {
-                hardwareList.Add(MapHardware(subHardware));
+                Add(subHardware);
             }
         }
 
-        foreach (var hardware in _computer.Hardware)
+        sharedMemoryData.Hardwares = hardwareList;
+    }
+
+    /// <summary>
+    /// Rebuilds the sensor list from whatever LibreHardwareMonitor currently
+    /// reports as active. Safe to call repeatedly: sensors are addressed by
+    /// identifier on the client, so a longer list only adds readings.
+    /// </summary>
+    private void MapSensors(SharedMemoryData sharedMemoryData, IList<IHardware> hardwares)
+    {
+        var sensorList = new List<SharedMemorySensor>();
+
+        foreach (var hardware in hardwares)
         {
             foreach (var sensor in hardware.Sensors)
             {
@@ -289,9 +376,26 @@ public class MonitorPoller(
         sensorList.Add(MapSensor(_presentMonPoller.Frametime));
 
         sharedMemoryData.Sensors = sensorList;
-        sharedMemoryData.Hardwares = hardwareList;
+    }
 
-        return sharedMemoryData;
+    /// <summary>
+    /// Number of sensors LibreHardwareMonitor currently reports as active. Used
+    /// only to detect that the set changed, so the sensor list can be re-mapped.
+    /// </summary>
+    private int CountActiveSensors()
+    {
+        var count = 0;
+
+        foreach (var hardware in _computer.Hardware)
+        {
+            count += hardware.Sensors.Length;
+            foreach (var subHardware in hardware.SubHardware)
+            {
+                count += subHardware.Sensors.Length;
+            }
+        }
+
+        return count;
     }
 
     private void Stop()
