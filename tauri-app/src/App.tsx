@@ -11,30 +11,46 @@ import { useSettingsStore } from "@/stores/settings-store";
 import { useUpdaterStore } from "@/stores/updater-store";
 import { UpdateBanner } from "@/components/settings/UpdateBanner";
 import { checkDotnetRuntime, onSettingsChanged } from "@/lib/tauri";
+import { STARTUP_GRACE_MS, monitoringVerdict } from "@/lib/monitoring";
 import { SplashScreen } from "@/components/SplashScreen";
 
 function MonitoringBanner() {
   const sensorData = useSettingsStore((s) => s.sensorData);
   const pipeStatus = useSettingsStore((s) => s.pipeStatus);
-  const [showBanner, setShowBanner] = useState(false);
+  const sidecarStatus = useSettingsStore((s) => s.sidecarStatus);
+  const [graceExpired, setGraceExpired] = useState(false);
   const [dotnetMissing, setDotnetMissing] = useState(false);
 
+  // The banner used to be a plain 8s timer, which is not evidence of a failure:
+  // a reading cannot exist before the sidecar has enumerated hardware, and that
+  // alone measured up to 13.7s across 114 launches, so a third of them were
+  // called broken while starting normally. At logon it happened nearly every
+  // time. The verdict now comes from what the supervisor actually saw (see
+  // monitoringVerdict), and this timer is only the backstop for a sidecar that
+  // runs but never reports.
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!useSettingsStore.getState().sensorData) {
-        setShowBanner(true);
-        checkDotnetRuntime().then((ok) => {
-          if (!ok) setDotnetMissing(true);
-        }).catch(() => {});
-      }
-    }, 8000);
+    const timer = setTimeout(() => setGraceExpired(true), STARTUP_GRACE_MS);
     return () => clearTimeout(timer);
   }, []);
 
-  // Hide the banner as soon as data arrives — derived from sensorData rather
-  // than mirrored into state via an effect (which would cascade an extra
-  // render). showBanner still gates the 8s "no data yet" delay above.
-  if (!showBanner || sensorData) return null;
+  const verdict = monitoringVerdict({
+    hasSensorData: !!sensorData,
+    sidecar: sidecarStatus,
+    graceExpired,
+  });
+
+  // Only a failing verdict is worth telling the user about, and only then is it
+  // worth paying for the .NET probe.
+  useEffect(() => {
+    if (verdict !== "failed") return;
+    checkDotnetRuntime()
+      .then((ok) => {
+        if (!ok) setDotnetMissing(true);
+      })
+      .catch(() => {});
+  }, [verdict]);
+
+  if (verdict !== "failed") return null;
 
   return (
     <div className="border-b border-yellow-400 bg-yellow-50 px-4 py-2.5 text-[13px] leading-snug text-yellow-900 dark:border-yellow-700 dark:bg-yellow-950 dark:text-yellow-200">

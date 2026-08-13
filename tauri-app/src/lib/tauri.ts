@@ -5,6 +5,7 @@ import type {
   PipeStatus,
   MonitorInfo,
   AppPreferences,
+  SidecarStatus,
 } from "./types";
 
 // ─── Browser detection ──────────────────────────────────────────
@@ -35,6 +36,8 @@ export const saveSettings = (settings: OverlaySettings) =>
   safeInvoke("save_settings", { settings });
 export const clearSettings = () => safeInvoke("clear_settings");
 export const getPreferences = () => safeInvoke<AppPreferences>("get_preferences");
+/** Polled once on mount: events fired before the webview loaded are lost. */
+export const getSidecarStatus = () => safeInvoke<SidecarStatus>("get_sidecar_status");
 export const savePreferences = (prefs: AppPreferences) =>
   safeInvoke("save_preferences", { prefs });
 
@@ -132,6 +135,11 @@ export const onPipeStatus = (
   callback: (status: PipeStatus) => void
 ): Promise<UnlistenFn> =>
   safeListen<PipeStatus>("pipe-status", (event) => callback(event.payload));
+
+export const onSidecarStatus = (
+  callback: (status: SidecarStatus) => void
+): Promise<UnlistenFn> =>
+  safeListen<SidecarStatus>("sidecar-status", (event) => callback(event.payload));
 
 export const onSettingsChanged = (
   callback: (settings: OverlaySettings) => void
