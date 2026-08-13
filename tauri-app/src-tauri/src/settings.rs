@@ -5,6 +5,22 @@ use std::sync::Mutex;
 
 use crate::types::{AppPreferences, OverlaySettings};
 
+/// Serializes the whole save transaction: temp file, rename, backup refresh.
+///
+/// `save_settings` copies into the in-memory `Mutex` and releases it *before*
+/// touching disk, and Tauri runs each non-async `invoke` on its own thread, so
+/// two windows saving in the same instant (the overlay persisting a drag while
+/// the settings window persists a toggle) otherwise run two write transactions
+/// through the same temp path, where one can truncate or rename the other's file
+/// out from under it and lose that save.
+///
+/// Not a reproduced failure. See the note on
+/// `concurrent_saves_leave_both_copies_readable` for what would not reproduce
+/// and why. Kept because ordering the transaction costs nothing here: a save is
+/// a couple of kilobytes and already debounced 300 ms in the frontend, so one
+/// lock covering both files has nothing to lose to finer granularity.
+static WRITE_LOCK: Mutex<()> = Mutex::new(());
+
 pub struct SettingsManager {
     settings: Mutex<OverlaySettings>,
     preferences: Mutex<AppPreferences>,
@@ -61,7 +77,7 @@ impl SettingsManager {
     /// Parse a settings file, tolerating a leading UTF-8 BOM. Editing
     /// settings.json by hand in Notepad (or any PowerShell `Set-Content
     /// -Encoding utf8`) prepends one, and `serde_json` rejects it as a syntax
-    /// error — which used to mean the whole file was discarded.
+    /// error, which used to mean the whole file was discarded.
     fn parse_file<T: serde::de::DeserializeOwned>(path: &PathBuf) -> Result<T, String> {
         let content = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
         let content = content.strip_prefix('\u{feff}').unwrap_or(&content);
@@ -94,14 +110,14 @@ impl SettingsManager {
     /// defaults.
     ///
     /// Returning `None` here resets every setting the user has (the callers do
-    /// `.unwrap_or_default()`), and the next save then overwrites the original
-    /// — so an unreadable file silently destroyed the whole config, which
+    /// `.unwrap_or_default()`), and the next save then overwrites the original,
+    /// so an unreadable file silently destroyed the whole config, which
     /// reads to the user as "my settings don't survive a restart". An
     /// unreadable file is now preserved for inspection instead of being
     /// overwritten, and the backup written by `save_to_file` is tried first.
     fn load_from_file<T: serde::de::DeserializeOwned>(path: &PathBuf) -> Option<T> {
         if !path.exists() {
-            // Missing primary (first run, or it was lost) — a backup from a
+            // Missing primary (first run, or it was lost): a backup from a
             // previous run still beats defaults.
             return Self::load_backup(path);
         }
@@ -119,15 +135,40 @@ impl SettingsManager {
         }
     }
 
-    /// Write a settings file atomically, keeping the previous contents as a
-    /// backup.
+    /// Fill `tmp`, flush it to disk, then rename it over `dest`.
     ///
     /// `fs::write` truncates the target before writing, so a crash, a power
     /// loss, or `app.exit(0)` from the tray landing mid-write left a partial
-    /// file that fails to parse on the next launch. Writing to a sibling temp
-    /// file and renaming over the target means a reader always sees either the
-    /// old file or the complete new one — `rename` maps to `MoveFileEx` with
-    /// `MOVEFILE_REPLACE_EXISTING` on Windows.
+    /// file that fails to parse on the next launch. Going through a sibling
+    /// temp file means a reader always sees either the old file or the complete
+    /// new one, since `rename` maps to `MoveFileEx` with
+    /// `MOVEFILE_REPLACE_EXISTING` on Windows. The temp path is reused rather
+    /// than made unique so a run that dies mid-write leaves one file that the
+    /// next save overwrites, instead of littering the directory.
+    fn write_atomically(dest: &PathBuf, tmp: &PathBuf, bytes: &[u8]) -> std::io::Result<()> {
+        let fill_tmp = || -> std::io::Result<()> {
+            let mut file = std::fs::File::create(tmp)?;
+            file.write_all(bytes)?;
+            // Flush to disk before the rename, so losing power just after it
+            // can't leave a renamed-but-empty file.
+            file.sync_all()
+        };
+        let result = fill_tmp().and_then(|()| std::fs::rename(tmp, dest));
+        if result.is_err() {
+            let _ = std::fs::remove_file(tmp);
+        }
+        result
+    }
+
+    /// Write a settings file atomically, mirroring it to a backup.
+    ///
+    /// Both files are written from the same in-memory JSON, never copied off
+    /// disk. Refreshing the backup from the *previous* on-disk file instead
+    /// meant a primary that could not be quarantined (a locked or read-only
+    /// file, see `load_from_file`) was copied over the last known-good backup,
+    /// so neither copy was loadable and the config reset after all. It also
+    /// leaves the backup one save behind; mirroring means recovery restores the
+    /// newest good state rather than the one before it.
     fn save_to_file<T: serde::Serialize>(path: &PathBuf, data: &T) {
         let json = match serde_json::to_string_pretty(data) {
             Ok(json) => json,
@@ -137,32 +178,29 @@ impl SettingsManager {
             }
         };
 
-        let tmp = path.with_extension("json.tmp");
-        let write_tmp = || -> std::io::Result<()> {
-            let mut file = std::fs::File::create(&tmp)?;
-            file.write_all(json.as_bytes())?;
-            // Flush to disk before the rename, so losing power just after it
-            // can't leave a renamed-but-empty file.
-            file.sync_all()
-        };
-        if let Err(e) = write_tmp() {
-            error!("Failed to write {:?}: {}", tmp, e);
-            let _ = std::fs::remove_file(&tmp);
+        // Held for the whole transaction. Recovered from poisoning rather than
+        // unwrapped: a panic elsewhere while holding this must not leave the app
+        // permanently unable to save.
+        let _guard = WRITE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+
+        if let Err(e) = Self::write_atomically(
+            path,
+            &path.with_extension("json.tmp"),
+            json.as_bytes(),
+        ) {
+            error!("Failed to write {:?}: {}", path, e);
             return;
         }
 
-        // Refresh the backup from the copy that is still known to be complete,
-        // before the rename replaces it.
-        if path.exists() {
-            let backup = Self::backup_path(path);
-            if let Err(e) = std::fs::copy(path, &backup) {
-                error!("Failed to refresh backup {:?}: {}", backup, e);
-            }
-        }
-
-        if let Err(e) = std::fs::rename(&tmp, path) {
-            error!("Failed to replace {:?}: {}", path, e);
-            let _ = std::fs::remove_file(&tmp);
+        let backup = Self::backup_path(path);
+        if let Err(e) = Self::write_atomically(
+            &backup,
+            &path.with_extension("json.bak.tmp"),
+            json.as_bytes(),
+        ) {
+            // The primary landed, so this is not fatal. The backup just stays
+            // at whatever earlier state it already held.
+            error!("Failed to refresh backup {:?}: {}", backup, e);
         }
     }
 }
@@ -210,13 +248,89 @@ mod tests {
         let loaded: Option<Probe> = SettingsManager::load_from_file(&path);
         assert_eq!(
             loaded,
-            Some(Probe { value: 1 }),
-            "should recover the backup instead of resetting to defaults"
+            Some(Probe { value: 2 }),
+            "should recover the newest saved state, not defaults or the save before it"
         );
         assert!(
             path.with_extension("json.corrupt").exists(),
             "the unreadable file should be preserved, not overwritten"
         );
+    }
+
+    /// The backup is written from the JSON being saved, never copied off disk,
+    /// so an unreadable primary left in place (a quarantine rename that failed
+    /// because the file was locked or read-only) cannot overwrite the last
+    /// known-good copy and leave nothing to recover from.
+    #[test]
+    fn an_unreadable_primary_never_reaches_the_backup() {
+        let path = scratch("poison").join("settings.json");
+        SettingsManager::save_to_file(&path, &Probe { value: 1 });
+
+        // Corrupt the primary and leave it there, as a failed quarantine would.
+        std::fs::write(&path, "{\"value\":").unwrap();
+        SettingsManager::save_to_file(&path, &Probe { value: 2 });
+
+        let backup: Result<Probe, String> =
+            SettingsManager::parse_file(&SettingsManager::backup_path(&path));
+        assert_eq!(backup, Ok(Probe { value: 2 }), "backup must stay readable");
+
+        // And the save healed the primary, so both copies are good again.
+        std::fs::write(&path, "{\"value\":").unwrap();
+        let loaded: Option<Probe> = SettingsManager::load_from_file(&path);
+        assert_eq!(loaded, Some(Probe { value: 2 }));
+    }
+
+    /// Two windows can save in the same instant, each on its own Tauri command
+    /// thread, and both write transactions go through one temp path.
+    ///
+    /// Honest about what this proves: it is a smoke test, not a demonstration of
+    /// the race. Removing `WRITE_LOCK` does not make it fail: attempts with
+    /// mismatched payload lengths and with payloads inflated to ~768 KB all
+    /// still passed, because `sync_all` dominates each save and keeps the
+    /// truncate-under-another-writer window from opening. The lock is kept
+    /// because it is free and makes the transaction ordered, not because this
+    /// catches its absence. What this does catch: a deadlock from nesting the
+    /// lock, temp-file litter, and a save that stops mirroring its backup.
+    #[test]
+    fn concurrent_saves_leave_both_copies_readable() {
+        #[derive(Debug, Serialize, Deserialize)]
+        struct Padded {
+            value: u32,
+            pad: String,
+        }
+
+        let path = scratch("concurrent").join("settings.json");
+        std::thread::scope(|s| {
+            for value in 1..=8u32 {
+                let path = path.clone();
+                s.spawn(move || {
+                    let payload = Padded {
+                        value,
+                        pad: "x".repeat(value as usize * 512),
+                    };
+                    for _ in 0..40 {
+                        SettingsManager::save_to_file(&path, &payload);
+                    }
+                });
+            }
+        });
+
+        assert!(
+            SettingsManager::parse_file::<Padded>(&path).is_ok(),
+            "the primary must be complete JSON, not a mix of two writes"
+        );
+        let backup = SettingsManager::backup_path(&path);
+        assert!(
+            SettingsManager::parse_file::<Padded>(&backup).is_ok(),
+            "the backup must be complete JSON too"
+        );
+        assert_eq!(
+            std::fs::read(&path).unwrap(),
+            std::fs::read(&backup).unwrap(),
+            "the backup must mirror the primary, not a different thread's save"
+        );
+        assert!(!path.with_extension("json.tmp").exists());
+        assert!(!path.with_extension("json.bak.tmp").exists());
     }
 
     #[test]
@@ -227,6 +341,7 @@ mod tests {
         let loaded: Option<Probe> = SettingsManager::load_from_file(&path);
         assert_eq!(loaded, Some(Probe { value: 42 }));
         assert!(!path.with_extension("json.tmp").exists());
+        assert!(!path.with_extension("json.bak.tmp").exists());
     }
 
     #[test]
