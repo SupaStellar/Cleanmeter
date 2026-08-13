@@ -123,6 +123,11 @@ public class PresentMonPoller(ILogger logger)
     // on every push. Only touched by the push loop.
     private string _lastLoggedApps = "";
 
+    // Whether the PresentMon stderr line currently being read belongs to a
+    // warning rather than an error, so indented continuation lines can inherit
+    // it. Only touched by the stderr callback, which delivers lines in order.
+    private bool _stderrIsWarning;
+
     [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
 
@@ -255,8 +260,14 @@ public class PresentMonPoller(ILogger logger)
             // restart produces "a trace session named HardwareMonitor is
             // already running", so logging the stream at Error would make a
             // healthy restart read as a failure in the one place someone looks
-            // to tell the two apart.
-            if (args.Data.TrimStart().StartsWith("warning", StringComparison.OrdinalIgnoreCase))
+            // to tell the two apart. A warning's continuation lines are
+            // indented and carry no prefix of their own, so they inherit the
+            // level of the line they belong to rather than being read as a
+            // second, unrelated error.
+            if (!char.IsWhiteSpace(args.Data[0]))
+                _stderrIsWarning = args.Data.StartsWith("warning", StringComparison.OrdinalIgnoreCase);
+
+            if (_stderrIsWarning)
                 logger.LogWarning("PresentMon: {Output}", args.Data);
             else
                 logger.LogError("PresentMon: {Output}", args.Data);
@@ -525,8 +536,9 @@ public class PresentMonPoller(ILogger logger)
     // causes and have different fixes.
     private void LogAppListIfChanged()
     {
+        // Already sorted by SnapshotCurrentApps, which is what makes comparing
+        // the joined string against the last one a reliable change check.
         var apps = SnapshotCurrentApps();
-        Array.Sort(apps, StringComparer.OrdinalIgnoreCase);
         var joined = apps.Length == 0 ? "(none)" : string.Join(", ", apps);
         if (joined == _lastLoggedApps) return;
 
@@ -537,10 +549,17 @@ public class PresentMonPoller(ILogger logger)
     // Returns the apps seen within APP_TTL_MS and drops the rest, for callers
     // on other threads (e.g. MonitorPoller serializing the dropdown payload to
     // the pipe). The dictionary is not safe to enumerate concurrently with
-    // ParseData's write, so this runs under _stateLock.
+    // ParseData's write, so the read runs under _stateLock.
+    //
+    // Sorted because dictionary order is an implementation detail that shifts
+    // once a key has been removed, and this array is the order of the settings
+    // dropdown: without it, entries can reorder under the cursor on any of the
+    // pushes that happen while the menu is open.
     public string[] SnapshotCurrentApps()
     {
         var cutoffMs = Environment.TickCount64 - APP_TTL_MS;
+        string[] apps;
+
         lock (_stateLock)
         {
             // Materialised before removing: a Dictionary cannot be modified
@@ -554,8 +573,13 @@ public class PresentMonPoller(ILogger logger)
                 _appLastSeenMs.Remove(app);
             }
 
-            return _appLastSeenMs.Keys.ToArray();
+            apps = _appLastSeenMs.Keys.ToArray();
         }
+
+        // Outside the lock: the array is already a private copy, and ParseData
+        // is on the hot path for every CSV row.
+        Array.Sort(apps, StringComparer.OrdinalIgnoreCase);
+        return apps;
     }
 
     // Single foreground resolution — used both for the synchronous warm-up
