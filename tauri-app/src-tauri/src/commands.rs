@@ -4,7 +4,7 @@ use tokio::sync::mpsc;
 
 use crate::pipe_client::PipeCommand;
 use crate::settings::SettingsManager;
-use crate::types::{AppPreferences, MonitorInfo, OverlaySettings};
+use crate::types::{AppPreferences, MonitorInfo, OverlaySettings, SidecarStatus};
 
 #[tauri::command]
 pub fn ui_debug_log(msg: String) {
@@ -74,6 +74,19 @@ fn now_ms() -> u128 {
 }
 
 pub struct PipeCommandSender(pub mpsc::Sender<PipeCommand>);
+
+/// Last sidecar status the supervisor published, kept so a webview that loads
+/// after the first spawn or crash can still read it (events fired before its
+/// listener existed are gone).
+#[derive(Default)]
+pub struct SidecarHealth(pub std::sync::Arc<std::sync::Mutex<SidecarStatus>>);
+
+/// Read the supervisor's view of the sidecar. The banner needs this on mount to
+/// tell a slow start from a broken one without waiting on a timer.
+#[tauri::command]
+pub fn get_sidecar_status(health: State<'_, SidecarHealth>) -> SidecarStatus {
+    health.0.lock().unwrap().clone()
+}
 
 // ─── Settings Commands ──────────────────────────────────────────
 

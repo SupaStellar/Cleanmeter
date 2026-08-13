@@ -416,7 +416,22 @@ pub enum UpdateState {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PipeStatus {
     pub connected: bool,
-    pub error: Option<String>,
+}
+
+/// What the supervisor has observed about the HardwareMonitor child process.
+///
+/// The frontend cannot tell a slow start from a broken one by waiting, because
+/// no reading exists until the sidecar finishes enumerating hardware (measured
+/// at up to 13.7s). This is the evidence it uses instead: a sidecar that will
+/// not spawn, or that keeps exiting, is a real failure, while silence from a
+/// process that is still running is just startup.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SidecarStatus {
+    /// Times the sidecar has exited since the app started.
+    pub exits: u32,
+    /// Why the last spawn attempt failed, if it did.
+    pub spawn_error: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

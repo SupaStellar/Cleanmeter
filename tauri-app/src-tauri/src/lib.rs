@@ -4,9 +4,10 @@ mod settings;
 mod tray;
 mod types;
 
-use commands::PipeCommandSender;
+use commands::{PipeCommandSender, SidecarHealth};
 use log::{error, info, warn};
 use settings::SettingsManager;
+use types::SidecarStatus;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{Emitter, Manager};
@@ -73,6 +74,133 @@ fn pawnio_service_present() -> bool {
         .status()
         .map(|s| s.success())
         .unwrap_or(false)
+}
+
+/// Whether a process with this image name is running. `None` means the snapshot
+/// could not be taken, i.e. we cannot tell.
+///
+/// Takes a name rather than hardcoding one so the mechanism itself is testable:
+/// a probe that silently answers "nothing is running" would disable the cleanup
+/// below without any visible failure.
+#[cfg(windows)]
+fn process_running(image_name: &str) -> Option<bool> {
+    use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::System::Diagnostics::ToolHelp::{
+        CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
+        TH32CS_SNAPPROCESS,
+    };
+
+    unsafe {
+        let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0).ok()?;
+        let mut entry = PROCESSENTRY32W {
+            dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
+            ..Default::default()
+        };
+        let mut found = false;
+        if Process32FirstW(snapshot, &mut entry).is_ok() {
+            loop {
+                let len = entry
+                    .szExeFile
+                    .iter()
+                    .position(|&c| c == 0)
+                    .unwrap_or(entry.szExeFile.len());
+                if String::from_utf16_lossy(&entry.szExeFile[..len])
+                    .eq_ignore_ascii_case(image_name)
+                {
+                    found = true;
+                    break;
+                }
+                if Process32NextW(snapshot, &mut entry).is_err() {
+                    break;
+                }
+            }
+        }
+        let _ = CloseHandle(snapshot);
+        Some(found)
+    }
+}
+
+/// True when a HardwareMonitor we do not own is already running: one orphaned by
+/// a crashed run, or the instance the legacy CleanMeterHW service hosts. Only
+/// called before the first spawn, when we own no child, so anything found is
+/// foreign.
+///
+/// Checking the process rather than the named pipe matters. The sidecar creates
+/// its pipe only after LibreHardwareMonitor finishes enumerating (measured up to
+/// 13.7s), so an orphan still inside that window holds no pipe and a pipe probe
+/// misses it entirely. Nothing later corrects that: a second sidecar creates its
+/// own instance of the same pipe name rather than failing
+/// (`NamedPipeServerStream.MaxAllowedServerInstances` in PipeHost.cs), so
+/// neither process exits, the respawn loop below never iterates, and the
+/// duplicate keeps polling ring0 and driving PresentMon for the rest of the
+/// session. Unlike a `taskkill`, this costs no process spawn.
+///
+/// Fails safe: if the snapshot cannot be taken we assume one is running, which
+/// restores the old unconditional cleanup.
+#[cfg(windows)]
+fn foreign_sidecar_running() -> bool {
+    process_running("HardwareMonitor.exe").unwrap_or_else(|| {
+        warn!("Could not enumerate processes; assuming a stale sidecar is present");
+        true
+    })
+}
+
+#[cfg(all(test, windows))]
+mod process_probe_tests {
+    use super::process_running;
+
+    /// The probe's whole value is answering "yes" when something really is
+    /// running; a mechanism that always answered "no" would silently disable the
+    /// stale-instance cleanup. The test binary is the one process guaranteed to
+    /// be running while this test runs.
+    #[test]
+    fn finds_a_process_that_is_definitely_running() {
+        let me = std::env::current_exe().expect("current exe");
+        let name = me.file_name().expect("file name").to_string_lossy().into_owned();
+        assert_eq!(process_running(&name), Some(true), "probing for {}", name);
+    }
+
+    #[test]
+    fn does_not_find_a_process_that_cannot_exist() {
+        assert_eq!(
+            process_running("cleanmeter-no-such-process.exe"),
+            Some(false)
+        );
+    }
+
+    /// Windows image names are case-insensitive; the supervisor hardcodes one
+    /// spelling and the running process may differ.
+    #[test]
+    fn matches_regardless_of_case() {
+        let me = std::env::current_exe().expect("current exe");
+        let name = me.file_name().expect("file name").to_string_lossy().to_uppercase();
+        assert_eq!(process_running(&name), Some(true));
+    }
+}
+
+/// Drop the CleanMeterHW service, which hosts a second copy of the sidecar.
+///
+/// The app supervises its own sidecar now, so a service-hosted one is a
+/// duplicate: both poll ring0 and both drive PresentMon. Note this is not purely
+/// a migration from older builds. `commands::launch_hardware_monitor`, reachable
+/// from the admin-consent screen, still creates and starts the service, so this
+/// deletes what that flow installs on the next launch. That contradiction
+/// predates this change and is left alone here; it is called out so the next
+/// person does not read the deletion as dead legacy code.
+///
+/// Runs once per launch (the caller's flag is loop-local), off the startup path.
+#[cfg(windows)]
+fn remove_legacy_service() {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    for args in [["stop", "CleanMeterHW"], ["delete", "CleanMeterHW"]] {
+        let _ = std::process::Command::new("sc.exe")
+            .args(args)
+            .creation_flags(CREATE_NO_WINDOW)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status();
+    }
 }
 
 /// Install the PawnIO driver from the bundled signed installer if it is not
@@ -341,6 +469,21 @@ pub fn run() {
                 let child_slot: Arc<StdMutex<Option<Child>>> = Arc::new(StdMutex::new(None));
                 app.manage(child_slot.clone());
 
+                // Sidecar health is both pushed and pollable. The settings
+                // webview registers its listener only once it has loaded, which
+                // is easily after the first spawn (or a first crash), so an
+                // event alone would be missed and the banner would run on stale
+                // zeroes. `get_sidecar_status` lets it read the current value on
+                // mount; the event keeps it current afterwards.
+                let health = SidecarHealth::default();
+                let health_for_thread = health.0.clone();
+                app.manage(health);
+                let app_for_hw = app.handle().clone();
+                let publish = move |status: SidecarStatus| {
+                    *health_for_thread.lock().unwrap() = status.clone();
+                    let _ = app_for_hw.emit("sidecar-status", status);
+                };
+
                 let hw_running = running_for_hw;
                 std::thread::spawn(move || {
                     // Ensure the PawnIO driver is present before the sidecar
@@ -349,23 +492,27 @@ pub fn run() {
                     // Non-blocking and best-effort (see ensure_pawnio_installed).
                     ensure_pawnio_installed(&pawnio_setup);
 
-                    // One-time cleanup: drop any service or instance left behind
-                    // by a previous version or a previous run before we take over.
-                    let _ = std::process::Command::new("sc.exe")
-                        .args(["stop", "CleanMeterHW"])
-                        .creation_flags(CREATE_NO_WINDOW)
-                        .status();
-                    let _ = std::process::Command::new("sc.exe")
-                        .args(["delete", "CleanMeterHW"])
-                        .creation_flags(CREATE_NO_WINDOW)
-                        .status();
-                    let _ = std::process::Command::new("taskkill")
-                        .args(["/f", "/im", "HardwareMonitor.exe"])
-                        .creation_flags(CREATE_NO_WINDOW)
-                        .status();
-                    // Give the OS a moment to release the pipe handle held by any
-                    // instance we just killed before the first spawn.
-                    std::thread::sleep(std::time::Duration::from_millis(500));
+                    // Clear a stale instance only when one is actually there.
+                    // This used to run unconditionally: two `sc.exe` calls, a
+                    // `taskkill`, and a flat 500ms sleep in front of every
+                    // launch, all to handle a case that only arises after a
+                    // crash. The sidecar is the long pole in startup (its
+                    // hardware enumeration measured 1.55s median and up to
+                    // 13.7s across 114 launches, and no overlay can appear
+                    // before it finishes), so nothing else belongs ahead of it.
+                    if foreign_sidecar_running() {
+                        warn!("A HardwareMonitor is already running; clearing it before spawning");
+                        let _ = std::process::Command::new("taskkill")
+                            .args(["/f", "/im", "HardwareMonitor.exe"])
+                            .creation_flags(CREATE_NO_WINDOW)
+                            .status();
+                        // Let the OS release the pipe handle held by whatever we
+                        // just killed before the first spawn tries to bind it.
+                        std::thread::sleep(std::time::Duration::from_millis(500));
+                    }
+
+                    let mut legacy_service_checked = false;
+                    let mut exits: u32 = 0;
 
                     while hw_running.load(Ordering::Relaxed) {
                         match std::process::Command::new(&hw_exe)
@@ -375,6 +522,20 @@ pub fn run() {
                             Ok(child) => {
                                 info!("HardwareMonitor spawned (pid {})", child.id());
                                 *child_slot.lock().unwrap() = Some(child);
+                                // Alive: clears any previous spawn error, so a
+                                // failure that recovers stops being reported.
+                                publish(SidecarStatus { exits, spawn_error: None });
+
+                                // Retire the service-hosted duplicate, on its own
+                                // thread so two `sc.exe` calls cannot delay the
+                                // sidecar we just started. Stopping it does not
+                                // disturb this child: two sidecars can serve the
+                                // same pipe name concurrently, so ours is already
+                                // running either way (see foreign_sidecar_running).
+                                if !legacy_service_checked {
+                                    legacy_service_checked = true;
+                                    std::thread::spawn(remove_legacy_service);
+                                }
 
                                 // Poll for exit so we can also react to shutdown.
                                 loop {
@@ -397,9 +558,15 @@ pub fn run() {
                                     std::thread::sleep(std::time::Duration::from_millis(500));
                                 }
                                 *child_slot.lock().unwrap() = None;
+                                exits = exits.saturating_add(1);
+                                publish(SidecarStatus { exits, spawn_error: None });
                             }
                             Err(e) => {
                                 error!("Failed to spawn HardwareMonitor: {}", e);
+                                publish(SidecarStatus {
+                                    exits,
+                                    spawn_error: Some(e.to_string()),
+                                });
                             }
                         }
 
@@ -532,6 +699,7 @@ pub fn run() {
             commands::get_settings,
             commands::save_settings,
             commands::clear_settings,
+            commands::get_sidecar_status,
             commands::get_preferences,
             commands::save_preferences,
             commands::set_overlay_visible,
