@@ -10,6 +10,7 @@
     "dev:preview": "vite --config preview/vite.config.ts",
     "build": "vite build",
     "lint": "eslint .",
+    "test": "vitest run --project unit",
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",

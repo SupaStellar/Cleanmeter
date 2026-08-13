@@ -3,6 +3,7 @@ import type {
   OverlaySettings,
   HardwareMonitorData,
   PipeStatus,
+  SidecarStatus,
   SensorKey,
   FramerateSensorConfig,
   GraphSensorConfig,
@@ -145,6 +146,12 @@ function autoSelectSensors(
   return changed ? patch : null;
 }
 
+/** Set once the sidecar-status event channel has delivered anything. See
+ *  loadSidecarStatus, which is a one-shot catch-up read and must not overwrite
+ *  the live channel. Module scope rather than store state: it orders two
+ *  writers, it is not something the UI renders. */
+let sawSidecarEvent = false;
+
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 function debouncedSave(settings: OverlaySettings) {
   if (saveTimer) clearTimeout(saveTimer);
@@ -158,6 +165,7 @@ interface SettingsStore {
   sensorData: HardwareMonitorData | null;
   presentMonApps: string[];
   pipeStatus: PipeStatus;
+  sidecarStatus: SidecarStatus;
   overlayVisible: boolean;
   appVersion: string;
 
@@ -186,6 +194,8 @@ interface SettingsStore {
   setSensorData: (data: HardwareMonitorData) => void;
   setPresentMonApps: (apps: string[]) => void;
   setPipeStatus: (status: PipeStatus) => void;
+  setSidecarStatus: (status: SidecarStatus) => void;
+  loadSidecarStatus: () => Promise<void>;
 
   // Overlay
   toggleOverlay: () => void;
@@ -209,6 +219,9 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   sensorData: null,
   presentMonApps: [],
   pipeStatus: { connected: false },
+  // Nothing has gone wrong until the supervisor says so, so a launch reads as
+  // "still starting" rather than as a failure.
+  sidecarStatus: { exits: 0, spawnError: null },
   overlayVisible: false,
   // Empty until loadAppVersion() resolves the real version — better a brief
   // blank than a misleading hardcoded number.
@@ -393,6 +406,27 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     }
   },
   setPresentMonApps: (apps) => set({ presentMonApps: apps }),
+  setSidecarStatus: (status) => {
+    sawSidecarEvent = true;
+    set({ sidecarStatus: status });
+  },
+  loadSidecarStatus: async () => {
+    try {
+      // Undefined in the browser preview, where there is no Tauri runtime and no
+      // sidecar to have an opinion about.
+      const status = await tauri.getSidecarStatus();
+      // The read races the event channel: one arriving while the invoke was in
+      // flight would otherwise be reverted to this older snapshot, hiding a real
+      // failure or pinning a spawn error that a successful respawn already
+      // cleared. Comparing `exits` is not enough, since both of those flip
+      // `spawnError` without changing the count. The event is the live channel,
+      // so once it has delivered anything this read has nothing left to add.
+      if (!status || sawSidecarEvent) return;
+      set({ sidecarStatus: status });
+    } catch (err) {
+      console.error("Failed to load sidecar status:", err);
+    }
+  },
   setPipeStatus: (status) => {
     const wasConnected = get().pipeStatus.connected;
     set({ pipeStatus: status });

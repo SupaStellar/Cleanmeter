@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { onSensorData, onPresentMonApps, onPipeStatus } from "@/lib/tauri";
+import {
+  onSensorData,
+  onPresentMonApps,
+  onPipeStatus,
+  onSidecarStatus,
+} from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
 import { SensorType } from "@/lib/types";
 import type { HardwareMonitorData } from "@/lib/types";
@@ -8,6 +13,8 @@ export function useSensorData() {
   const setSensorData = useSettingsStore((s) => s.setSensorData);
   const setPresentMonApps = useSettingsStore((s) => s.setPresentMonApps);
   const setPipeStatus = useSettingsStore((s) => s.setPipeStatus);
+  const setSidecarStatus = useSettingsStore((s) => s.setSidecarStatus);
+  const loadSidecarStatus = useSettingsStore((s) => s.loadSidecarStatus);
 
   useEffect(() => {
     let mounted = true;
@@ -22,6 +29,15 @@ export function useSensorData() {
 
       const u3 = await onPipeStatus((status) => setPipeStatus(status));
       if (mounted) unlisteners.push(u3); else u3();
+
+      const u4 = await onSidecarStatus((status) => setSidecarStatus(status));
+      if (mounted) unlisteners.push(u4); else u4();
+
+      // Subscribing is not enough: the sidecar is spawned before this webview
+      // finishes loading, so its first spawn (or an early crash) has already
+      // been emitted and is gone. Read the current value once the listener is
+      // in place, so neither path can be missed.
+      if (mounted) loadSidecarStatus();
     };
     setup();
 
@@ -29,7 +45,7 @@ export function useSensorData() {
       mounted = false;
       unlisteners.forEach((u) => u());
     };
-  }, [setSensorData, setPresentMonApps, setPipeStatus]);
+  }, [setSensorData, setPresentMonApps, setPipeStatus, setSidecarStatus, loadSidecarStatus]);
 }
 
 /** Hook for overlay — keeps a rolling buffer of frametime values */

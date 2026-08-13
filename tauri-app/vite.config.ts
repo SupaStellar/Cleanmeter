@@ -46,6 +46,15 @@ export default defineConfig({
   },
   test: {
     projects: [{
+      // Plain unit tests for logic with no DOM: `npx vitest run --project unit`.
+      // Separate from the storybook project below so it needs no browser.
+      extends: true,
+      test: {
+        name: 'unit',
+        environment: 'node',
+        include: ['src/**/*.test.{ts,tsx}'],
+      }
+    }, {
       extends: true,
       plugins: [
       // The plugin will run tests for the stories defined in your Storybook config

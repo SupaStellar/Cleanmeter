@@ -134,7 +134,19 @@ export interface HardwareMonitorData {
 
 export interface PipeStatus {
   connected: boolean;
-  error?: string;
+}
+
+/**
+ * What the Rust-side supervisor has observed about the HardwareMonitor child
+ * process. This is the evidence the monitoring banner runs on: a missing
+ * reading on its own means nothing during startup, but a sidecar that will not
+ * start, or that keeps exiting, is a real failure worth reporting at once.
+ */
+export interface SidecarStatus {
+  /** Times the sidecar has exited since the app started. */
+  exits: number;
+  /** Why the last spawn attempt failed, if it did. */
+  spawnError: string | null;
 }
 
 export interface MonitorInfo {
