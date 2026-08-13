@@ -249,7 +249,16 @@ public class PresentMonPoller(ILogger logger)
         // log template, so neither is passed straight through.
         process.ErrorDataReceived += (sender, args) =>
         {
-            if (!string.IsNullOrWhiteSpace(args.Data))
+            if (string.IsNullOrWhiteSpace(args.Data)) return;
+
+            // PresentMon writes warnings to stderr alongside errors, and every
+            // restart produces "a trace session named HardwareMonitor is
+            // already running", so logging the stream at Error would make a
+            // healthy restart read as a failure in the one place someone looks
+            // to tell the two apart.
+            if (args.Data.TrimStart().StartsWith("warning", StringComparison.OrdinalIgnoreCase))
+                logger.LogWarning("PresentMon: {Output}", args.Data);
+            else
                 logger.LogError("PresentMon: {Output}", args.Data);
         };
 
