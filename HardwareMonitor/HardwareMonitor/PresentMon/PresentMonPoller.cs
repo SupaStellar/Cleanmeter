@@ -19,9 +19,32 @@ public class PresentMonPoller(ILogger logger)
     public PresentMonSensor Displayed { get; private set; }
     public PresentMonSensor Presented { get; private set; }
     public PresentMonSensor Frametime { get; private set; }
-    public HashSet<string> CurrentApps { get; private set; }
 
     public Action OnUpdateApps;
+
+    // Apps seen presenting, against the TickCount64 of their most recent frame.
+    //
+    // This used to be a HashSet wiped in full every 10 seconds, immediately
+    // after being pushed to the app, which made the settings dropdown a
+    // 10-second sample of the machine rather than a list of apps: it emptied
+    // itself whenever a game stopped presenting for a moment, and the settings
+    // UI hid the whole control while it was empty. Ageing entries out one by
+    // one keeps a running game listed across the gap.
+    //
+    // Case-insensitive for the same reason the old set was: PresentMon reports
+    // column 0 in the exe's filesystem casing (e.g. "MyGame.EXE") while
+    // Process.ProcessName + ".exe" is whatever Windows reports, and two
+    // spellings would list the app twice and miss matches in the foreground
+    // filter. The indexer keeps the first spelling seen, so the entry does not
+    // flip casing under the user mid-session.
+    private readonly Dictionary<string, long> _appLastSeenMs = new(StringComparer.OrdinalIgnoreCase);
+
+    // How long an app stays listed after its last observed frame. Comfortably
+    // longer than APP_PUSH_INTERVAL_MS so an app is never dropped between two
+    // pushes, and long enough to survive alt-tabbing out of a game to reach
+    // Settings, which is the only way to see the dropdown at all.
+    private const int APP_TTL_MS = 30_000;
+    private const int APP_PUSH_INTERVAL_MS = 10_000;
 
     private Process _process;
     private CultureInfo _cultureInfo = (CultureInfo)CultureInfo.CurrentCulture.Clone();
@@ -87,6 +110,24 @@ public class PresentMonPoller(ILogger logger)
     private int _shortRowCount;
     private int _totalRowCount;
 
+    // Restart policy for the PresentMon process. A denied trace session fails
+    // the same way every time, so a failing start backs off instead of
+    // spinning; a process that ran normally for PRESENTMON_HEALTHY_RUN_MS
+    // before dying starts again from the short delay rather than inheriting an
+    // old backoff.
+    private const int PRESENTMON_MIN_RESTART_MS = 2_000;
+    private const int PRESENTMON_MAX_RESTART_MS = 30_000;
+    private const int PRESENTMON_HEALTHY_RUN_MS = 60_000;
+
+    // Last app list written to the log, so a change is logged once rather than
+    // on every push. Only touched by the push loop.
+    private string _lastLoggedApps = "";
+
+    // Whether the PresentMon stderr line currently being read belongs to a
+    // warning rather than an error, so indented continuation lines can inherit
+    // it. Only touched by the stderr callback, which delivers lines in order.
+    private bool _stderrIsWarning;
+
     [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
 
@@ -100,12 +141,6 @@ public class PresentMonPoller(ILogger logger)
         Displayed = new PresentMonSensor(_hardware, "displayed", 0, "Displayed Frames");
         Presented = new PresentMonSensor(_hardware, "presented", 1, "Presented Frames");
         Frametime = new PresentMonSensor(_hardware, "frametime", 2, "Frametime");
-        // OrdinalIgnoreCase: PresentMon CSV column 0 is filesystem-cased
-        // (e.g. "MyGame.EXE") while Process.ProcessName + ".exe" is whatever
-        // Windows reports (often lowercase). A case-sensitive set would
-        // populate the dropdown with duplicates and miss matches in the
-        // foreground filter.
-        CurrentApps = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         // Resolve the foreground app once, synchronously, before PresentMon
         // starts emitting rows. Without this, the first ~500ms of CSV output
@@ -119,7 +154,84 @@ public class PresentMonPoller(ILogger logger)
             .Select(x => $"--exclude {x.Trim()}");
         var filteredApps = string.Join(" ", text);
 
-        await TerminateCurrentPresentMon();
+        _ = PushAppsPeriodicallyAsync(stoppingToken);
+        _ = PollForegroundAsync(stoppingToken);
+        _ = LogFpsDiagnosticsAsync(stoppingToken);
+
+        await RunPresentMonAsync(filteredApps, stoppingToken);
+    }
+
+    // Keeps PresentMon running for as long as the sidecar runs.
+    //
+    // This method used to start the process once and await its exit with
+    // nothing after the await. If PresentMon died, whether its trace session
+    // was refused, another capture tool stopped it, the exe was quarantined,
+    // or it simply crashed, the sidecar carried on serving sensors while FPS
+    // sat at 0 and the app list stayed empty for the rest of the session, with
+    // no exit code written anywhere. Nothing in the UI could report that,
+    // because from the app's point of view monitoring was connected and fine.
+    //
+    // The body is guarded because a throw here used to take the whole sidecar
+    // down: Start is async void, so an exception out of Process.Start (a
+    // missing presentmon.exe, for one) reached the thread pool unhandled.
+    private async Task RunPresentMonAsync(string filteredApps, CancellationToken stoppingToken)
+    {
+        // Pre-flight once. Restarts do not repeat it: the launch arguments
+        // already carry --stop_existing_session, which clears a session left
+        // behind by the instance that just died.
+        try
+        {
+            await TerminateCurrentPresentMon();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Could not terminate an existing PresentMon session");
+        }
+
+        var restartDelayMs = PRESENTMON_MIN_RESTART_MS;
+
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            var startedAtMs = Environment.TickCount64;
+
+            try
+            {
+                StartPresentMonProcess(filteredApps);
+                await _process.WaitForExitAsync(stoppingToken);
+                if (stoppingToken.IsCancellationRequested) break;
+                logger.LogError(
+                    "PresentMon exited with code {ExitCode}. FPS and the monitored-app list are unavailable until it restarts.",
+                    _process.ExitCode);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "PresentMon could not be started. FPS and the monitored-app list are unavailable.");
+            }
+
+            if (stoppingToken.IsCancellationRequested) break;
+
+            if (Environment.TickCount64 - startedAtMs > PRESENTMON_HEALTHY_RUN_MS)
+                restartDelayMs = PRESENTMON_MIN_RESTART_MS;
+
+            try
+            {
+                await Task.Delay(restartDelayMs, stoppingToken);
+            }
+            catch (TaskCanceledException)
+            {
+                break;
+            }
+
+            restartDelayMs = Math.Min(restartDelayMs * 2, PRESENTMON_MAX_RESTART_MS);
+        }
+    }
+
+    private void StartPresentMonProcess(string filteredApps)
+    {
         var processStartInfo = new ProcessStartInfo
         {
             CreateNoWindow = true,
@@ -132,24 +244,66 @@ public class PresentMonPoller(ILogger logger)
         };
         logger.LogInformation("Starting PresentMon process with {Arguments}", processStartInfo.Arguments);
 
-        _process = new Process();
-        _process.StartInfo = processStartInfo;
-        _process.OutputDataReceived += (sender, args) => ParseData(args.Data);
-        _process.ErrorDataReceived += (sender, args) => logger.LogError(args.Data);
+        var process = new Process();
+        process.StartInfo = processStartInfo;
+        process.OutputDataReceived += (sender, args) => ParseData(args.Data);
+        // PresentMon states its reason for refusing to start here (no
+        // elevation, a session held by another capture tool, a blocked exe),
+        // which is the only field evidence of why FPS never appears. Null
+        // arrives when the stream closes, and a raw message would be read as a
+        // log template, so neither is passed straight through.
+        process.ErrorDataReceived += (sender, args) =>
+        {
+            if (string.IsNullOrWhiteSpace(args.Data)) return;
 
-        _process.Start();
-        _process.BeginOutputReadLine();
-        _process.BeginErrorReadLine();
+            // PresentMon writes warnings to stderr alongside errors, and every
+            // restart produces "a trace session named HardwareMonitor is
+            // already running", so logging the stream at Error would make a
+            // healthy restart read as a failure in the one place someone looks
+            // to tell the two apart. A warning's continuation lines are
+            // indented and carry no prefix of their own, so they inherit the
+            // level of the line they belong to rather than being read as a
+            // second, unrelated error.
+            if (!char.IsWhiteSpace(args.Data[0]))
+                _stderrIsWarning = args.Data.StartsWith("warning", StringComparison.OrdinalIgnoreCase);
 
-        _ = ClearCurrentAppsAsync(stoppingToken);
-        _ = PollForegroundAsync(stoppingToken);
-        _ = LogFpsDiagnosticsAsync(stoppingToken);
-        await _process.WaitForExitAsync(stoppingToken);
+            if (_stderrIsWarning)
+                logger.LogWarning("PresentMon: {Output}", args.Data);
+            else
+                logger.LogError("PresentMon: {Output}", args.Data);
+        };
+
+        try
+        {
+            process.Start();
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+        }
+        catch
+        {
+            // A failed start still holds an OS handle, and the caller retries
+            // on a timer, so this would accumulate one per attempt.
+            process.Dispose();
+            throw;
+        }
+
+        var previous = _process;
+        _process = process;
+        previous?.Dispose();
     }
 
     public void Stop()
     {
-        _process.Kill(true);
+        // Null before the first launch and between restarts, and already gone
+        // if PresentMon exited on its own. Shutdown is not the place to throw.
+        try
+        {
+            _process?.Kill(true);
+        }
+        catch (Exception ex)
+        {
+            logger.LogInformation("PresentMon was already stopped: {Message}", ex.Message);
+        }
     }
 
     private void ParseData(string? argsData)
@@ -176,17 +330,22 @@ public class PresentMonPoller(ILogger logger)
         }
 
         var rowApp = parts[0];
+
+        // PresentMon writes the CSV header before the first frame row, and it
+        // is wide enough to survive the length check above. Its first column
+        // is the literal "Application", which would otherwise be offered as an
+        // app to monitor; a real entry always carries the .exe suffix.
+        if (string.Equals(rowApp, "Application", StringComparison.Ordinal)) return;
+
         var nowMs = Environment.TickCount64;
 
         bool match;
         lock (_stateLock)
         {
-            // Add inside the lock — HashSet<T> is not thread-safe, and
-            // CurrentApps is also touched by ClearCurrentAppsAsync (timer)
-            // and MonitorPoller's SendPresentMonAppsToClients (pipe
-            // serializer). The set is case-insensitive, so duplicate-cased
-            // entries collapse.
-            CurrentApps.Add(rowApp);
+            // Record inside the lock: Dictionary<K,V> is not thread-safe, and
+            // _appLastSeenMs is also read by SnapshotCurrentApps on the pipe
+            // serializer's thread and pruned there.
+            _appLastSeenMs[rowApp] = nowMs;
 
 
             // Decide attribution under the lock so a foreground swap or
@@ -343,30 +502,84 @@ public class PresentMonPoller(ILogger logger)
         await process.WaitForExitAsync();
     }
 
-    private async Task ClearCurrentAppsAsync(CancellationToken cancellationToken)
+    // Pushes the current app list to connected clients on a fixed cadence.
+    //
+    // The previous version cleared the whole set immediately after each push,
+    // which is what made the list a 10-second sample; entries now expire
+    // individually in SnapshotCurrentApps. The cadence is unchanged so the
+    // shape of the pipe traffic stays exactly as it was.
+    private async Task PushAppsPeriodicallyAsync(CancellationToken cancellationToken)
     {
-        if (cancellationToken.IsCancellationRequested) return;
-        await Task.Delay(10_000, cancellationToken);
-        OnUpdateApps?.Invoke();
-        lock (_stateLock)
+        while (!cancellationToken.IsCancellationRequested)
         {
-            CurrentApps.Clear();
+            try
+            {
+                await Task.Delay(APP_PUSH_INTERVAL_MS, cancellationToken);
+            }
+            catch (TaskCanceledException)
+            {
+                break;
+            }
+
+            LogAppListIfChanged();
+            OnUpdateApps?.Invoke();
         }
-        _ = ClearCurrentAppsAsync(cancellationToken);
     }
 
-    // Returns a point-in-time copy of CurrentApps for callers on other
-    // threads (e.g. MonitorPoller serializing the dropdown payload to
-    // the pipe). HashSet<T> is not safe to enumerate concurrently with
-    // ParseData's Add, so the snapshot is taken under _stateLock.
+    // One log line per change to the app list.
+    //
+    // Serilog runs at its default Information level (the sidecar ships no
+    // appsettings.json), so every LogDebug in this file is dropped before it
+    // reaches disk. Without this line, a report of "the monitored-app dropdown
+    // is empty" has nothing in the log to separate "nothing was presenting"
+    // from "PresentMon never emitted a row on this machine", which are the two
+    // causes and have different fixes.
+    private void LogAppListIfChanged()
+    {
+        // Already sorted by SnapshotCurrentApps, which is what makes comparing
+        // the joined string against the last one a reliable change check.
+        var apps = SnapshotCurrentApps();
+        var joined = apps.Length == 0 ? "(none)" : string.Join(", ", apps);
+        if (joined == _lastLoggedApps) return;
+
+        _lastLoggedApps = joined;
+        logger.LogInformation("PresentMon apps: {Apps}", joined);
+    }
+
+    // Returns the apps seen within APP_TTL_MS and drops the rest, for callers
+    // on other threads (e.g. MonitorPoller serializing the dropdown payload to
+    // the pipe). The dictionary is not safe to enumerate concurrently with
+    // ParseData's write, so the read runs under _stateLock.
+    //
+    // Sorted because dictionary order is an implementation detail that shifts
+    // once a key has been removed, and this array is the order of the settings
+    // dropdown: without it, entries can reorder under the cursor on any of the
+    // pushes that happen while the menu is open.
     public string[] SnapshotCurrentApps()
     {
+        var cutoffMs = Environment.TickCount64 - APP_TTL_MS;
+        string[] apps;
+
         lock (_stateLock)
         {
-            var snapshot = new string[CurrentApps.Count];
-            CurrentApps.CopyTo(snapshot);
-            return snapshot;
+            // Materialised before removing: a Dictionary cannot be modified
+            // while it is being enumerated.
+            var expired = _appLastSeenMs
+                .Where(entry => entry.Value < cutoffMs)
+                .Select(entry => entry.Key)
+                .ToList();
+            foreach (var app in expired)
+            {
+                _appLastSeenMs.Remove(app);
+            }
+
+            apps = _appLastSeenMs.Keys.ToArray();
         }
+
+        // Outside the lock: the array is already a private copy, and ParseData
+        // is on the hot path for every CSV row.
+        Array.Sort(apps, StringComparer.OrdinalIgnoreCase);
+        return apps;
     }
 
     // Single foreground resolution — used both for the synchronous warm-up

@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from "@/components/shadcn/select";
 import { useSettingsStore } from "@/stores/settings-store";
+import { AUTO_OPTION, monitorAppOptions } from "@/lib/fps-apps";
 import { SectionCard } from "./SectionCard";
 
 export function FpsSection() {
@@ -18,6 +19,12 @@ export function FpsSection() {
   const { framerate, frametime } = settings.sensors;
   const anyEnabled = framerate.isEnabled || frametime.isEnabled;
   const prevState = useRef<{ framerate: boolean; frametime: boolean } | null>(null);
+  // `|| ""` guards a settings.json written before targetAppName existed, where
+  // the field is absent at runtime whatever the type says.
+  const { value: selectedApp, options: appOptions } = monitorAppOptions({
+    apps: presentMonApps,
+    target: framerate.targetAppName || "",
+  });
 
   return (
     <SectionCard
@@ -52,37 +59,42 @@ export function FpsSection() {
         </label>
       </div>
 
-      {presentMonApps.length > 0 && (
-        <div className="flex flex-col gap-3">
-          <Select
-            value={framerate.targetAppName || "__auto__"}
-            onValueChange={(v) =>
-              updateSensor("framerate", { targetAppName: v === "__auto__" ? "" : v })
-            }
-          >
-            <SelectTrigger className="h-10 rounded-[8px] text-[14px]">
-              <span className="flex items-center gap-2">
-                <span className="text-[14px] font-normal text-muted-foreground">Monitor app:</span>
-                <SelectValue placeholder="Auto" />
-              </span>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__auto__">Auto</SelectItem>
-              {presentMonApps.map((app) => (
-                <SelectItem key={app} value={app}>
-                  {app}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="flex items-center gap-1">
-            <Info className="size-4 text-muted-foreground" strokeWidth={2} />
-            <span className="text-[12px] font-medium text-muted-foreground">
-              Apps are auto updated every 10 seconds.
+      {/* Always rendered. This used to be gated on the app list having
+          entries, but that list is only what PresentMon saw presenting
+          recently, so the control disappeared at the desktop and whenever a
+          fullscreen game stopped presenting, taking Auto (and any pick the
+          user wanted to undo) with it. See monitorAppOptions. */}
+      <div className="flex flex-col gap-3">
+        <Select
+          value={selectedApp}
+          onValueChange={(v) =>
+            updateSensor("framerate", { targetAppName: v === AUTO_OPTION ? "" : v })
+          }
+        >
+          <SelectTrigger className="h-10 rounded-[8px] text-[14px]">
+            <span className="flex items-center gap-2">
+              <span className="text-[14px] font-normal text-muted-foreground">Monitor app:</span>
+              <SelectValue placeholder="Auto" />
             </span>
-          </div>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={AUTO_OPTION}>Auto</SelectItem>
+            {appOptions.map((app) => (
+              <SelectItem key={app} value={app}>
+                {app}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="flex items-center gap-1">
+          <Info className="size-4 text-muted-foreground" strokeWidth={2} />
+          <span className="text-[12px] font-medium text-muted-foreground">
+            {presentMonApps.length > 0
+              ? "Apps are auto updated every 10 seconds."
+              : "No apps detected yet. Auto follows the app in focus."}
+          </span>
         </div>
-      )}
+      </div>
     </SectionCard>
   );
 }

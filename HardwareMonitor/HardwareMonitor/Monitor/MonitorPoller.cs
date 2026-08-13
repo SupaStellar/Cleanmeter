@@ -270,9 +270,11 @@ public class MonitorPoller(
         using var memoryStream = new MemoryStream();
         using var writer = new BinaryWriter(memoryStream);
 
-        // Take a snapshot under PresentMonPoller's _stateLock — iterating
-        // CurrentApps directly would race with ParseData's Add on the
-        // PresentMon callback thread.
+        // Take a snapshot under PresentMonPoller's _stateLock: reading its app
+        // dictionary directly would race with ParseData's write on the
+        // PresentMon callback thread. The snapshot also drops apps that have
+        // not presented a frame recently, so this list is what is currently
+        // monitorable rather than everything ever seen.
         var apps = _presentMonPoller.SnapshotCurrentApps();
         writer.Write((short)MonitorPacketCommand.PresentMonApps);
         writer.Write((short)apps.Length);
