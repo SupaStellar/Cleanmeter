@@ -181,12 +181,11 @@ mod process_probe_tests {
 /// Drop the CleanMeterHW service, which hosts a second copy of the sidecar.
 ///
 /// The app supervises its own sidecar now, so a service-hosted one is a
-/// duplicate: both poll ring0 and both drive PresentMon. Note this is not purely
-/// a migration from older builds. `commands::launch_hardware_monitor`, reachable
-/// from the admin-consent screen, still creates and starts the service, so this
-/// deletes what that flow installs on the next launch. That contradiction
-/// predates this change and is left alone here; it is called out so the next
-/// person does not read the deletion as dead legacy code.
+/// duplicate: both poll ring0 and both drive PresentMon. Nothing in the app
+/// creates the service any more — the admin-consent screen used to install it
+/// through a `launch_hardware_monitor` command, which this build removes — so
+/// this is now purely a migration that cleans up installs made by older
+/// versions.
 ///
 /// Runs once per launch (the caller's flag is loop-local), off the startup path.
 #[cfg(windows)]
@@ -311,26 +310,12 @@ pub fn run() {
             // and JS-side `center()` were both being overridden by Windows
             // restoring a stale position from prior runs.
             if let Some(window) = app.get_webview_window("settings") {
-                let log_path = std::env::temp_dir().join("cleanmeter-window.log");
-                let mut log_lines: Vec<String> = vec![format!(
-                    "setup start @ {}",
-                    std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .map(|d| d.as_secs())
-                        .unwrap_or(0)
-                )];
-
                 let monitor = window.primary_monitor().ok().flatten();
-                log_lines.push(format!("primary_monitor: {}", monitor.is_some()));
 
                 if let Some(m) = monitor {
                     let m_size = m.size();
                     let m_pos = m.position();
                     let scale = m.scale_factor();
-                    log_lines.push(format!(
-                        "monitor: size={}x{} pos=({},{}) scale={}",
-                        m_size.width, m_size.height, m_pos.x, m_pos.y, scale
-                    ));
 
                     let want_w: f64 = 651.0;
                     let mut want_h: f64 = 900.0;
@@ -338,7 +323,6 @@ pub fn run() {
                     if want_h > monitor_logical_h - 80.0 {
                         want_h = (monitor_logical_h - 80.0).max(400.0);
                     }
-                    log_lines.push(format!("want: {}x{} logical", want_w, want_h));
 
                     let _ = window.set_size(tauri::Size::Logical(
                         tauri::LogicalSize::new(want_w, want_h),
@@ -348,12 +332,10 @@ pub fn run() {
                     let phys_h = (want_h * scale) as i32;
                     let x = m_pos.x + (m_size.width as i32 - phys_w) / 2;
                     let y = m_pos.y + (m_size.height as i32 - phys_h) / 2;
-                    log_lines.push(format!("set_position: phys ({},{}) size {}x{}", x, y, phys_w, phys_h));
 
-                    let r = window.set_position(tauri::Position::Physical(
+                    let _ = window.set_position(tauri::Position::Physical(
                         tauri::PhysicalPosition::new(x, y),
                     ));
-                    log_lines.push(format!("set_position result: {:?}", r));
                 } else {
                     let _ = window.set_size(tauri::Size::Logical(
                         tauri::LogicalSize::new(651.0, 900.0),
@@ -366,33 +348,6 @@ pub fn run() {
                     let _ = window.show();
                     let _ = window.set_focus();
                 }
-
-                if let Ok(pos) = window.outer_position() {
-                    log_lines.push(format!("t=0 after show outer_position: ({},{})", pos.x, pos.y));
-                }
-                if let Ok(size) = window.outer_size() {
-                    log_lines.push(format!("t=0 outer_size: {}x{}", size.width, size.height));
-                }
-
-                let _ = std::fs::write(&log_path, log_lines.join("\n"));
-
-                // Watch for position drift after show
-                let w2 = window.clone();
-                let lp2 = log_path.clone();
-                tauri::async_runtime::spawn(async move {
-                    for delay_ms in [300u64, 1000, 3000] {
-                        tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
-                        if let Ok(mut f) = std::fs::OpenOptions::new().append(true).open(&lp2) {
-                            use std::io::Write;
-                            if let Ok(pos) = w2.outer_position() {
-                                let _ = writeln!(f, "\nt={}ms outer_position: ({},{})", delay_ms, pos.x, pos.y);
-                            }
-                            if let Ok(size) = w2.outer_size() {
-                                let _ = writeln!(f, "t={}ms outer_size: {}x{}", delay_ms, size.width, size.height);
-                            }
-                        }
-                    }
-                });
             }
 
             // Set up pipe client communication channel
@@ -715,7 +670,6 @@ pub fn run() {
             commands::get_monitors,
             commands::get_app_version,
             commands::grant_admin_consent,
-            commands::launch_hardware_monitor,
             commands::ui_debug_log,
             commands::submit_feedback,
             commands::prepare_for_update,

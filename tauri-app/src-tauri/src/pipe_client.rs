@@ -9,6 +9,29 @@ use tokio::sync::mpsc;
 
 use crate::types::*;
 
+/// Upper bound on one pipe frame. The sidecar's largest real packet is a full
+/// sensor snapshot, which is tens of KB, so this leaves generous headroom.
+///
+/// The cap exists because every length prefix on this pipe arrives as a raw
+/// integer from the sidecar and is used directly as an allocation size. Rust
+/// aborts the process on allocation failure instead of unwinding, so a prefix
+/// that is garbled (by a partial write, or by two writers interleaving on the
+/// same byte-mode stream) takes the whole app down with no error path and no
+/// message. Validating the prefix turns that abort into a dropped connection,
+/// which the client already reconnects from.
+const MAX_PIPE_PAYLOAD: usize = 4 * 1024 * 1024;
+
+/// Smallest number of bytes one hardware entry can occupy: two u16 length
+/// prefixes plus a u32 type tag.
+const MIN_HARDWARE_BYTES: usize = 2 + 2 + 4;
+
+/// Smallest number of bytes one sensor entry can occupy: three u16 length
+/// prefixes, a u32 type tag and an f32 value.
+const MIN_SENSOR_BYTES: usize = 2 + 2 + 2 + 4 + 4;
+
+/// Fixed width of each entry in a PresentMonApps payload.
+const PRESENT_MON_APP_STRIDE: usize = 128;
+
 /// Events parsed from the pipe read thread
 enum ParsedEvent {
     SensorData(HardwareMonitorData),
@@ -33,6 +56,26 @@ fn parse_data_packet(data: &[u8]) -> Result<HardwareMonitorData, String> {
     let sensor_count = cursor
         .read_u32::<LittleEndian>()
         .map_err(|e| format!("Failed to read sensor_count: {}", e))?;
+
+    // Both counts are raw u32 off the wire and both are about to become
+    // allocation sizes. Reject anything the remaining bytes could not possibly
+    // describe before reserving, so a corrupt count is a parse error rather
+    // than an aborting allocation.
+    let remaining = data.len().saturating_sub(cursor.position() as usize);
+    let max_hardwares = remaining / MIN_HARDWARE_BYTES;
+    let max_sensors = remaining / MIN_SENSOR_BYTES;
+    if hw_count as usize > max_hardwares {
+        return Err(format!(
+            "hw_count {} exceeds the {} entries {} remaining bytes can hold",
+            hw_count, max_hardwares, remaining
+        ));
+    }
+    if sensor_count as usize > max_sensors {
+        return Err(format!(
+            "sensor_count {} exceeds the {} entries {} remaining bytes can hold",
+            sensor_count, max_sensors, remaining
+        ));
+    }
 
     let mut hardwares = Vec::with_capacity(hw_count as usize);
     for _ in 0..hw_count {
@@ -141,13 +184,16 @@ fn parse_present_mon_apps(data: &[u8]) -> Result<Vec<String>, String> {
         .read_u16::<LittleEndian>()
         .map_err(|e| format!("app count: {}", e))? as usize;
 
-    let mut apps = Vec::with_capacity(count);
+    // The loop below already stops when the payload runs out, but the
+    // reservation happens first, so clamp it to what the payload can hold.
+    let max_apps = data.len().saturating_sub(2) / PRESENT_MON_APP_STRIDE;
+    let mut apps = Vec::with_capacity(count.min(max_apps));
     for i in 0..count {
-        let start = 2 + (i * 128);
-        if start + 128 > data.len() {
+        let start = 2 + (i * PRESENT_MON_APP_STRIDE);
+        if start + PRESENT_MON_APP_STRIDE > data.len() {
             break;
         }
-        let raw = &data[start..start + 128];
+        let raw = &data[start..start + PRESENT_MON_APP_STRIDE];
         let name = String::from_utf8_lossy(raw)
             .trim_end_matches('\0')
             .trim()
@@ -299,6 +345,17 @@ pub async fn run_pipe_client(
                             }
                         };
 
+                        // Guard before allocating: see MAX_PIPE_PAYLOAD. A
+                        // garbled prefix drops the connection, which the
+                        // reconnect loop below already recovers from.
+                        if payload_size > MAX_PIPE_PAYLOAD {
+                            warn!(
+                                "Pipe payload size {} exceeds the {} byte cap; dropping the connection",
+                                payload_size, MAX_PIPE_PAYLOAD
+                            );
+                            break;
+                        }
+
                         let mut payload = vec![0u8; payload_size];
                         if payload_size > 0 {
                             if let Err(e) = reader.read_exact(&mut payload) {
@@ -443,5 +500,99 @@ mod tests {
     #[test]
     fn the_poll_interval_bounds_the_remaining_delay() {
         assert!(FAST_POLL_INTERVAL <= Duration::from_millis(300));
+    }
+
+    /// Builds a Data payload the way MonitorPoller writes one: both counts, then
+    /// the hardware entries, then the sensor entries.
+    fn data_packet(hardwares: &[(&str, &str)], sensors: &[(&str, &str, &str)]) -> Vec<u8> {
+        let mut b: Vec<u8> = Vec::new();
+        b.write_u32::<LittleEndian>(hardwares.len() as u32).unwrap();
+        b.write_u32::<LittleEndian>(sensors.len() as u32).unwrap();
+        for (name, id) in hardwares {
+            b.write_u16::<LittleEndian>(name.len() as u16).unwrap();
+            b.write_u16::<LittleEndian>(id.len() as u16).unwrap();
+            b.extend_from_slice(name.as_bytes());
+            b.extend_from_slice(id.as_bytes());
+            b.write_u32::<LittleEndian>(0).unwrap();
+        }
+        for (name, id, hw_id) in sensors {
+            b.write_u16::<LittleEndian>(name.len() as u16).unwrap();
+            b.write_u16::<LittleEndian>(id.len() as u16).unwrap();
+            b.write_u16::<LittleEndian>(hw_id.len() as u16).unwrap();
+            b.extend_from_slice(name.as_bytes());
+            b.extend_from_slice(id.as_bytes());
+            b.extend_from_slice(hw_id.as_bytes());
+            b.write_u32::<LittleEndian>(0).unwrap();
+            b.write_f32::<LittleEndian>(1.5).unwrap();
+        }
+        b
+    }
+
+    fn expect_rejected(packet: &[u8]) -> String {
+        match parse_data_packet(packet) {
+            Ok(_) => panic!("a corrupt count must be rejected, not parsed"),
+            Err(e) => e,
+        }
+    }
+
+    /// A count arriving off the wire used to reach `Vec::with_capacity`
+    /// unvalidated. Rust aborts the process on allocation failure instead of
+    /// unwinding, so an impossible count killed the app outright rather than
+    /// failing the parse — and unsynchronized writes on the byte-mode pipe made
+    /// a corrupt count reachable in ordinary operation.
+    #[test]
+    fn an_impossible_hardware_count_is_rejected_rather_than_allocated() {
+        let mut packet = data_packet(&[("CPU", "/amdcpu/0")], &[]);
+        packet[0..4].copy_from_slice(&u32::MAX.to_le_bytes());
+        let err = expect_rejected(&packet);
+        assert!(err.contains("hw_count"), "unexpected error: {}", err);
+    }
+
+    #[test]
+    fn an_impossible_sensor_count_is_rejected_rather_than_allocated() {
+        let mut packet = data_packet(&[("CPU", "/amdcpu/0")], &[]);
+        packet[4..8].copy_from_slice(&u32::MAX.to_le_bytes());
+        let err = expect_rejected(&packet);
+        assert!(err.contains("sensor_count"), "unexpected error: {}", err);
+    }
+
+    /// The guard is worthless if it also turns away the packets the sidecar
+    /// really sends, which is the way a validation fix breaks a working app.
+    #[test]
+    fn a_well_formed_packet_still_parses() {
+        let packet = data_packet(
+            &[("CPU", "/amdcpu/0"), ("GPU", "/gpu-nvidia/0")],
+            &[
+                ("CPU Total", "/load/0", "/amdcpu/0"),
+                ("GPU Core", "/temperature/0", "/gpu-nvidia/0"),
+            ],
+        );
+        let parsed = parse_data_packet(&packet).expect("a well-formed packet must parse");
+        assert_eq!(parsed.hardwares.len(), 2);
+        assert_eq!(parsed.sensors.len(), 2);
+        assert_eq!(parsed.hardwares[0].name, "CPU");
+        assert_eq!(parsed.sensors[1].name, "GPU Core");
+    }
+
+    /// An empty snapshot is what the sidecar sends before LibreHardwareMonitor
+    /// has activated anything, so zero counts must stay valid.
+    #[test]
+    fn an_empty_snapshot_is_valid() {
+        let parsed = parse_data_packet(&data_packet(&[], &[])).expect("empty snapshot must parse");
+        assert!(parsed.hardwares.is_empty());
+        assert!(parsed.sensors.is_empty());
+    }
+
+    /// The app-list reservation is clamped to what the payload can actually
+    /// hold, so an inflated count cannot make it reserve for absent entries.
+    #[test]
+    fn an_inflated_app_count_yields_only_the_apps_present() {
+        let mut payload: Vec<u8> = Vec::new();
+        payload.write_u16::<LittleEndian>(9999).unwrap();
+        let mut entry = vec![0u8; PRESENT_MON_APP_STRIDE];
+        entry[.."game.exe".len()].copy_from_slice(b"game.exe");
+        payload.extend_from_slice(&entry);
+        let apps = parse_present_mon_apps(&payload).expect("payload must parse");
+        assert_eq!(apps, vec!["game.exe".to_string()]);
     }
 }

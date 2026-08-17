@@ -93,7 +93,11 @@ public class MonitorPoller(
             if (logged >= 10) break;
         }
 
-        _presentMonPoller.Start(stoppingToken);
+        // Deliberately not awaited: Start runs for the lifetime of the sidecar.
+        // It returns a Task (rather than being async void) so a failure inside it
+        // can no longer reach the thread pool unhandled and kill the process; it
+        // logs and leaves sensors running instead.
+        _ = _presentMonPoller.Start(stoppingToken);
         _presentMonPoller.OnUpdateApps += SendPresentMonAppsToClients;
         _socketHost.StartServer();
         _socketHost.OnClientData += OnClientData;
@@ -178,7 +182,12 @@ public class MonitorPoller(
                 accumulator = 0;
             }
 
-            accumulator += 500;
+            // Advance by the interval actually being waited, not a hardcoded
+            // 500. The accumulator is meant to make this a once-a-second
+            // collection; with a fixed 500 it instead tracked poll count, so at
+            // the 33ms floor it forced a full GC roughly every 66ms, about 15x
+            // too often, and only matched its intent at the default rate.
+            accumulator += _pollingRate;
             await Task.Delay(_pollingRate, stoppingToken);
         }
 

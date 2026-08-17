@@ -81,7 +81,6 @@ export const getAppVersion = () =>
   // placeholder. The packaged app reads CARGO_PKG_VERSION via the Rust command.
   isBrowser ? Promise.resolve(__APP_VERSION__) : safeInvoke<string>("get_app_version");
 export const grantAdminConsent = () => safeInvoke("grant_admin_consent");
-export const launchHardwareMonitor = () => safeInvoke("launch_hardware_monitor");
 export const setAutoStart = (enabled: boolean) => safeInvoke("set_auto_start", { enabled });
 export const getAutoStart = () => isBrowser ? Promise.resolve(false) : safeInvoke<boolean>("get_auto_start");
 

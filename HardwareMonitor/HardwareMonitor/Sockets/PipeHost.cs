@@ -12,6 +12,14 @@ public class PipeHost(ILogger logger)
     private CancellationTokenSource _cancellationTokenSource = new();
     private Task _serverTask;
 
+    /// Serializes sends. The pipe is PipeTransmissionMode.Byte, so two writers
+    /// on one stream interleave into a single jumbled byte run rather than
+    /// staying framed. Two callers exist: the sensor poll loop, and the
+    /// PresentMon app-list push, which fires on its own timer. Without this the
+    /// client reads a length prefix from the middle of another packet and acts
+    /// on it, which aborts the app rather than producing a parse error.
+    private readonly SemaphoreSlim _sendLock = new(1, 1);
+
     public Action<byte[]> OnClientData;
     public Action OnClientConnected;
 
@@ -135,6 +143,7 @@ public class PipeHost(ILogger logger)
         catch { }
 
         _cancellationTokenSource.Dispose();
+        _sendLock.Dispose();
     }
 
     public bool HasConnections()
@@ -151,41 +160,67 @@ public class PipeHost(ILogger logger)
         dataWithSize.InsertRange(2, BitConverter.GetBytes(dataWithSize.Count - 2));
         var finalData = dataWithSize.ToArray();
 
-        List<NamedPipeServerStream> clientsCopy;
-        lock (_clients)
+        // Hold the lock across write+flush so a whole packet reaches the stream
+        // before the next one starts. See _sendLock.
+        try
         {
-            clientsCopy = _clients.ToList();
+            await _sendLock.WaitAsync(_cancellationTokenSource.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (ObjectDisposedException)
+        {
+            return;
         }
 
-        var tasks = clientsCopy.Select(async client =>
+        try
         {
-            try
+            List<NamedPipeServerStream> clientsCopy;
+            lock (_clients)
             {
-                if (client.IsConnected)
-                {
-                    await client.WriteAsync(finalData, 0, finalData.Length, _cancellationTokenSource.Token);
-                    await client.FlushAsync(_cancellationTokenSource.Token);
-                }
+                clientsCopy = _clients.ToList();
             }
-            catch (Exception ex)
+
+            foreach (var client in clientsCopy)
             {
-                logger.LogError(ex, "Error sending data to pipe client");
-
-                // Remove disconnected client
-                lock (_clients)
-                {
-                    _clients.Remove(client);
-                }
-
                 try
                 {
-                    client.Dispose();
+                    if (client.IsConnected)
+                    {
+                        await client.WriteAsync(finalData, 0, finalData.Length, _cancellationTokenSource.Token);
+                        await client.FlushAsync(_cancellationTokenSource.Token);
+                    }
                 }
-                catch { }
-            }
-        });
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error sending data to pipe client");
 
-        await Task.WhenAll(tasks);
+                    // Remove disconnected client
+                    lock (_clients)
+                    {
+                        _clients.Remove(client);
+                    }
+
+                    try
+                    {
+                        client.Dispose();
+                    }
+                    catch { }
+                }
+            }
+        }
+        finally
+        {
+            // Close() disposes the lock, and sends are fire-and-forget, so a
+            // send already past WaitAsync can reach this after disposal.
+            try
+            {
+                _sendLock.Release();
+            }
+            catch (ObjectDisposedException) { }
+        }
     }
 
     // Synchronous version for compatibility
