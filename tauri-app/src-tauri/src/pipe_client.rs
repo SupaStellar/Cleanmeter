@@ -501,4 +501,98 @@ mod tests {
     fn the_poll_interval_bounds_the_remaining_delay() {
         assert!(FAST_POLL_INTERVAL <= Duration::from_millis(300));
     }
+
+    /// Builds a Data payload the way MonitorPoller writes one: both counts, then
+    /// the hardware entries, then the sensor entries.
+    fn data_packet(hardwares: &[(&str, &str)], sensors: &[(&str, &str, &str)]) -> Vec<u8> {
+        let mut b: Vec<u8> = Vec::new();
+        b.write_u32::<LittleEndian>(hardwares.len() as u32).unwrap();
+        b.write_u32::<LittleEndian>(sensors.len() as u32).unwrap();
+        for (name, id) in hardwares {
+            b.write_u16::<LittleEndian>(name.len() as u16).unwrap();
+            b.write_u16::<LittleEndian>(id.len() as u16).unwrap();
+            b.extend_from_slice(name.as_bytes());
+            b.extend_from_slice(id.as_bytes());
+            b.write_u32::<LittleEndian>(0).unwrap();
+        }
+        for (name, id, hw_id) in sensors {
+            b.write_u16::<LittleEndian>(name.len() as u16).unwrap();
+            b.write_u16::<LittleEndian>(id.len() as u16).unwrap();
+            b.write_u16::<LittleEndian>(hw_id.len() as u16).unwrap();
+            b.extend_from_slice(name.as_bytes());
+            b.extend_from_slice(id.as_bytes());
+            b.extend_from_slice(hw_id.as_bytes());
+            b.write_u32::<LittleEndian>(0).unwrap();
+            b.write_f32::<LittleEndian>(1.5).unwrap();
+        }
+        b
+    }
+
+    fn expect_rejected(packet: &[u8]) -> String {
+        match parse_data_packet(packet) {
+            Ok(_) => panic!("a corrupt count must be rejected, not parsed"),
+            Err(e) => e,
+        }
+    }
+
+    /// A count arriving off the wire used to reach `Vec::with_capacity`
+    /// unvalidated. Rust aborts the process on allocation failure instead of
+    /// unwinding, so an impossible count killed the app outright rather than
+    /// failing the parse — and unsynchronized writes on the byte-mode pipe made
+    /// a corrupt count reachable in ordinary operation.
+    #[test]
+    fn an_impossible_hardware_count_is_rejected_rather_than_allocated() {
+        let mut packet = data_packet(&[("CPU", "/amdcpu/0")], &[]);
+        packet[0..4].copy_from_slice(&u32::MAX.to_le_bytes());
+        let err = expect_rejected(&packet);
+        assert!(err.contains("hw_count"), "unexpected error: {}", err);
+    }
+
+    #[test]
+    fn an_impossible_sensor_count_is_rejected_rather_than_allocated() {
+        let mut packet = data_packet(&[("CPU", "/amdcpu/0")], &[]);
+        packet[4..8].copy_from_slice(&u32::MAX.to_le_bytes());
+        let err = expect_rejected(&packet);
+        assert!(err.contains("sensor_count"), "unexpected error: {}", err);
+    }
+
+    /// The guard is worthless if it also turns away the packets the sidecar
+    /// really sends, which is the way a validation fix breaks a working app.
+    #[test]
+    fn a_well_formed_packet_still_parses() {
+        let packet = data_packet(
+            &[("CPU", "/amdcpu/0"), ("GPU", "/gpu-nvidia/0")],
+            &[
+                ("CPU Total", "/load/0", "/amdcpu/0"),
+                ("GPU Core", "/temperature/0", "/gpu-nvidia/0"),
+            ],
+        );
+        let parsed = parse_data_packet(&packet).expect("a well-formed packet must parse");
+        assert_eq!(parsed.hardwares.len(), 2);
+        assert_eq!(parsed.sensors.len(), 2);
+        assert_eq!(parsed.hardwares[0].name, "CPU");
+        assert_eq!(parsed.sensors[1].name, "GPU Core");
+    }
+
+    /// An empty snapshot is what the sidecar sends before LibreHardwareMonitor
+    /// has activated anything, so zero counts must stay valid.
+    #[test]
+    fn an_empty_snapshot_is_valid() {
+        let parsed = parse_data_packet(&data_packet(&[], &[])).expect("empty snapshot must parse");
+        assert!(parsed.hardwares.is_empty());
+        assert!(parsed.sensors.is_empty());
+    }
+
+    /// The app-list reservation is clamped to what the payload can actually
+    /// hold, so an inflated count cannot make it reserve for absent entries.
+    #[test]
+    fn an_inflated_app_count_yields_only_the_apps_present() {
+        let mut payload: Vec<u8> = Vec::new();
+        payload.write_u16::<LittleEndian>(9999).unwrap();
+        let mut entry = vec![0u8; PRESENT_MON_APP_STRIDE];
+        entry[.."game.exe".len()].copy_from_slice(b"game.exe");
+        payload.extend_from_slice(&entry);
+        let apps = parse_present_mon_apps(&payload).expect("payload must parse");
+        assert_eq!(apps, vec!["game.exe".to_string()]);
+    }
 }

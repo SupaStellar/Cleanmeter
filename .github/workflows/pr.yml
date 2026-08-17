@@ -86,3 +86,11 @@ jobs:
       - name: Clippy
         working-directory: tauri-app/src-tauri
         run: cargo clippy --target x86_64-pc-windows-msvc --all-targets
+
+      # --lib deliberately: the bin target's test executable inherits the app's
+      # requireAdministrator manifest, so running it fails with "requires
+      # elevation" (os error 740) rather than running any test. --lib covers
+      # every test that exists.
+      - name: Unit tests
+        working-directory: tauri-app/src-tauri
+        run: cargo test --lib --target x86_64-pc-windows-msvc
