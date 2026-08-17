@@ -134,31 +134,78 @@ public class PresentMonPoller(ILogger logger)
     [DllImport("user32.dll", SetLastError = true)]
     private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
 
-    public async void Start(CancellationToken stoppingToken)
+    // Returns a Task rather than being async void, and guards its whole body.
+    //
+    // As async void, anything that threw here reached the thread pool with no
+    // handler and killed the sidecar process. The console host has no
+    // SynchronizationContext to marshal it back to. The easiest way to trigger
+    // that was a missing ignored-processes.txt, opened below before any of the
+    // guarded work started, which a partial install, an antivirus quarantine or
+    // a dev-tree run can all produce. Because the app's supervisor respawns the
+    // sidecar on a flat one-second delay for as long as the app runs, a single
+    // absent text file became a permanent once-a-second crash loop rather than a
+    // degraded feature. The existing guard inside RunPresentMonAsync only ever
+    // covered the work after this point.
+    public async Task Start(CancellationToken stoppingToken)
     {
-        _cultureInfo.NumberFormat.NumberDecimalSeparator = ".";
+        try
+        {
+            _cultureInfo.NumberFormat.NumberDecimalSeparator = ".";
 
-        Displayed = new PresentMonSensor(_hardware, "displayed", 0, "Displayed Frames");
-        Presented = new PresentMonSensor(_hardware, "presented", 1, "Presented Frames");
-        Frametime = new PresentMonSensor(_hardware, "frametime", 2, "Frametime");
+            Displayed = new PresentMonSensor(_hardware, "displayed", 0, "Displayed Frames");
+            Presented = new PresentMonSensor(_hardware, "presented", 1, "Presented Frames");
+            Frametime = new PresentMonSensor(_hardware, "frametime", 2, "Frametime");
 
-        // Resolve the foreground app once, synchronously, before PresentMon
-        // starts emitting rows. Without this, the first ~500ms of CSV output
-        // is dropped (Auto mode) or attributed to stale state because
-        // PollForegroundAsync hasn't had a tick yet.
-        _foregroundAppName = ResolveForegroundProcessName();
+            // Resolve the foreground app once, synchronously, before PresentMon
+            // starts emitting rows. Without this, the first ~500ms of CSV output
+            // is dropped (Auto mode) or attributed to stale state because
+            // PollForegroundAsync hasn't had a tick yet.
+            _foregroundAppName = ResolveForegroundProcessName();
 
-        using var reader = new StreamReader(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ignored-processes.txt"));
-        var text = (await reader.ReadToEndAsync())
-            .Split("\n", StringSplitOptions.RemoveEmptyEntries)
-            .Select(x => $"--exclude {x.Trim()}");
-        var filteredApps = string.Join(" ", text);
+            var filteredApps = await ReadIgnoredProcessArgumentsAsync();
 
-        _ = PushAppsPeriodicallyAsync(stoppingToken);
-        _ = PollForegroundAsync(stoppingToken);
-        _ = LogFpsDiagnosticsAsync(stoppingToken);
+            _ = PushAppsPeriodicallyAsync(stoppingToken);
+            _ = PollForegroundAsync(stoppingToken);
+            _ = LogFpsDiagnosticsAsync(stoppingToken);
 
-        await RunPresentMonAsync(filteredApps, stoppingToken);
+            await RunPresentMonAsync(filteredApps, stoppingToken);
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            // Normal shutdown.
+        }
+        catch (Exception ex)
+        {
+            // Sensors are polled independently of this, so the sidecar stays
+            // useful with FPS reading 0 rather than dying and being respawned.
+            logger.LogError(ex, "PresentMon poller stopped; FPS and the app list are unavailable for this session");
+        }
+    }
+
+    /// Builds the --exclude arguments from ignored-processes.txt.
+    ///
+    /// The file only suppresses noise in PresentMon's output, so an unreadable
+    /// one degrades to no exclusions instead of failing the poller: PresentMon
+    /// still runs and FPS still reports.
+    private async Task<string> ReadIgnoredProcessArgumentsAsync()
+    {
+        var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ignored-processes.txt");
+
+        try
+        {
+            var contents = await File.ReadAllTextAsync(path);
+            var excludes = contents
+                .Split("\n", StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => x.Trim())
+                .Where(x => x.Length > 0)
+                .Select(x => $"--exclude {x}");
+            return string.Join(" ", excludes);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Could not read {Path}; continuing with no process exclusions", path);
+            return string.Empty;
+        }
     }
 
     // Keeps PresentMon running for as long as the sidecar runs.

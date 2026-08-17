@@ -9,6 +9,29 @@ use tokio::sync::mpsc;
 
 use crate::types::*;
 
+/// Upper bound on one pipe frame. The sidecar's largest real packet is a full
+/// sensor snapshot, which is tens of KB, so this leaves generous headroom.
+///
+/// The cap exists because every length prefix on this pipe arrives as a raw
+/// integer from the sidecar and is used directly as an allocation size. Rust
+/// aborts the process on allocation failure instead of unwinding, so a prefix
+/// that is garbled (by a partial write, or by two writers interleaving on the
+/// same byte-mode stream) takes the whole app down with no error path and no
+/// message. Validating the prefix turns that abort into a dropped connection,
+/// which the client already reconnects from.
+const MAX_PIPE_PAYLOAD: usize = 4 * 1024 * 1024;
+
+/// Smallest number of bytes one hardware entry can occupy: two u16 length
+/// prefixes plus a u32 type tag.
+const MIN_HARDWARE_BYTES: usize = 2 + 2 + 4;
+
+/// Smallest number of bytes one sensor entry can occupy: three u16 length
+/// prefixes, a u32 type tag and an f32 value.
+const MIN_SENSOR_BYTES: usize = 2 + 2 + 2 + 4 + 4;
+
+/// Fixed width of each entry in a PresentMonApps payload.
+const PRESENT_MON_APP_STRIDE: usize = 128;
+
 /// Events parsed from the pipe read thread
 enum ParsedEvent {
     SensorData(HardwareMonitorData),
@@ -33,6 +56,26 @@ fn parse_data_packet(data: &[u8]) -> Result<HardwareMonitorData, String> {
     let sensor_count = cursor
         .read_u32::<LittleEndian>()
         .map_err(|e| format!("Failed to read sensor_count: {}", e))?;
+
+    // Both counts are raw u32 off the wire and both are about to become
+    // allocation sizes. Reject anything the remaining bytes could not possibly
+    // describe before reserving, so a corrupt count is a parse error rather
+    // than an aborting allocation.
+    let remaining = data.len().saturating_sub(cursor.position() as usize);
+    let max_hardwares = remaining / MIN_HARDWARE_BYTES;
+    let max_sensors = remaining / MIN_SENSOR_BYTES;
+    if hw_count as usize > max_hardwares {
+        return Err(format!(
+            "hw_count {} exceeds the {} entries {} remaining bytes can hold",
+            hw_count, max_hardwares, remaining
+        ));
+    }
+    if sensor_count as usize > max_sensors {
+        return Err(format!(
+            "sensor_count {} exceeds the {} entries {} remaining bytes can hold",
+            sensor_count, max_sensors, remaining
+        ));
+    }
 
     let mut hardwares = Vec::with_capacity(hw_count as usize);
     for _ in 0..hw_count {
@@ -141,13 +184,16 @@ fn parse_present_mon_apps(data: &[u8]) -> Result<Vec<String>, String> {
         .read_u16::<LittleEndian>()
         .map_err(|e| format!("app count: {}", e))? as usize;
 
-    let mut apps = Vec::with_capacity(count);
+    // The loop below already stops when the payload runs out, but the
+    // reservation happens first, so clamp it to what the payload can hold.
+    let max_apps = data.len().saturating_sub(2) / PRESENT_MON_APP_STRIDE;
+    let mut apps = Vec::with_capacity(count.min(max_apps));
     for i in 0..count {
-        let start = 2 + (i * 128);
-        if start + 128 > data.len() {
+        let start = 2 + (i * PRESENT_MON_APP_STRIDE);
+        if start + PRESENT_MON_APP_STRIDE > data.len() {
             break;
         }
-        let raw = &data[start..start + 128];
+        let raw = &data[start..start + PRESENT_MON_APP_STRIDE];
         let name = String::from_utf8_lossy(raw)
             .trim_end_matches('\0')
             .trim()
@@ -298,6 +344,17 @@ pub async fn run_pipe_client(
                                 break;
                             }
                         };
+
+                        // Guard before allocating: see MAX_PIPE_PAYLOAD. A
+                        // garbled prefix drops the connection, which the
+                        // reconnect loop below already recovers from.
+                        if payload_size > MAX_PIPE_PAYLOAD {
+                            warn!(
+                                "Pipe payload size {} exceeds the {} byte cap; dropping the connection",
+                                payload_size, MAX_PIPE_PAYLOAD
+                            );
+                            break;
+                        }
 
                         let mut payload = vec![0u8; payload_size];
                         if payload_size > 0 {

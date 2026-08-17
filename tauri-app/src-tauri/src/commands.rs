@@ -440,63 +440,6 @@ pub fn grant_admin_consent(settings_mgr: State<'_, SettingsManager>) {
     settings_mgr.save_preferences(prefs);
 }
 
-#[tauri::command]
-pub fn launch_hardware_monitor(app: AppHandle) -> Result<(), String> {
-    // Find HardwareMonitor.exe relative to the app's resource directory
-    let exe_path = app
-        .path()
-        .resource_dir()
-        .ok()
-        .map(|p| p.join("HardwareMonitor.exe"))
-        .filter(|p| p.exists())
-        // Fallback: look next to the tauri exe in dev
-        .or_else(|| {
-            std::env::current_exe().ok().and_then(|exe| {
-                // Walk up to find the publish folder
-                let candidates = [
-                    exe.parent()?.join("HardwareMonitor.exe"),
-                ];
-                candidates.into_iter().find(|p| p.exists())
-            })
-        })
-        // Final fallback: hardcoded dev path
-        .unwrap_or_else(|| {
-            std::path::PathBuf::from(
-                r"C:\Users\alimm\cleanmeter\HardwareMonitor\HardwareMonitor\bin\Release\net8.0\win-x64\publish\HardwareMonitor.exe"
-            )
-        });
-
-    let exe_str = exe_path.to_string_lossy().to_string();
-
-    // Write a PowerShell script to a temp file, then execute it elevated.
-    // This installs HardwareMonitor as a Windows Service (runs as SYSTEM with
-    // full hardware access for LibreHardwareMonitor sensor readings).
-    let script = format!(
-        "$exe = '{}'\n\
-         $svc = Get-Service -Name 'CleanMeterHW' -ErrorAction SilentlyContinue\n\
-         if (-not $svc) {{ New-Service -Name 'CleanMeterHW' -BinaryPathName ('\"' + $exe + '\"') -DisplayName 'Cleanmeter Hardware Monitor' -StartupType Automatic }}\n\
-         $svc = Get-Service -Name 'CleanMeterHW' -ErrorAction SilentlyContinue\n\
-         if ($svc.Status -ne 'Running') {{ Start-Service 'CleanMeterHW' }}",
-        exe_str.replace('\'', "''")
-    );
-
-    let script_path = std::env::temp_dir().join("cleanmeter_hw_setup.ps1");
-    std::fs::write(&script_path, &script)
-        .map_err(|e| format!("Failed to write setup script: {}", e))?;
-
-    let script_str = script_path.to_string_lossy().to_string();
-    std::process::Command::new("powershell")
-        .args([
-            "-WindowStyle", "Hidden",
-            "-Command",
-            &format!("Start-Process powershell -Verb RunAs -ArgumentList '-ExecutionPolicy Bypass -File \"{}\"'", script_str),
-        ])
-        .spawn()
-        .map_err(|e| format!("Failed to launch elevated setup: {}", e))?;
-
-    Ok(())
-}
-
 #[derive(serde::Deserialize)]
 pub struct FeedbackInput {
     pub name: String,

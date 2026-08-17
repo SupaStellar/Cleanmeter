@@ -5,16 +5,19 @@ import {
   tokens,
 } from "@fluentui/react-components";
 import { ShieldCheckmark24Regular } from "@fluentui/react-icons";
-import { grantAdminConsent, launchHardwareMonitor, isBrowser } from "@/lib/tauri";
+import { grantAdminConsent, isBrowser } from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
 
 export function AdminConsent() {
   const updatePreferences = useSettingsStore((s) => s.updatePreferences);
 
+  // Records consent only. This used to also invoke a command that installed
+  // HardwareMonitor as a SYSTEM service via an elevated PowerShell script; the
+  // app supervises its own sidecar, and startup deleted that service on the
+  // next launch anyway, so the command is gone.
   const handleAllow = async () => {
     await grantAdminConsent();
     updatePreferences({ adminConsent: true });
-    launchHardwareMonitor().catch(() => {});
   };
 
   const handleClose = async () => {
