@@ -1,0 +1,88 @@
+name: PR checks
+
+# Gates pull requests into main. Until this existed, nothing verified a PR: the
+# release workflow only triggers on v* tags, so the first build of any change
+# was the release build itself.
+#
+# Every command here is one that passes on main today, so a red check means the
+# pull request broke something rather than inheriting existing debt. Two known
+# red things are deliberately not gated: `tsc` reports five long-standing
+# type-level errors, and clippy reports five style warnings (clippy is run
+# without -D warnings for that reason).
+on:
+  pull_request:
+    branches: [main]
+
+# A new push to the same pull request supersedes the previous run.
+concurrency:
+  group: pr-${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend (lint, test, build)
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: tauri-app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tauri-app/package-lock.json
+
+      # npm ci, not npm install, so a pull request is checked against the
+      # committed lockfile rather than a freshly resolved tree.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build frontend
+        run: npm run build
+
+  sidecar:
+    name: Sidecar (HardwareMonitor)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Build sidecar
+        working-directory: HardwareMonitor/HardwareMonitor
+        run: dotnet build -c Release
+
+  rust:
+    name: Rust (clippy)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tauri-app/src-tauri
+
+      # No frontend build first: tauri-build tolerates a missing frontendDist
+      # for a check-only pass, so this job stays independent of the frontend one.
+      # A release build does need it, and the release workflow builds it there.
+      - name: Clippy
+        working-directory: tauri-app/src-tauri
+        run: cargo clippy --target x86_64-pc-windows-msvc --all-targets
