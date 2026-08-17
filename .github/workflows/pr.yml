@@ -66,10 +66,32 @@ jobs:
         run: dotnet build -c Release
 
   rust:
-    name: Rust (clippy)
+    name: Rust (clippy, tests)
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+
+      # The sidecar has to be published even though this job only checks Rust.
+      # tauri-build resolves tauri.conf.json's bundle.resources globs at build
+      # time, and they point into the sidecar's publish folder; on a cold
+      # checkout that folder does not exist and tauri-build panics with "path
+      # not found or didn't match any files" before clippy runs at all.
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Publish sidecar (satisfies the resource globs)
+        working-directory: HardwareMonitor/HardwareMonitor
+        # -p: not /p: — Git Bash mangles /p:... into a path argument (MSB1009).
+        run: dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
+        shell: bash
+
+      - name: Stage PresentMon assets into the publish folder
+        # The csproj's CopyPresentMon target writes to $(TargetDir)/native/,
+        # not $(PublishDir), so the *.exe and *.txt globs need these copied in.
+        # Mirrors the same step in build.yml.
+        run: cp presentmon/* HardwareMonitor/HardwareMonitor/bin/Release/net8.0/win-x64/publish/
+        shell: bash
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -80,9 +102,9 @@ jobs:
         with:
           workspaces: tauri-app/src-tauri
 
-      # No frontend build first: tauri-build tolerates a missing frontendDist
-      # for a check-only pass, so this job stays independent of the frontend one.
-      # A release build does need it, and the release workflow builds it there.
+      # No frontend build: tauri-build tolerates a missing frontendDist for a
+      # check-only pass, confirmed by removing dist/, forcing build.rs to re-run
+      # and seeing cargo succeed. Only the resource globs above are required.
       - name: Clippy
         working-directory: tauri-app/src-tauri
         run: cargo clippy --target x86_64-pc-windows-msvc --all-targets
