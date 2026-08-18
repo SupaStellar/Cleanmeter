@@ -234,7 +234,7 @@ function HardwareSensorsSection() {
             ))}
           </SelectContent>
         </Select>
-        <div className="flex items-start gap-2 text-[12px] font-medium text-muted-foreground">
+        <div className="flex items-start gap-2 text-[12px] font-medium text-[var(--textParagraph1)]">
           <InfoIcon className="mt-0.5 size-4 shrink-0" />
           <span>
             Optional HWiNFO shared memory for CPU, GPU, RAM, and network sensors.
@@ -244,7 +244,7 @@ function HardwareSensorsSection() {
           </span>
         </div>
         {fallback && (
-          <div className="flex items-start gap-2 text-[12px] font-medium text-muted-foreground">
+          <div className="flex items-start gap-2 text-[12px] font-medium text-[var(--textParagraph1)]">
             <InfoIcon className="mt-0.5 size-4 shrink-0" />
             <span>
               HWiNFO shared memory dropped, so sensors are using LibreHardwareMonitor.
