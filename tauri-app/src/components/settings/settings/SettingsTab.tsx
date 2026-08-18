@@ -15,7 +15,7 @@ import { getAutoStart, setAutoStart } from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useUpdaterStore } from "@/stores/updater-store";
 import { POLLING_RATES } from "@/lib/types";
-import type { TemperatureUnit } from "@/lib/types";
+import type { SensorSource, TemperatureUnit } from "@/lib/types";
 import {
   BrowserUpdatedIcon,
   ChevronRightIcon,
@@ -205,6 +205,59 @@ function PollingRateSection() {
   );
 }
 
+const SENSOR_SOURCE_OPTIONS: { value: SensorSource; label: string }[] = [
+  { value: "auto", label: "Auto (HWiNFO when available)" },
+  { value: "lhm", label: "LibreHardwareMonitor" },
+  { value: "hwinfo", label: "HWiNFO" },
+];
+
+function HardwareSensorsSection() {
+  const sensorSource = useSettingsStore((s) => s.settings.sensorSource);
+  const updateSettings = useSettingsStore((s) => s.updateSettings);
+  const fallback = useSettingsStore((s) => s.sensorData?.sensorSourceFallback);
+
+  return (
+    <SectionCard title="Hardware sensors">
+      <div className="flex flex-col gap-3">
+        <Select
+          value={sensorSource ?? "auto"}
+          onValueChange={(v) => updateSettings({ sensorSource: v as SensorSource })}
+        >
+          <SelectTrigger className="w-full rounded-[8px] border-[var(--borderBolder)] bg-[var(--bgSurfaceRaised)] font-medium shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SENSOR_SOURCE_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="flex items-start gap-2 text-[12px] font-medium text-muted-foreground">
+          <InfoIcon className="mt-0.5 size-4 shrink-0" />
+          <span>
+            Optional HWiNFO shared memory for CPU, GPU, RAM, and network sensors.
+            Run HWiNFO yourself and enable Shared Memory Support. FPS still comes
+            from Cleanmeter&apos;s PresentMon. The free HWiNFO64 edition turns
+            shared memory off after 12 hours.
+          </span>
+        </div>
+        {fallback && (
+          <div className="flex items-start gap-2 text-[12px] font-medium text-muted-foreground">
+            <InfoIcon className="mt-0.5 size-4 shrink-0" />
+            <span>
+              HWiNFO shared memory dropped, so sensors are using LibreHardwareMonitor.
+              Shared Memory Support may be off, HWiNFO may have closed, or the free
+              12-hour limit may have deactivated sharing.
+            </span>
+          </div>
+        )}
+      </div>
+    </SectionCard>
+  );
+}
+
 type ThemeChoice = "light" | "dark" | "system";
 
 const THEME_OPTIONS: {
@@ -388,6 +441,7 @@ export function SettingsTab() {
         <GeneralSection />
         <TemperatureUnitsSection />
         <PollingRateSection />
+        <HardwareSensorsSection />
         <AppearanceSection />
       </div>
       <div className="flex w-full flex-col gap-6">

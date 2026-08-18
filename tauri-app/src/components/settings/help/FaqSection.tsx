@@ -13,6 +13,11 @@ const FAQ_ITEMS: FaqItem[] = [
     answer: "Cleanmeter currently doesn’t support fullscreen in games.",
   },
   {
+    question: "Do I need HWiNFO?",
+    answer:
+      "No. Sensors connect automatically through LibreHardwareMonitor, and FPS\ncomes from Cleanmeter’s PresentMon. HWiNFO is optional: run it yourself,\nenable Shared Memory Support, and choose Auto or HWiNFO in Settings.\nThe free HWiNFO64 edition turns shared memory off after 12 hours; Cleanmeter\nfalls back to LibreHardwareMonitor so the overlay keeps working.",
+  },
+  {
     question: "Is Cleanmeter resource-heavy?",
     answer:
       "No! Cleanmeter is designed to be lightweight and efficient, ensuring it runs\nsmoothly without impacting your system’s performance.",

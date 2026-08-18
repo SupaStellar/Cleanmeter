@@ -278,6 +278,23 @@ pub async fn set_polling_rate(
         .map_err(|e| format!("Failed to send command: {}", e))
 }
 
+#[tauri::command]
+pub async fn set_sensor_source(
+    source: String,
+    sender: State<'_, PipeCommandSender>,
+) -> Result<(), String> {
+    let value: u16 = match source.as_str() {
+        "lhm" => 1,
+        "hwinfo" => 2,
+        _ => 0,
+    };
+    sender
+        .0
+        .send(PipeCommand::SelectSensorSource(value))
+        .await
+        .map_err(|e| format!("Failed to send command: {}", e))
+}
+
 // ─── System Commands ────────────────────────────────────────────
 
 // Autostart via a Scheduled Task rather than the HKCU Run key. The exe is

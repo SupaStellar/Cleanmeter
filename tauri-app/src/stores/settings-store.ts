@@ -14,6 +14,11 @@ import type {
 } from "@/lib/types";
 import { DEFAULT_SETTINGS, HardwareType, SensorType } from "@/lib/types";
 import * as tauri from "@/lib/tauri";
+import {
+  customReadingNeedsRefresh,
+  isDownloadSensorName,
+  isUploadSensorName,
+} from "@/lib/sensor-source";
 
 function findBest(
   sensors: Sensor[],
@@ -56,12 +61,11 @@ function autoSelectSensors(
     prefer: string[]
   ) => {
     const current = settings.sensors[key];
-    if (!current.customReadingId) {
-      const id = findBest(sensors, hardwares, hwTypes, sType, prefer);
-      if (id) {
-        patch[key] = { ...current, customReadingId: id } as OverlaySettings["sensors"][K];
-        changed = true;
-      }
+    if (!customReadingNeedsRefresh(current.customReadingId, sensors)) return;
+    const id = findBest(sensors, hardwares, hwTypes, sType, prefer);
+    if (id) {
+      patch[key] = { ...current, customReadingId: id } as OverlaySettings["sensors"][K];
+      changed = true;
     }
   };
 
@@ -75,7 +79,10 @@ function autoSelectSensors(
   tryFill("gpuConsumption", gpuHw, SensorType.Power, ["GPU Package", "GPU Power", "GPU"]);
   tryFill("ramUsage", [HardwareType.Memory], SensorType.Load, ["Memory Used", "Memory"]);
   // For network, pick the most active non-virtual adapter
-  if (!settings.sensors.downRate.customReadingId || !settings.sensors.upRate.customReadingId) {
+  if (
+    customReadingNeedsRefresh(settings.sensors.downRate.customReadingId, sensors) ||
+    customReadingNeedsRefresh(settings.sensors.upRate.customReadingId, sensors)
+  ) {
     const netHwIds = new Set(
       hardwares.filter((h) => h.hardwareType === HardwareType.Network).map((h) => h.identifier)
     );
@@ -93,12 +100,12 @@ function autoSelectSensors(
     if (sortedNics.length > 0) {
       const bestNicId = sortedNics[0][0];
       const nicSensors = netSensors.filter((s) => s.hardwareIdentifier === bestNicId);
-      if (!settings.sensors.downRate.customReadingId) {
-        const s = nicSensors.find((s) => s.name.toLowerCase().includes("download") || s.name.toLowerCase().includes("down"));
+      if (customReadingNeedsRefresh(settings.sensors.downRate.customReadingId, sensors)) {
+        const s = nicSensors.find((s) => isDownloadSensorName(s.name));
         if (s) { patch["downRate"] = { ...settings.sensors.downRate, customReadingId: s.identifier }; changed = true; }
       }
-      if (!settings.sensors.upRate.customReadingId) {
-        const s = nicSensors.find((s) => s.name.toLowerCase().includes("upload") || s.name.toLowerCase().includes("up"));
+      if (customReadingNeedsRefresh(settings.sensors.upRate.customReadingId, sensors)) {
+        const s = nicSensors.find((s) => isUploadSensorName(s.name));
         if (s) { patch["upRate"] = { ...settings.sensors.upRate, customReadingId: s.identifier }; changed = true; }
       }
     }
@@ -255,6 +262,9 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       if (!saved?.themeMode) {
         settings.themeMode = settings.isDarkTheme ? "dark" : "light";
       }
+      if (!saved?.sensorSource) {
+        settings.sensorSource = "auto";
+      }
       // Migrate older builds that wrote the chosen PresentMon app into
       // framerate.customReadingId. customReadingId is now strictly a sensor
       // identifier (e.g. "/presentmon/displayed"); the chosen app lives in
@@ -305,6 +315,8 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       // Push the persisted target-app to the C# poller so it starts in sync.
       // Empty string means Auto (foreground-window detection on the C# side).
       tauri.selectPresentMonApp(settings.sensors.framerate.targetAppName || "Auto");
+      tauri.setPollingRate(settings.pollingRate);
+      tauri.setSensorSource(settings.sensorSource);
     } catch (err) {
       // The store keeps DEFAULT_SETTINGS, which is a usable overlay — but say so
       // rather than swallowing it, otherwise a settings file that fails to parse
@@ -323,6 +335,9 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     }
     if (patch.pollingRate !== undefined) {
       tauri.setPollingRate(patch.pollingRate);
+    }
+    if (patch.sensorSource !== undefined) {
+      tauri.setSensorSource(patch.sensorSource);
     }
   },
 
@@ -436,6 +451,8 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     if (status.connected && !wasConnected) {
       const target = get().settings.sensors.framerate.targetAppName;
       tauri.selectPresentMonApp(target || "Auto");
+      tauri.setPollingRate(get().settings.pollingRate);
+      tauri.setSensorSource(get().settings.sensorSource);
     }
   },
 

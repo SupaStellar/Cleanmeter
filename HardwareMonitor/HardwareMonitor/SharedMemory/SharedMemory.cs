@@ -1,4 +1,5 @@
-﻿using LibreHardwareMonitor.Hardware;
+﻿using HardwareMonitor.Monitor;
+using LibreHardwareMonitor.Hardware;
 
 namespace HardwareMonitor.SharedMemory;
 
@@ -30,7 +31,7 @@ public static class SharedMemoryConsts
 
 public class SharedMemoryHardware
 {
-    public required IHardware Hardware;
+    public IHardware? Hardware;
     public required string Name { get; set; }
     public required string Identifier { get; set; }
     public required HardwareType HardwareType { get; set; }
@@ -39,7 +40,7 @@ public class SharedMemoryHardware
 
     public void Update()
     {
-        if (_isActive)
+        if (_isActive && Hardware != null)
         {
             Hardware.Update();
         }
@@ -53,7 +54,7 @@ public class SharedMemoryHardware
 
 public class SharedMemorySensor
 {
-    public required ISensor HardwareSensor;
+    public ISensor? HardwareSensor;
     public required string Name { get; set; }
     public required string Identifier { get; set; }
     public required string HardwareIdentifier { get; set; }
@@ -66,4 +67,6 @@ public class SharedMemoryData
     public long LastPollTime { get; set; }
     public List<SharedMemoryHardware> Hardwares { get; set; } = [];
     public List<SharedMemorySensor> Sensors { get; set; } = [];
+    public ActiveSensorSource ActiveSensorSource { get; set; } = ActiveSensorSource.Lhm;
+    public bool SensorSourceFallback { get; set; }
 }

@@ -9,6 +9,7 @@ pub enum Command {
     SelectPresentMonApp = 2,
     PresentMonApps = 3,
     SelectPollingRate = 4,
+    SelectSensorSource = 5,
 }
 
 impl TryFrom<u16> for Command {
@@ -20,6 +21,7 @@ impl TryFrom<u16> for Command {
             2 => Ok(Command::SelectPresentMonApp),
             3 => Ok(Command::PresentMonApps),
             4 => Ok(Command::SelectPollingRate),
+            5 => Ok(Command::SelectSensorSource),
             _ => Err(format!("Unknown command: {}", value)),
         }
     }
@@ -115,6 +117,23 @@ impl From<u32> for SensorType {
     }
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum SensorSource {
+    #[default]
+    Auto,
+    Lhm,
+    Hwinfo,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum ActiveSensorSource {
+    #[default]
+    Lhm,
+    Hwinfo,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Hardware {
     pub name: String,
@@ -140,6 +159,10 @@ pub struct HardwareMonitorData {
     pub sensors: Vec<Sensor>,
     #[serde(rename = "lastPollTime")]
     pub last_poll_time: i64,
+    #[serde(rename = "activeSensorSource", default)]
+    pub active_sensor_source: ActiveSensorSource,
+    #[serde(rename = "sensorSourceFallback", default)]
+    pub sensor_source_fallback: bool,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
@@ -349,6 +372,11 @@ pub struct OverlaySettings {
     // struct comment above).
     #[serde(rename = "pixelShift", default)]
     pub pixel_shift: bool,
+    // Hardware sensor backend. `auto` uses HWiNFO shared memory when that
+    // mapping is healthy and LibreHardwareMonitor otherwise. FPS always stays
+    // on Cleanmeter's PresentMon session.
+    #[serde(rename = "sensorSource", default)]
+    pub sensor_source: SensorSource,
     pub sensors: SensorsConfig,
 }
 
@@ -379,6 +407,7 @@ impl Default for OverlaySettings {
             polling_rate: 500,
             is_logging_enabled: false,
             pixel_shift: false,
+            sensor_source: SensorSource::Auto,
             sensors: SensorsConfig::default(),
         }
     }
@@ -442,4 +471,45 @@ pub struct MonitorInfo {
     pub x: i32,
     pub y: i32,
     pub primary: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sensor_source_round_trips_on_overlay_settings() {
+        let mut settings = OverlaySettings::default();
+        assert_eq!(settings.sensor_source, SensorSource::Auto);
+
+        settings.sensor_source = SensorSource::Hwinfo;
+        let json = serde_json::to_string(&settings).expect("serialize");
+        assert!(json.contains("\"sensorSource\":\"hwinfo\""), "{json}");
+
+        let back: OverlaySettings = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.sensor_source, SensorSource::Hwinfo);
+
+        settings.sensor_source = SensorSource::Lhm;
+        let json = serde_json::to_string(&settings).expect("serialize");
+        let back: OverlaySettings = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.sensor_source, SensorSource::Lhm);
+    }
+
+    #[test]
+    fn missing_sensor_source_defaults_to_auto() {
+        let json = serde_json::to_string(&OverlaySettings::default()).unwrap();
+        let mut value: serde_json::Value = serde_json::from_str(&json).unwrap();
+        value.as_object_mut().unwrap().remove("sensorSource");
+        let stripped = serde_json::to_string(&value).unwrap();
+        let loaded: OverlaySettings = serde_json::from_str(&stripped).unwrap();
+        assert_eq!(loaded.sensor_source, SensorSource::Auto);
+    }
+
+    #[test]
+    fn hardware_monitor_data_defaults_source_status() {
+        let json = r#"{"hardwares":[],"sensors":[],"lastPollTime":1}"#;
+        let data: HardwareMonitorData = serde_json::from_str(json).unwrap();
+        assert_eq!(data.active_sensor_source, ActiveSensorSource::Lhm);
+        assert!(!data.sensor_source_fallback);
+    }
 }

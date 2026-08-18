@@ -12,6 +12,7 @@ A clean, minimal performance overlay for gamers. Monitor your system stats witho
 
 - **Real-time overlay** — FPS, CPU, GPU, RAM, and network stats displayed as a clean pill bar on your screen
 - **Auto-start monitoring** — sensors connect automatically on launch, overlay shows up instantly
+- **Optional HWiNFO** — use HWiNFO shared memory for hardware sensors when you enable it; FPS still comes from PresentMon
 - **Light & dark mode** — overlay adapts to your preference with proper contrast
 - **Customizable** — adjust font sizes, opacity, and choose which sensors to display
 - **Borderless fullscreen support** — overlay stays on top in borderless windowed games

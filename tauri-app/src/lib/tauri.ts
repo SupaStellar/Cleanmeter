@@ -64,6 +64,8 @@ export const refreshPresentMonApps = () =>
   safeInvoke("refresh_present_mon_apps");
 export const setPollingRate = (intervalMs: number) =>
   safeInvoke("set_polling_rate", { intervalMs });
+export const setSensorSource = (source: OverlaySettings["sensorSource"]) =>
+  safeInvoke("set_sensor_source", { source });
 
 // ─── System Commands ────────────────────────────────────────────
 

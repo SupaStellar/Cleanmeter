@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { Info } from "lucide-react";
 import type { Sensor, Hardware } from "@/lib/types";
 import { HardwareType, SensorType } from "@/lib/types";
+import { isDownloadSensorName, isUploadSensorName } from "@/lib/sensor-source";
 import { useSettingsStore } from "@/stores/settings-store";
 import { Checkbox } from "@/components/shadcn/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/shadcn/radio-group";
@@ -33,13 +34,8 @@ export function NetworkSection({ sensors, hardwares }: Props) {
     const adapterSensors = sensors.filter(
       (s) => s.hardwareIdentifier === adapterId && s.sensorType === SensorType.Throughput,
     );
-    const down = adapterSensors.find(
-      (s) =>
-        s.name.toLowerCase().includes("download") || s.name.toLowerCase().includes("down"),
-    );
-    const up = adapterSensors.find(
-      (s) => s.name.toLowerCase().includes("upload") || s.name.toLowerCase().includes("up"),
-    );
+    const down = adapterSensors.find((s) => isDownloadSensorName(s.name));
+    const up = adapterSensors.find((s) => isUploadSensorName(s.name));
     if (down) updateSensor("downRate", { customReadingId: down.identifier });
     if (up) updateSensor("upRate", { customReadingId: up.identifier });
   };

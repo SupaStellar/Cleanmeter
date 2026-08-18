@@ -50,32 +50,47 @@ function MonitoringBanner() {
       .catch(() => {});
   }, [verdict]);
 
-  if (verdict !== "failed") return null;
+  if (verdict === "failed") {
+    return (
+      <div className="border-b border-yellow-400 bg-yellow-50 px-4 py-2.5 text-[13px] leading-snug text-yellow-900 dark:border-yellow-700 dark:bg-yellow-950 dark:text-yellow-200">
+        <strong>Monitoring not connected.</strong>
+        {dotnetMissing ? (
+          <span>
+            {" "}.NET 8 Desktop Runtime is required but not installed.{" "}
+            <a
+              href="https://dotnet.microsoft.com/en-us/download/dotnet/8.0"
+              target="_blank"
+              rel="noreferrer"
+              className="text-blue-600 underline dark:text-blue-400"
+            >
+              Download it here
+            </a>
+            , install it, then restart Cleanmeter.
+          </span>
+        ) : (
+          <span>
+            {" "}HardwareMonitor is not responding. Try restarting the app.
+            {!pipeStatus.connected && " (Pipe not connected)"}
+          </span>
+        )}
+      </div>
+    );
+  }
 
-  return (
-    <div className="border-b border-yellow-400 bg-yellow-50 px-4 py-2.5 text-[13px] leading-snug text-yellow-900 dark:border-yellow-700 dark:bg-yellow-950 dark:text-yellow-200">
-      <strong>Monitoring not connected.</strong>
-      {dotnetMissing ? (
+  if (sensorData?.sensorSourceFallback) {
+    return (
+      <div className="border-b border-yellow-400 bg-yellow-50 px-4 py-2.5 text-[13px] leading-snug text-yellow-900 dark:border-yellow-700 dark:bg-yellow-950 dark:text-yellow-200">
+        <strong>Using LibreHardwareMonitor.</strong>
         <span>
-          {" "}.NET 8 Desktop Runtime is required but not installed.{" "}
-          <a
-            href="https://dotnet.microsoft.com/en-us/download/dotnet/8.0"
-            target="_blank"
-            rel="noreferrer"
-            className="text-blue-600 underline dark:text-blue-400"
-          >
-            Download it here
-          </a>
-          , install it, then restart Cleanmeter.
+          {" "}HWiNFO shared memory dropped — Shared Memory Support may be off,
+          HWiNFO may have closed, or the free 12-hour limit may have deactivated
+          sharing. FPS still comes from PresentMon.
         </span>
-      ) : (
-        <span>
-          {" "}HardwareMonitor is not responding. Try restarting the app.
-          {!pipeStatus.connected && " (Pipe not connected)"}
-        </span>
-      )}
-    </div>
-  );
+      </div>
+    );
+  }
+
+  return null;
 }
 
 export default function App() {

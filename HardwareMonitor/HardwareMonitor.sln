@@ -6,6 +6,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HardwareMonitorTester", "Ha
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Updater", "Updater\Updater.csproj", "{A5991FC1-069F-43D7-8E8D-158D1EE8DE02}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HardwareMonitor.Tests", "HardwareMonitor.Tests\HardwareMonitor.Tests.csproj", "{B7E2C4A1-9F3D-4E8A-B251-0D6C8E91A4F2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,5 +26,9 @@ Global
 		{A5991FC1-069F-43D7-8E8D-158D1EE8DE02}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A5991FC1-069F-43D7-8E8D-158D1EE8DE02}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A5991FC1-069F-43D7-8E8D-158D1EE8DE02}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B7E2C4A1-9F3D-4E8A-B251-0D6C8E91A4F2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B7E2C4A1-9F3D-4E8A-B251-0D6C8E91A4F2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B7E2C4A1-9F3D-4E8A-B251-0D6C8E91A4F2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B7E2C4A1-9F3D-4E8A-B251-0D6C8E91A4F2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

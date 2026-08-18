@@ -44,6 +44,7 @@ pub enum PipeCommand {
     RefreshPresentMonApps,
     SelectPresentMonApp(String),
     SelectPollingRate(u16),
+    SelectSensorSource(u16),
 }
 
 /// Parse a Data packet (command 0) from raw bytes
@@ -165,6 +166,23 @@ fn parse_data_packet(data: &[u8]) -> Result<HardwareMonitorData, String> {
         });
     }
 
+    let mut active_sensor_source = ActiveSensorSource::Lhm;
+    let mut sensor_source_fallback = false;
+    if cursor.position() as usize + 2 <= data.len() {
+        let source = cursor
+            .read_u8()
+            .map_err(|e| format!("active sensor source: {}", e))?;
+        let fallback = cursor
+            .read_u8()
+            .map_err(|e| format!("sensor source fallback: {}", e))?;
+        active_sensor_source = if source == 1 {
+            ActiveSensorSource::Hwinfo
+        } else {
+            ActiveSensorSource::Lhm
+        };
+        sensor_source_fallback = fallback != 0;
+    }
+
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -174,6 +192,8 @@ fn parse_data_packet(data: &[u8]) -> Result<HardwareMonitorData, String> {
         hardwares,
         sensors,
         last_poll_time: now,
+        active_sensor_source,
+        sensor_source_fallback,
     })
 }
 
@@ -221,6 +241,10 @@ fn build_command(cmd: &PipeCommand) -> Vec<u8> {
         PipeCommand::SelectPollingRate(rate) => {
             buf.write_u16::<LittleEndian>(4).unwrap();
             buf.write_u16::<LittleEndian>(*rate).unwrap();
+        }
+        PipeCommand::SelectSensorSource(source) => {
+            buf.write_u16::<LittleEndian>(5).unwrap();
+            buf.write_u16::<LittleEndian>(*source).unwrap();
         }
     }
     buf
@@ -572,6 +596,19 @@ mod tests {
         assert_eq!(parsed.sensors.len(), 2);
         assert_eq!(parsed.hardwares[0].name, "CPU");
         assert_eq!(parsed.sensors[1].name, "GPU Core");
+        assert_eq!(parsed.active_sensor_source, ActiveSensorSource::Lhm);
+        assert!(!parsed.sensor_source_fallback);
+    }
+
+    #[test]
+    fn source_status_trailer_is_parsed() {
+        let mut packet = data_packet(&[("CPU", "/hwinfo/e0000200/0")], &[("CPU Package", "/hwinfo/e0000200/0/100", "/hwinfo/e0000200/0")]);
+        packet.push(1); // HWiNFO
+        packet.push(1); // fallback
+        let parsed = parse_data_packet(&packet).expect("trailer must parse");
+        assert_eq!(parsed.active_sensor_source, ActiveSensorSource::Hwinfo);
+        assert!(parsed.sensor_source_fallback);
+        assert_eq!(parsed.sensors[0].identifier, "/hwinfo/e0000200/0/100");
     }
 
     /// An empty snapshot is what the sidecar sends before LibreHardwareMonitor

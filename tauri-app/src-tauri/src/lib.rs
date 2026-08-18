@@ -664,6 +664,7 @@ pub fn run() {
             commands::select_present_mon_app,
             commands::refresh_present_mon_apps,
             commands::set_polling_rate,
+            commands::set_sensor_source,
             commands::check_dotnet_runtime,
             commands::set_auto_start,
             commands::get_auto_start,

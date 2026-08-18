@@ -78,21 +78,28 @@ function HowToSetupCard() {
     <CollapsibleCard title="How to setup">
       <ol className="flex flex-col gap-3">
         <Step n={1}>
+          Launch Cleanmeter. Hardware sensors connect automatically through
+          LibreHardwareMonitor, and FPS comes from Cleanmeter&rsquo;s PresentMon.
+        </Step>
+        <Step n={2}>
+          Optional: run{" "}
           <a
             href="https://www.hwinfo.com/"
             target="_blank"
             rel="noreferrer noopener"
             className="underline underline-offset-2"
           >
-            Download HWinfo
+            HWiNFO
           </a>{" "}
-          and launch it, make sure to turn off other overlay&rsquo;s.
+          yourself and enable Shared Memory Support, then set Hardware sensors
+          to Auto or HWiNFO in Settings. Cleanmeter will not launch HWiNFO for
+          you.
         </Step>
-        <Step n={2}>
-          Under general setting, make sure to check the &ldquo;Shared Memory
-          Support&rdquo; box
+        <Step n={3}>
+          If HWiNFO shared memory drops (closed, sharing off, or the free
+          12-hour limit), sensors fall back to LibreHardwareMonitor so the
+          overlay keeps working.
         </Step>
-        <Step n={3}>That&rsquo;s it! it should run flawlessly now :D</Step>
       </ol>
 
       {WATCH_VIDEO_URL && (
@@ -154,8 +161,8 @@ function FaqCard() {
     <CollapsibleCard title="Frequently asked questions">
       <ol className="flex list-decimal flex-col gap-4 pl-5 marker:text-foreground marker:font-medium">
         <FaqItem
-          q="Why do I need to download a third party app to run it?"
-          a="It’s a workaround for now, we will try to make it a stand alone app in the future."
+          q="Do I need to download a third party app to run it?"
+          a="No. Sensors connect automatically. HWiNFO is optional if you want its shared-memory readings — run it yourself with Shared Memory Support enabled."
         />
         <FaqItem
           q="Need more support?"

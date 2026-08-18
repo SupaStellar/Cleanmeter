@@ -65,6 +65,10 @@ jobs:
         working-directory: HardwareMonitor/HardwareMonitor
         run: dotnet build -c Release
 
+      - name: Test sidecar
+        working-directory: HardwareMonitor/HardwareMonitor.Tests
+        run: dotnet test -c Release
+
   rust:
     name: Rust (clippy, tests)
     runs-on: windows-latest

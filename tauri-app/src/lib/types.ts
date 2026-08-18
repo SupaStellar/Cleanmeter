@@ -81,6 +81,8 @@ export interface SensorsConfig {
 export type TemperatureUnit = "C" | "F";
 export type ThemeMode = "light" | "dark" | "system";
 export type GraphType = "ring" | "bar";
+export type SensorSource = "auto" | "lhm" | "hwinfo";
+export type ActiveSensorSource = "lhm" | "hwinfo";
 
 export interface OverlaySettings {
   isDarkTheme: boolean;
@@ -109,6 +111,9 @@ export interface OverlaySettings {
   // When true, the overlay is nudged a few pixels on a slow cycle to spread
   // OLED wear (burn-in mitigation). See pixel-shift logic in OverlayApp.
   pixelShift: boolean;
+  // Hardware sensors: HWiNFO shared memory when healthy (`auto`/`hwinfo`),
+  // otherwise LibreHardwareMonitor. FPS always stays on PresentMon.
+  sensorSource: SensorSource;
   sensors: SensorsConfig;
 }
 
@@ -130,6 +135,8 @@ export interface HardwareMonitorData {
   hardwares: Hardware[];
   sensors: Sensor[];
   lastPollTime: number;
+  activeSensorSource?: ActiveSensorSource;
+  sensorSourceFallback?: boolean;
 }
 
 export interface PipeStatus {
@@ -199,6 +206,7 @@ export const DEFAULT_SETTINGS: OverlaySettings = {
   pollingRate: 500,
   isLoggingEnabled: false,
   pixelShift: false,
+  sensorSource: "auto",
   sensors: {
     framerate: { isEnabled: true, customReadingId: "", targetAppName: "" },
     frametime: { isEnabled: true, customReadingId: "" },

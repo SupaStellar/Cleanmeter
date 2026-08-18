@@ -3,6 +3,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
+using HardwareMonitor.HwInfo;
 using HardwareMonitor.PresentMon;
 using HardwareMonitor.SharedMemory;
 using HardwareMonitor.Sockets;
@@ -32,9 +33,14 @@ public class MonitorPoller(
 
     private PipeHost _socketHost = new(logger);
     private readonly PresentMonPoller _presentMonPoller = new(logger);
+    private readonly HwInfoReader _hwInfoReader = new(logger);
 
     private short _pollingRate = 500;
     private const short MinimalPollingRate = 33;
+    private SensorSourcePreference _sensorSource = SensorSourcePreference.Auto;
+    private bool _mappedFromHwInfo;
+    private bool _hwInfoSeenThisSession;
+    private HwInfoSnapshot? _lastHwInfoSnapshot;
 
     // How many times a change to the active sensor set is worth logging.
     private const int SensorSetChangeLogLimit = 5;
@@ -122,48 +128,70 @@ public class MonitorPoller(
                 continue;
             }
 
-            foreach (var hardware in sharedMemoryData.Hardwares)
+            var usingHwInfo = TryMapHwInfo(sharedMemoryData);
+            if (usingHwInfo)
             {
-                try
-                {
-                    hardware.Update();
-                }
-                catch
-                {
-                    hardware.StopUpdates();
-                    logger.LogError("Stopping updates of {HardwareName} - {HardwareIdentifier}", hardware.Name, hardware.Identifier);
-                }
+                sharedMemoryData.ActiveSensorSource = ActiveSensorSource.Hwinfo;
+                sharedMemoryData.SensorSourceFallback = false;
             }
-
-            // LibreHardwareMonitor only exposes a sensor once it has produced a
-            // reading (Hardware.Sensors returns the activated set). AMD GPUs read
-            // temperature, power, core load and memory load through ADL's PMLog
-            // sampling session, which has no sample yet on the first Update(),
-            // so those sensors activate a poll or two later: after the snapshot
-            // above was taken, and so were never sent to the app. Re-map the
-            // sensor list when that set changes so late arrivals still land.
-            //
-            // Hardware is re-mapped alongside it so a sensor is never sent
-            // referencing hardware the client has no entry for; MapHardwares
-            // reuses existing entries, so a StopUpdates() suspension above
-            // survives. On GPUs that activate everything up front (e.g. NVIDIA
-            // via NvAPI) the count never moves and this whole block is a no-op.
-            var activeSensorCount = CountActiveSensors();
-            if (activeSensorCount != knownSensorCount)
+            else
             {
-                // Capped: a sensor that flaps in and out would otherwise write a
-                // line every poll (CPU core temperatures deactivate themselves
-                // when a read fails). Only the logging is capped, never the
-                // re-map, so the data stays correct either way.
-                if (sensorSetChanges++ < SensorSetChangeLogLimit)
+                if (_mappedFromHwInfo)
                 {
                     logger.LogInformation(
-                        "Active sensor set changed ({Previous} -> {Current}); refreshing sensor list",
-                        knownSensorCount, activeSensorCount);
+                        "HWiNFO shared memory unavailable; falling back to LibreHardwareMonitor");
+                    MapHardwareData(sharedMemoryData);
+                    knownSensorCount = CountActiveSensors();
+                    _mappedFromHwInfo = false;
                 }
 
-                knownSensorCount = activeSensorCount;
-                MapHardwareData(sharedMemoryData);
+                foreach (var hardware in sharedMemoryData.Hardwares)
+                {
+                    try
+                    {
+                        hardware.Update();
+                    }
+                    catch
+                    {
+                        hardware.StopUpdates();
+                        logger.LogError("Stopping updates of {HardwareName} - {HardwareIdentifier}", hardware.Name, hardware.Identifier);
+                    }
+                }
+
+                // LibreHardwareMonitor only exposes a sensor once it has produced a
+                // reading (Hardware.Sensors returns the activated set). AMD GPUs read
+                // temperature, power, core load and memory load through ADL's PMLog
+                // sampling session, which has no sample yet on the first Update(),
+                // so those sensors activate a poll or two later: after the snapshot
+                // above was taken, and so were never sent to the app. Re-map the
+                // sensor list when that set changes so late arrivals still land.
+                //
+                // Hardware is re-mapped alongside it so a sensor is never sent
+                // referencing hardware the client has no entry for; MapHardwares
+                // reuses existing entries, so a StopUpdates() suspension above
+                // survives. On GPUs that activate everything up front (e.g. NVIDIA
+                // via NvAPI) the count never moves and this whole block is a no-op.
+                var activeSensorCount = CountActiveSensors();
+                if (activeSensorCount != knownSensorCount)
+                {
+                    // Capped: a sensor that flaps in and out would otherwise write a
+                    // line every poll (CPU core temperatures deactivate themselves
+                    // when a read fails). Only the logging is capped, never the
+                    // re-map, so the data stays correct either way.
+                    if (sensorSetChanges++ < SensorSetChangeLogLimit)
+                    {
+                        logger.LogInformation(
+                            "Active sensor set changed ({Previous} -> {Current}); refreshing sensor list",
+                            knownSensorCount, activeSensorCount);
+                    }
+
+                    knownSensorCount = activeSensorCount;
+                    MapHardwareData(sharedMemoryData);
+                }
+
+                sharedMemoryData.ActiveSensorSource = ActiveSensorSource.Lhm;
+                sharedMemoryData.SensorSourceFallback = HwInfoSourcePolicy.ShouldReportFallback(
+                    _sensorSource, usingHwInfo: false, _hwInfoSeenThisSession);
             }
 
             WriteDataToStream(writer, sharedMemoryData);
@@ -213,7 +241,7 @@ public class MonitorPoller(
 
         foreach (var sensor in sharedMemoryData.Sensors)
         {
-            var value = sensor.HardwareSensor.Value ?? 0f;
+            var value = sensor.HardwareSensor?.Value ?? sensor.Value;
             var floatValue = (IsNaN(value) ? 0f : value).ToString(CultureInfo.InvariantCulture);
             sensor.Value = float.Parse(floatValue, CultureInfo.InvariantCulture);
 
@@ -226,6 +254,11 @@ public class MonitorPoller(
             writer.Write((int)sensor.SensorType);
             writer.Write((float)sensor.Value);
         }
+
+        writer.Write((byte)sharedMemoryData.ActiveSensorSource);
+        writer.Write(sharedMemoryData.SensorSourceFallback ? (byte)1 : (byte)0);
+        writer.Flush();
+        writer.BaseStream.SetLength(writer.BaseStream.Position);
     }
 
     private void OnClientConnected()
@@ -248,6 +281,9 @@ public class MonitorPoller(
             case MonitorPacketCommand.SelectPollingRate:
                 SelectPollingRate(data);
                 break;
+            case MonitorPacketCommand.SelectSensorSource:
+                SelectSensorSource(data);
+                break;
 
             // server -> client cases 
             case MonitorPacketCommand.Data:
@@ -264,6 +300,87 @@ public class MonitorPoller(
         var pollingRate = BitConverter.ToInt16(data, 2);
         _pollingRate = Math.Max(pollingRate, MinimalPollingRate);
         logger.LogInformation("Selected polling rate of {PollingRate}", _pollingRate);
+    }
+
+    private void SelectSensorSource(byte[] data)
+    {
+        var source = (SensorSourcePreference)BitConverter.ToInt16(data, 2);
+        if (!Enum.IsDefined(source))
+        {
+            logger.LogWarning("Ignoring unknown sensor source {Source}", source);
+            return;
+        }
+
+        _sensorSource = source;
+        if (source == SensorSourcePreference.Lhm)
+        {
+            _hwInfoSeenThisSession = false;
+            _lastHwInfoSnapshot = null;
+        }
+
+        logger.LogInformation("Selected sensor source {Source}", _sensorSource);
+    }
+
+    /// <summary>
+    /// Tries to replace the published hardware/sensor lists with HWiNFO SHM
+    /// readings. Returns false when LHM should be used instead. PresentMon
+    /// sensors are always appended so FPS stays on our session.
+    /// </summary>
+    private bool TryMapHwInfo(SharedMemoryData sharedMemoryData)
+    {
+        if (!HwInfoSourcePolicy.WantsHwInfo(_sensorSource))
+            return false;
+
+        var attempt = _hwInfoReader.TryRead();
+        HwInfoSnapshot? snapshot = null;
+        switch (attempt.Status)
+        {
+            case HwInfoReadStatus.Success:
+                snapshot = attempt.Snapshot;
+                break;
+            case HwInfoReadStatus.Busy:
+                if (_mappedFromHwInfo)
+                    snapshot = _lastHwInfoSnapshot;
+                break;
+        }
+
+        if (snapshot == null || snapshot.Sensors.Count == 0)
+            return false;
+
+        if (!_mappedFromHwInfo)
+            logger.LogInformation("Hardware sensors now from HWiNFO shared memory");
+
+        _hwInfoSeenThisSession = true;
+        _lastHwInfoSnapshot = snapshot;
+        _mappedFromHwInfo = true;
+        MapHwInfoData(sharedMemoryData, snapshot);
+        return true;
+    }
+
+    private void MapHwInfoData(SharedMemoryData sharedMemoryData, HwInfoSnapshot snapshot)
+    {
+        sharedMemoryData.Hardwares = snapshot.Hardwares.ConvertAll(hardware => new SharedMemoryHardware
+        {
+            Name = hardware.Name,
+            Identifier = hardware.Identifier,
+            HardwareType = (LibreHardwareMonitor.Hardware.HardwareType)hardware.HardwareType,
+        });
+        var sensorList = new List<SharedMemorySensor>(snapshot.Sensors.Count + 3);
+        foreach (var sensor in snapshot.Sensors)
+        {
+            sensorList.Add(new SharedMemorySensor
+            {
+                Name = sensor.Name,
+                Identifier = sensor.Identifier,
+                HardwareIdentifier = sensor.HardwareIdentifier,
+                SensorType = (LibreHardwareMonitor.Hardware.SensorType)sensor.SensorType,
+                Value = sensor.Value,
+            });
+        }
+        sensorList.Add(MapSensor(_presentMonPoller.Displayed));
+        sensorList.Add(MapSensor(_presentMonPoller.Presented));
+        sensorList.Add(MapSensor(_presentMonPoller.Frametime));
+        sharedMemoryData.Sensors = sensorList;
     }
 
     private void SelectPresentMonApp(byte[] data)
