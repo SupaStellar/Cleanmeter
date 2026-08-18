@@ -254,13 +254,14 @@ public static class HwInfoParser
             if (string.IsNullOrWhiteSpace(label))
                 label = $"Reading {readingId}";
 
+            var sensorType = MapReadingType(readingType, unit);
             list.Add(new HwInfoReading
             {
                 Name = SanitizeName(label),
                 Identifier = ReadingIdentifier(parsed.SensorId, parsed.SensorInst, readingId),
                 HardwareIdentifier = parsed.Hardware.Identifier,
-                SensorType = MapReadingType(readingType, unit),
-                Value = double.IsNaN(value) || double.IsInfinity(value) ? 0f : (float)value,
+                SensorType = sensorType,
+                Value = NormalizeReadingValue(sensorType, unit, value),
             });
         }
 
@@ -345,6 +346,36 @@ public static class HwInfoParser
         if (u is "ms" or "s")
             return SensorTimeSpan;
         return SensorFactor;
+    }
+
+    /// <summary>
+    /// Overlay/LHM throughput is bytes/s. HWiNFO publishes KB/s (and similar)
+    /// for Current DL/UP rate, so convert at the mapping boundary.
+    /// </summary>
+    public static float NormalizeReadingValue(int sensorType, string unit, double value)
+    {
+        if (double.IsNaN(value) || double.IsInfinity(value))
+            return 0f;
+
+        if (sensorType == SensorThroughput)
+            value *= ThroughputBytesPerSecondScale(unit);
+
+        return (float)value;
+    }
+
+    public static double ThroughputBytesPerSecondScale(string unit)
+    {
+        var u = unit.Trim().ToLowerInvariant().Replace(" ", "");
+        return u switch
+        {
+            "kb/s" or "kbyte/s" or "kbytes/s" or "kib/s" or "kib/sec" => 1024,
+            "mb/s" or "mbyte/s" or "mbytes/s" or "mib/s" => 1024d * 1024,
+            "gb/s" or "gbyte/s" or "gbytes/s" or "gib/s" => 1024d * 1024 * 1024,
+            "kbps" or "kbit/s" => 1000d / 8,
+            "mbps" or "mbit/s" => 1_000_000d / 8,
+            "gbps" or "gbit/s" => 1_000_000_000d / 8,
+            _ => 1,
+        };
     }
 
     private static string SanitizeName(string name) =>

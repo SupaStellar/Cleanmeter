@@ -94,6 +94,32 @@ public class HwInfoParserTests
     }
 
     [Fact]
+    public void NetworkRatesInKilobytesPerSecondAreConvertedToBytesPerSecond()
+    {
+        Assert.Equal(1024, HwInfoParser.ThroughputBytesPerSecondScale("KB/s"));
+        Assert.Equal(1024d * 1024, HwInfoParser.ThroughputBytesPerSecondScale("MB/s"));
+        Assert.Equal(1, HwInfoParser.ThroughputBytesPerSecondScale("B/s"));
+
+        var snapshot = HwInfoParser.Parse(BuildSnapshot(
+            0x2000, 0, "Network: Intel Ethernet",
+            [
+                (8, 0x1u, "Current DL rate", "KB/s", 100),
+                (8, 0x2u, "Current UP rate", "KB/s", 2.5),
+            ])).Snapshot!;
+
+        Assert.Equal(HwInfoParser.SensorThroughput, snapshot.Sensors[0].SensorType);
+        Assert.Equal(100 * 1024, snapshot.Sensors[0].Value, 1);
+        Assert.Equal(2.5f * 1024, snapshot.Sensors[1].Value, 1);
+    }
+
+    [Fact]
+    public void NonThroughputReadingsAreNotScaledByUnit()
+    {
+        Assert.Equal(67.5f, HwInfoParser.NormalizeReadingValue(HwInfoParser.SensorTemperature, "°C", 67.5), 3);
+        Assert.Equal(22f, HwInfoParser.NormalizeReadingValue(HwInfoParser.SensorLoad, "%", 22), 3);
+    }
+
+    [Fact]
     public void HardwareTypeUsesSensorNameNotReadingLabel()
     {
         Assert.Equal(HwInfoParser.HardwareGpuNvidia, HwInfoParser.InferHardwareType("GPU [#0]: NVIDIA GeForce RTX 4090"));
