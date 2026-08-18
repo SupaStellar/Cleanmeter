@@ -13,11 +13,6 @@ const FAQ_ITEMS: FaqItem[] = [
     answer: "Cleanmeter currently doesn’t support fullscreen in games.",
   },
   {
-    question: "Why does Windows say that Cleanmeter is not secure?",
-    answer:
-      "Windows shows that warning for any app that isn't signed with a paid code-\nsigning certificate, it flags the missing signature, not anything in the app itself.",
-  },
-  {
     question: "Is Cleanmeter resource-heavy?",
     answer:
       "No! Cleanmeter is designed to be lightweight and efficient, ensuring it runs\nsmoothly without impacting your system’s performance.",
