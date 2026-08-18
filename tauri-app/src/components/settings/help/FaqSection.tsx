@@ -22,6 +22,11 @@ const FAQ_ITEMS: FaqItem[] = [
     answer:
       "No! Cleanmeter is designed to be lightweight and efficient, ensuring it runs\nsmoothly without impacting your system’s performance.",
   },
+  {
+    question: "How is Cleanmeter built?",
+    answer:
+      "Interface is built with React and TypeScript. Rust handles the overlay,\nhotkeys, and settings. Hardware readings are done using LibreHardwareMonitor\nfor CPU, GPU, RAM, and network sensors. PresentMon for frames and frametime.",
+  },
 ];
 
 export function FaqSection() {
