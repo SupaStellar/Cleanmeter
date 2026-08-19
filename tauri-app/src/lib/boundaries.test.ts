@@ -4,6 +4,7 @@ import {
   applyBoundary,
   boundaryRange,
   isBoundaryInRange,
+  parseBoundaryInput,
   type BoundaryField,
 } from "./boundaries";
 
@@ -68,6 +69,34 @@ function typeKeepingTheDraft(
 
 const ordered = (b: Boundaries, max = MAX) =>
   0 <= b.low && b.low < b.medium && b.medium < b.high && b.high <= max;
+
+describe("parseBoundaryInput", () => {
+  it("reads exponent form, which <input type=number> accepts as valid", () => {
+    // Verified in Chromium: typing 1e2 leaves input.value === "1e2" with
+    // valueAsNumber 100. parseInt read that as 1 and stored 1 as the threshold.
+    expect(parseBoundaryInput("1e2")).toBe(100);
+    expect(parseBoundaryInput("1.5e1")).toBe(15);
+    expect(parseBoundaryInput("2E1")).toBe(20);
+  });
+
+  it("rounds a fractional entry instead of truncating it", () => {
+    expect(parseBoundaryInput("4.5")).toBe(5);
+    expect(parseBoundaryInput("4.4")).toBe(4);
+  });
+
+  it("reads plain and signed integers unchanged", () => {
+    expect(parseBoundaryInput("20")).toBe(20);
+    expect(parseBoundaryInput("0")).toBe(0);
+    expect(parseBoundaryInput("-5")).toBe(-5);
+  });
+
+  it("has no value for an empty, blank or unparseable field", () => {
+    // Mid-backspace is not a zero: NaN tells the caller to leave the bound be.
+    for (const raw of ["", "   ", "abc", "-", "1e999"]) {
+      expect(parseBoundaryInput(raw), `"${raw}"`).toBeNaN();
+    }
+  });
+});
 
 describe("boundaryRange", () => {
   it("is the window in which no other bound has to move", () => {

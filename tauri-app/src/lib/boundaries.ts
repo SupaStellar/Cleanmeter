@@ -54,6 +54,24 @@ export function boundaryRange(
 }
 
 /**
+ * Read a threshold out of an `<input type="number">` value.
+ *
+ * Not parseInt: exponent form is a valid floating-point number per the HTML
+ * spec, so the field hands over strings like "1e2" (valueAsNumber 100) and
+ * parseInt would read them as their leading digit — 1, stored and persisted as
+ * the threshold. Number() parses the whole string; thresholds are whole
+ * numbers, so a fractional entry rounds rather than truncating.
+ *
+ * Returns NaN for anything with no numeric value, including an empty field —
+ * mid-backspace is not a zero — which callers treat as "leave the bound alone".
+ */
+export function parseBoundaryInput(raw: string): number {
+  if (raw.trim() === "") return NaN;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? Math.round(parsed) : NaN;
+}
+
+/**
  * Whether a value can be stored as typed with nothing else moving. False means
  * "not yet" — the caller is mid-edit and should keep the user's text.
  */

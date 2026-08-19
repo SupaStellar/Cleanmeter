@@ -4,6 +4,7 @@ import { useSettingsStore } from "@/stores/settings-store";
 import {
   applyBoundary,
   isBoundaryInRange,
+  parseBoundaryInput,
   type BoundaryField,
 } from "@/lib/boundaries";
 
@@ -159,15 +160,13 @@ function ValueInput({
 
   const handleChange = (raw: string) => {
     setDraft(raw);
-    // An empty field is a backspace in progress, not a zero.
-    if (raw === "") return;
-    const typed = parseInt(raw, 10);
+    const typed = parseBoundaryInput(raw);
     if (Number.isFinite(typed) && editor?.accepts(typed)) editor.live(typed);
   };
 
   const commit = () => {
     if (draft === null) return;
-    const typed = parseInt(draft, 10);
+    const typed = parseBoundaryInput(draft);
     // A field left empty or unparseable keeps whatever was stored.
     if (Number.isFinite(typed)) editor?.commit(typed);
     setDraft(null);
