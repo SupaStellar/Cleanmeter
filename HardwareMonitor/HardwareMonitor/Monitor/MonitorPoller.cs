@@ -417,13 +417,14 @@ public class MonitorPoller(
                 _gpuGroupRebuilds,
                 MaxGpuGroupRebuilds);
 
-            RebuildGpuGroups();
+            var tornDown = RebuildGpuGroups();
             SetAbsentGpus(GpuReconciler.Missing(adapters, DetectedGpuTypes()));
 
-            // A rebuild replaces every GPU IHardware, so the cached entries now
-            // point at closed instances and must be recreated regardless of
-            // whether the shortfall changed.
-            return GpuReconcileResult.Rebuilt;
+            // Only report a rebuild when the old groups were actually closed.
+            // That is what makes the cached entries stale, and forgetting them
+            // when nothing was torn down would needlessly discard the
+            // StopUpdates() suspension MapHardwares keeps them for.
+            return tornDown ? GpuReconcileResult.Rebuilt : GpuReconcileResult.ListChanged;
         }
 
         // Compared by identity, not by count. One GPU becoming readable while
@@ -489,18 +490,46 @@ public class MonitorPoller(
     /// which re-runs the ADL / NvAPI / IntelGcl enumeration that a constructor
     /// otherwise does exactly once per process.
     /// </summary>
-    private void RebuildGpuGroups()
+    /// <summary>
+    /// Returns whether the existing GPU groups were torn down, which is what
+    /// decides if the caller has to forget its cached entries.
+    ///
+    /// The two halves are separated deliberately. Disabling closes the current
+    /// groups, so every cached IHardware becomes a closed instance the moment
+    /// that succeeds, whether or not the rebuild after it does. Failing on the
+    /// way down leaves everything intact and the cache still valid; failing on
+    /// the way back up does not, and pretending otherwise would leave the app
+    /// updating closed handles forever.
+    /// </summary>
+    private bool RebuildGpuGroups()
     {
         try
         {
             _computer.IsGpuEnabled = false;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Could not disable the GPU groups; the GPU list is unchanged");
+            return false;
+        }
+
+        try
+        {
             _computer.IsGpuEnabled = true;
             _computer.Accept(new UpdateVisitor());
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Rebuilding the GPU groups failed; keeping the GPU list as it was");
+            // The old groups are already closed, so there is nothing to fall
+            // back to. GPUs read 0 until a later attempt succeeds, which is
+            // honest; keeping the closed handles would freeze the last values
+            // on screen and look live.
+            logger.LogError(ex,
+                "Rebuilding the GPU groups failed after the old ones were closed; " +
+                "GPU readings are unavailable until a later attempt succeeds");
         }
+
+        return true;
     }
 
     private IEnumerable<HardwareType> DetectedGpuTypes()
