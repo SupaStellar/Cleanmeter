@@ -1,8 +1,11 @@
+import { useRef, useState } from "react";
 import type { Boundaries } from "@/lib/types";
 import { useSettingsStore } from "@/stores/settings-store";
-
-const CLAMP = (v: number, min: number, max: number) =>
-  Math.max(min, Math.min(max, v));
+import {
+  applyBoundary,
+  isBoundaryInRange,
+  type BoundaryField,
+} from "@/lib/boundaries";
 
 /**
  * 3-segment range control from Figma. Defaults to a 0-100% scale (GPU/CPU
@@ -50,26 +53,44 @@ export function TempRangeControl({
 
   // Inputs hand over display-scale values; convert to °C first so the ±1
   // segment-gap invariants keep holding in the stored scale.
-  const setLowMax = (v: number) => {
-    const lv = CLAMP(fromDisplay(v), 0, boundaries.medium - 1);
-    onChange({ ...boundaries, low: lv });
-  };
-  const setMedMax = (v: number) => {
-    const mv = CLAMP(fromDisplay(v), boundaries.low + 1, (boundaries.high || max) - 1);
-    onChange({ ...boundaries, medium: mv });
-  };
-  const setHighMax = (v: number) => {
-    const hv = CLAMP(fromDisplay(v), boundaries.medium + 1, max);
-    onChange({ ...boundaries, high: hv });
-  };
+  //
+  // `accepts` is what stops the control fighting the typist. Clamping on every
+  // keystroke — which is what this used to do — rewrote the field's text after
+  // each key, so the first digit of a two-digit number was snapped to a segment
+  // edge and the second digit then appended to a number nobody typed. Typing 40
+  // into Medium produced 89, backspacing 80 to 8 sprang it back up, and
+  // emptying the field read as 0 and clamped to the minimum. Half-typed values
+  // are now simply not stored, and the commit keeps the number that was typed:
+  // editing Low or Medium moves whatever is in the way, while High clamps to
+  // sit above Medium rather than dragging the thresholds down. See
+  // lib/boundaries.ts for why the two directions differ.
+  const editor = (field: BoundaryField) => ({
+    accepts: (v: number) => isBoundaryInRange(field, fromDisplay(v), boundaries, max),
+    live: (v: number) => onChange({ ...boundaries, [field]: fromDisplay(v) }),
+    commit: (v: number) => onChange(applyBoundary(field, fromDisplay(v), boundaries, max)),
+    // Escape undoes whatever the live path stored during this edit. The value
+    // came from the store, so it needs no reordering.
+    revert: (v: number) => onChange({ ...boundaries, [field]: fromDisplay(v) }),
+  });
 
   return (
     <div className="flex gap-4">
-      <RangeSegment color="#17B26A" label="Low" min={lowMin} max={lowMax} unit={displayUnit} inputMax={displayInputMax} readOnlyMin onMaxChange={setLowMax} />
-      <RangeSegment color="#FEC84B" label="Medium" min={medMin} max={medMax} unit={displayUnit} inputMax={displayInputMax} readOnlyMin onMaxChange={setMedMax} />
-      <RangeSegment color="#F04438" label="High" min={highMin} max={highMax} unit={displayUnit} inputMax={displayInputMax} readOnlyMin onMaxChange={setHighMax} />
+      <RangeSegment color="#17B26A" label="Low" min={lowMin} max={lowMax} unit={displayUnit} inputMax={displayInputMax} readOnlyMin editor={editor("low")} />
+      <RangeSegment color="#FEC84B" label="Medium" min={medMin} max={medMax} unit={displayUnit} inputMax={displayInputMax} readOnlyMin editor={editor("medium")} />
+      <RangeSegment color="#F04438" label="High" min={highMin} max={highMax} unit={displayUnit} inputMax={displayInputMax} readOnlyMin editor={editor("high")} />
     </div>
   );
+}
+
+interface SegmentEditor {
+  /** Can this value be stored as typed, with no other bound moving? */
+  accepts: (v: number) => boolean;
+  /** Store a value that needs nothing else to move, while the field is focused. */
+  live: (v: number) => void;
+  /** Store the finished value, moving the neighbouring bounds to suit. */
+  commit: (v: number) => void;
+  /** Put back the value the field held when it gained focus. */
+  revert: (v: number) => void;
 }
 
 function RangeSegment({
@@ -80,7 +101,7 @@ function RangeSegment({
   unit,
   inputMax,
   readOnlyMin,
-  onMaxChange,
+  editor,
 }: {
   color: string;
   label: string;
@@ -89,7 +110,7 @@ function RangeSegment({
   unit: string;
   inputMax: number;
   readOnlyMin?: boolean;
-  onMaxChange: (v: number) => void;
+  editor: SegmentEditor;
 }) {
   return (
     <div className="flex flex-1 flex-col gap-2">
@@ -103,7 +124,7 @@ function RangeSegment({
           value={max}
           unit={unit}
           inputMax={inputMax}
-          onChange={onMaxChange}
+          editor={editor}
           className="-ml-px rounded-r-[8px]"
         />
       </div>
@@ -115,7 +136,7 @@ function ValueInput({
   value,
   unit,
   inputMax,
-  onChange,
+  editor,
   readOnly,
   muted,
   className,
@@ -123,11 +144,41 @@ function ValueInput({
   value: number;
   unit: string;
   inputMax: number;
-  onChange?: (v: number) => void;
+  editor?: SegmentEditor;
   readOnly?: boolean;
   muted?: boolean;
   className?: string;
 }) {
+  // The text the user is typing, held only while the field is focused. Null
+  // means "show the stored value" — the state the field returns to on commit.
+  const [draft, setDraft] = useState<string | null>(null);
+  // What the field held when it gained focus, so Escape can undo the values the
+  // live path stored while typing.
+  const valueOnFocus = useRef(value);
+  const text = draft ?? (Number.isFinite(value) ? String(value) : "0");
+
+  const handleChange = (raw: string) => {
+    setDraft(raw);
+    // An empty field is a backspace in progress, not a zero.
+    if (raw === "") return;
+    const typed = parseInt(raw, 10);
+    if (Number.isFinite(typed) && editor?.accepts(typed)) editor.live(typed);
+  };
+
+  const commit = () => {
+    if (draft === null) return;
+    const typed = parseInt(draft, 10);
+    // A field left empty or unparseable keeps whatever was stored.
+    if (Number.isFinite(typed)) editor?.commit(typed);
+    setDraft(null);
+  };
+
+  const revert = () => {
+    if (draft === null) return;
+    editor?.revert(valueOnFocus.current);
+    setDraft(null);
+  };
+
   return (
     <div
       className={`flex h-10 flex-1 items-center border border-[var(--borderBolder)] px-3 ${muted ? "bg-sub-card" : "bg-[var(--bgSurfaceRaised)]"} ${className ?? ""}`}
@@ -136,9 +187,18 @@ function ValueInput({
         type="number"
         min={0}
         max={inputMax}
-        value={Number.isFinite(value) ? value : 0}
+        value={text}
         readOnly={readOnly}
-        onChange={(e) => onChange?.(parseInt(e.target.value || "0", 10))}
+        onChange={(e) => handleChange(e.target.value)}
+        onFocus={() => { valueOnFocus.current = value; }}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+          // Escape restores the value the field started with and leaves it
+          // focused. Blurring here instead would commit the draft: the onBlur
+          // handler runs in the same event, still closed over it.
+          if (e.key === "Escape") revert();
+        }}
         className="w-full bg-transparent text-[14px] font-medium text-foreground outline-none read-only:text-muted-foreground"
       />
       <span className="text-[14px] font-medium text-muted-foreground">{unit}</span>
