@@ -109,6 +109,16 @@ export interface OverlaySettings {
   // When true, the overlay is nudged a few pixels on a slow cycle to spread
   // OLED wear (burn-in mitigation). See pixel-shift logic in OverlayApp.
   pixelShift: boolean;
+  /**
+   * Hardware identifier of the GPU every GPU reading is taken from, e.g.
+   * "/gpu-nvidia/0". Empty means "not chosen yet".
+   *
+   * Resolved when hardware first arrives, in setSensorData, not in
+   * loadSettings: which GPUs exist is not known until the sidecar reports
+   * them. See resolveSelectedGpu. Machines with one GPU never see the control
+   * that changes it.
+   */
+  selectedGpuId: string;
   sensors: SensorsConfig;
 }
 
@@ -199,6 +209,7 @@ export const DEFAULT_SETTINGS: OverlaySettings = {
   pollingRate: 500,
   isLoggingEnabled: false,
   pixelShift: false,
+  selectedGpuId: "",
   sensors: {
     framerate: { isEnabled: true, customReadingId: "", targetAppName: "" },
     frametime: { isEnabled: true, customReadingId: "" },

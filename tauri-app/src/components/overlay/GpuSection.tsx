@@ -44,9 +44,17 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
   const toGigabytes = (s: Sensor | undefined): number =>
     s == null ? 0 : s.sensorType === SensorType.SmallData ? (s.value ?? 0) / 1024 : s.value ?? 0;
 
-  // Anchor VRAM lookups to the GPU of the configured "GPU Memory Used" sensor.
+  // Anchor VRAM lookups to the selected GPU.
+  //
+  // This used to anchor to whichever GPU the configured "GPU Memory Used"
+  // sensor happened to sit on, which let the cluster straddle two GPUs: the
+  // used/total pair came from that sensor's GPU while the load fallback below
+  // came from vramUsage.customReadingId, and nothing tied the two together.
+  // The stored GPU is the one the user actually chose, so it is the honest
+  // anchor. The fallback keeps a settings file written before that field
+  // existed working until the next poll fills it in.
   const vramUsedConfigured = findSensorById(sensors, totalVramUsed.customReadingId);
-  const gpuHwId = vramUsedConfigured?.hardwareIdentifier;
+  const gpuHwId = settings.selectedGpuId || vramUsedConfigured?.hardwareIdentifier;
   const onGpu = (re: RegExp): Sensor | undefined =>
     gpuHwId ? sensors.find((s) => s.hardwareIdentifier === gpuHwId && re.test(s.name)) : undefined;
 

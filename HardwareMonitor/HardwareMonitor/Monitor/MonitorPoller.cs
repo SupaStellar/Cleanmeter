@@ -39,6 +39,29 @@ public class MonitorPoller(
     // How many times a change to the active sensor set is worth logging.
     private const int SensorSetChangeLogLimit = 5;
 
+    // How often the device tree is re-checked against LibreHardwareMonitor's
+    // GPU list. The check is a device-tree enumeration and a count compare, so
+    // it is cheap enough to leave running for the life of the sidecar; only a
+    // mismatch costs anything, and a single-GPU machine never has one. Running
+    // it forever rather than as a startup burst is what catches a GPU that
+    // arrives late, e.g. an external GPU or a driver that finished installing.
+    private const int GpuReconcileIntervalMs = 30_000;
+
+    // Rebuilding the GPU groups cannot help a GPU whose vendor SDK will never
+    // answer, so the rebuild is capped. Past the cap the GPU is still listed
+    // from the device tree, just without readings.
+    private const int MaxGpuGroupRebuilds = 5;
+
+    private long _nextGpuReconcileAt;
+    private int _gpuGroupRebuilds;
+
+    /// <summary>
+    /// GPUs the device tree reports as present that LibreHardwareMonitor has
+    /// produced no hardware for. Listed to the app anyway, without sensors, so
+    /// the user can still select the GPU they meant.
+    /// </summary>
+    private IReadOnlyList<DisplayAdapters.DisplayAdapter> _absentGpus = [];
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         logger.LogInformation("Starting monitor");
@@ -64,6 +87,13 @@ public class MonitorPoller(
                 "Continuing with FPS and any sensors that initialized; low-level CPU sensors " +
                 "may be unavailable.");
         }
+
+        // Before anything is logged or mapped, check LibreHardwareMonitor's
+        // GPU list against the device tree. Its GPU groups enumerate once, in
+        // their constructors, so a vendor SDK that was not ready here would
+        // otherwise leave the GPU missing for the whole session.
+        ReconcileGpus();
+        _nextGpuReconcileAt = Environment.TickCount64 + GpuReconcileIntervalMs;
 
         // Log discovered hardware and sensor counts for diagnostics
         int hwCount = 0, sensorCount = 0;
@@ -115,6 +145,28 @@ public class MonitorPoller(
 
         while (!stoppingToken.IsCancellationRequested)
         {
+            // Ahead of the no-clients check on purpose: the GPU list should be
+            // right by the time a client connects, not a poll or two after.
+            // Wall-clock rather than an accumulator because the two waits below
+            // differ (1s with no client, the polling rate with one).
+            if (Environment.TickCount64 >= _nextGpuReconcileAt)
+            {
+                _nextGpuReconcileAt = Environment.TickCount64 + GpuReconcileIntervalMs;
+
+                var reconcile = ReconcileGpus();
+                if (reconcile != GpuReconcileResult.Unchanged)
+                {
+                    // Only a rebuild invalidates the cached IHardware. Doing
+                    // this unconditionally would also clear the StopUpdates()
+                    // suspension MapHardwares exists to preserve.
+                    if (reconcile == GpuReconcileResult.Rebuilt)
+                        ForgetGpuHardware(sharedMemoryData);
+
+                    MapHardwareData(sharedMemoryData);
+                    knownSensorCount = CountActiveSensors();
+                }
+            }
+
             if (!_socketHost.HasConnections())
             {
                 //logger.LogInformation("No clients connected, waiting for connections...");
@@ -298,6 +350,181 @@ public class MonitorPoller(
         }
     }
 
+    /// <summary>
+    /// What a reconcile pass did, which decides how much the caller has to
+    /// throw away. The distinction matters: forgetting the cached GPU entries
+    /// is mandatory after a rebuild, and harmful without one, because it also
+    /// forgets that a GPU was suspended by StopUpdates() after throwing.
+    /// </summary>
+    private enum GpuReconcileResult
+    {
+        /// <summary>Nothing to do.</summary>
+        Unchanged,
+
+        /// <summary>
+        /// The GPUs listed without sensors changed. Existing IHardware
+        /// instances are still live; re-map, but keep them.
+        /// </summary>
+        ListChanged,
+
+        /// <summary>
+        /// LibreHardwareMonitor's GPU groups were re-created, so every GPU
+        /// IHardware the cache holds is now a closed instance.
+        /// </summary>
+        Rebuilt,
+    }
+
+    /// <summary>
+    /// Check the GPUs the device tree reports against the ones
+    /// LibreHardwareMonitor produced, rebuild its GPU groups when it is short,
+    /// and remember whatever is still unaccounted for so MapHardwares can list
+    /// it without sensors.
+    /// </summary>
+    private GpuReconcileResult ReconcileGpus()
+    {
+        IReadOnlyList<DisplayAdapters.DisplayAdapter> adapters;
+
+        try
+        {
+            adapters = DisplayAdapters.Enumerate();
+        }
+        catch (Exception ex)
+        {
+            // A second opinion we cannot obtain is not worth failing over. The
+            // GPU list stays whatever LibreHardwareMonitor reported, which is
+            // exactly the behaviour before this existed.
+            logger.LogWarning(ex, "Could not enumerate display adapters; using LibreHardwareMonitor's GPU list as-is");
+            return GpuReconcileResult.Unchanged;
+        }
+
+        // No adapters at all means the enumeration told us nothing useful
+        // rather than that the machine has no GPU, so nothing is concluded
+        // from it. A machine with a GPU that the device tree cannot see is not
+        // a case this can improve on.
+        if (adapters.Count == 0)
+            return GpuReconcileResult.Unchanged;
+
+        var missing = GpuReconciler.Missing(adapters, DetectedGpuTypes());
+
+        if (missing.Count > 0 && _gpuGroupRebuilds < MaxGpuGroupRebuilds)
+        {
+            _gpuGroupRebuilds++;
+            logger.LogInformation(
+                "Device tree reports {Present} GPU(s), LibreHardwareMonitor produced {Produced} ({Missing}); rebuilding its GPU groups, attempt {Attempt} of {Max}",
+                adapters.Count,
+                adapters.Count - missing.Count,
+                string.Join(", ", missing.Select(m => m.Name)),
+                _gpuGroupRebuilds,
+                MaxGpuGroupRebuilds);
+
+            RebuildGpuGroups();
+            SetAbsentGpus(GpuReconciler.Missing(adapters, DetectedGpuTypes()));
+
+            // A rebuild replaces every GPU IHardware, so the cached entries now
+            // point at closed instances and must be recreated regardless of
+            // whether the shortfall changed.
+            return GpuReconcileResult.Rebuilt;
+        }
+
+        // Compared by identity, not by count. One GPU becoming readable while
+        // another stops leaves the count unchanged, and treating that as "no
+        // change" would keep listing a placeholder for the wrong GPU.
+        if (SameGpus(missing, _absentGpus))
+            return GpuReconcileResult.Unchanged;
+
+        SetAbsentGpus(missing);
+
+        // No rebuild happened, so every surviving IHardware is still live. The
+        // caller re-maps to pick up the changed placeholder list; it must not
+        // forget the existing GPU entries, or a hardware suspended by
+        // StopUpdates() after throwing would be resurrected and throw again.
+        return GpuReconcileResult.ListChanged;
+    }
+
+    private static bool SameGpus(
+        IReadOnlyList<DisplayAdapters.DisplayAdapter> a,
+        IReadOnlyList<DisplayAdapters.DisplayAdapter> b)
+    {
+        if (a.Count != b.Count)
+            return false;
+
+        for (var i = 0; i < a.Count; i++)
+        {
+            if (a[i].InstanceId != b[i].InstanceId)
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Record the GPUs left without readings and log the change, once per
+    /// change rather than once per check, so a permanent shortfall does not
+    /// write a line every 30 seconds.
+    /// </summary>
+    private void SetAbsentGpus(IReadOnlyList<DisplayAdapters.DisplayAdapter> missing)
+    {
+        if (SameGpus(missing, _absentGpus))
+            return;
+
+        _absentGpus = missing;
+
+        if (missing.Count == 0)
+        {
+            logger.LogInformation("Every GPU the device tree reports now has readings");
+            return;
+        }
+
+        logger.LogWarning(
+            "{Count} GPU(s) present in the device tree have no readings after {Rebuilds} rebuild(s): {Missing}. They are listed for selection but every value reads 0.",
+            missing.Count,
+            _gpuGroupRebuilds,
+            string.Join(", ", missing.Select(m => m.Name)));
+    }
+
+    /// <summary>
+    /// Re-create LibreHardwareMonitor's three GPU groups. Assigning
+    /// IsGpuEnabled is the only handle it offers for this: the setter drops
+    /// AmdGpuGroup / NvidiaGroup / IntelGpuGroup and constructs them again,
+    /// which re-runs the ADL / NvAPI / IntelGcl enumeration that a constructor
+    /// otherwise does exactly once per process.
+    /// </summary>
+    private void RebuildGpuGroups()
+    {
+        try
+        {
+            _computer.IsGpuEnabled = false;
+            _computer.IsGpuEnabled = true;
+            _computer.Accept(new UpdateVisitor());
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Rebuilding the GPU groups failed; keeping the GPU list as it was");
+        }
+    }
+
+    private IEnumerable<HardwareType> DetectedGpuTypes()
+    {
+        foreach (var hardware in _computer.Hardware)
+        {
+            if (GpuReconciler.IsGpu(hardware.HardwareType))
+                yield return hardware.HardwareType;
+        }
+    }
+
+    /// <summary>
+    /// Drop the cached entries for every GPU so the next re-map recreates them.
+    ///
+    /// Required after a group rebuild. MapHardwares reuses entries by
+    /// identifier, and a rebuilt group hands out new IHardware instances under
+    /// the same identifiers (/gpu-nvidia/0 and friends), so reuse would leave
+    /// every GPU entry pointing at a closed instance that never updates again.
+    /// </summary>
+    private static void ForgetGpuHardware(SharedMemoryData data)
+    {
+        data.Hardwares.RemoveAll(h => GpuReconciler.IsGpu(h.HardwareType));
+    }
+
     private SharedMemoryData QueryHardwareData()
     {
         var sharedMemoryData = new SharedMemoryData();
@@ -350,6 +577,29 @@ public class MonitorPoller(
             {
                 Add(subHardware);
             }
+        }
+
+        // GPUs the device tree reports but LibreHardwareMonitor produced
+        // nothing for. Listed so the user can still pick the GPU they meant
+        // instead of it being absent from the app entirely; they carry no
+        // sensors, so every reading on them is 0.
+        for (var i = 0; i < _absentGpus.Count; i++)
+        {
+            var adapter = _absentGpus[i];
+            var identifier = GpuReconciler.PlaceholderIdentifier(adapter, i);
+
+            hardwareList.Add(known.TryGetValue(identifier, out var existing)
+                ? existing
+                : new SharedMemoryHardware
+                {
+                    // Cleaned like every other name: the wire writes a UTF-16
+                    // character count in front of UTF-8 bytes, so a name with
+                    // non-ASCII in it would misalign every field after it.
+                    Name = RemoveSpecialCharacters(adapter.Name),
+                    Identifier = identifier,
+                    HardwareType = adapter.Type,
+                    Hardware = null,
+                });
         }
 
         sharedMemoryData.Hardwares = hardwareList;

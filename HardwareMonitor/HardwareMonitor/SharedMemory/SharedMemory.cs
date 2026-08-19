@@ -30,7 +30,13 @@ public static class SharedMemoryConsts
 
 public class SharedMemoryHardware
 {
-    public required IHardware Hardware;
+    /// <summary>
+    /// Null for a GPU the device tree reports as present but that
+    /// LibreHardwareMonitor produced no hardware for. Such an entry exists so
+    /// the GPU is still listed and selectable; it carries no sensors and has
+    /// nothing to update. See HardwareMonitor.Monitor.GpuReconciler.
+    /// </summary>
+    public required IHardware? Hardware;
     public required string Name { get; set; }
     public required string Identifier { get; set; }
     public required HardwareType HardwareType { get; set; }
@@ -41,7 +47,7 @@ public class SharedMemoryHardware
     {
         if (_isActive)
         {
-            Hardware.Update();
+            Hardware?.Update();
         }
     }
 
