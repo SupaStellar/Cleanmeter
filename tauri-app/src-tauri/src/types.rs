@@ -349,6 +349,13 @@ pub struct OverlaySettings {
     // struct comment above).
     #[serde(rename = "pixelShift", default)]
     pub pixel_shift: bool,
+    // Hardware identifier of the GPU every GPU reading is taken from, e.g.
+    // "/gpu-nvidia/0". Empty means "not chosen yet", which the app resolves on
+    // load. Machines with one GPU never show the control that sets this.
+    // `default` keeps older save files loading, and it must live here or serde
+    // drops it on save (see the struct comment above).
+    #[serde(rename = "selectedGpuId", default)]
+    pub selected_gpu_id: String,
     pub sensors: SensorsConfig,
 }
 
@@ -379,6 +386,7 @@ impl Default for OverlaySettings {
             polling_rate: 500,
             is_logging_enabled: false,
             pixel_shift: false,
+            selected_gpu_id: String::new(),
             sensors: SensorsConfig::default(),
         }
     }
@@ -442,4 +450,49 @@ pub struct MonitorInfo {
     pub x: i32,
     pub y: i32,
     pub primary: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The settings file is written by deserialising the app's JSON into
+    /// OverlaySettings and serialising it straight back out, so any field the
+    /// struct does not model is dropped on the first save. That is silent, and
+    /// it costs the user their setting, so the GPU choice is pinned by a test
+    /// rather than by the comment next to it.
+    #[test]
+    fn the_selected_gpu_survives_a_save_and_load_round_trip() {
+        let settings = OverlaySettings {
+            selected_gpu_id: "/gpu-nvidia/0".to_string(),
+            ..Default::default()
+        };
+
+        let json = serde_json::to_string(&settings).expect("serialise");
+        assert!(
+            json.contains("\"selectedGpuId\":\"/gpu-nvidia/0\""),
+            "the app reads this key name, not the Rust field name: {json}"
+        );
+
+        let restored: OverlaySettings = serde_json::from_str(&json).expect("deserialise");
+        assert_eq!(restored.selected_gpu_id, "/gpu-nvidia/0");
+    }
+
+    /// Every settings file written before this field existed lacks the key.
+    /// Without `default` on it, serde rejects the whole file and the user is
+    /// silently reset to defaults on upgrade.
+    #[test]
+    fn a_settings_file_written_before_the_gpu_field_still_loads() {
+        let mut without = serde_json::to_value(OverlaySettings::default()).expect("to value");
+        without
+            .as_object_mut()
+            .expect("object")
+            .remove("selectedGpuId")
+            .expect("the key should have been there to remove");
+
+        let loaded: OverlaySettings =
+            serde_json::from_value(without).expect("an older settings file must still load");
+
+        assert_eq!(loaded.selected_gpu_id, "");
+    }
 }

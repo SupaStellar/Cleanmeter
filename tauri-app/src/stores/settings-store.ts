@@ -13,7 +13,32 @@ import type {
   Hardware,
 } from "@/lib/types";
 import { DEFAULT_SETTINGS, HardwareType, SensorType } from "@/lib/types";
+import {
+  listGpus,
+  nextGpuSilence,
+  NO_GPU_SILENCE,
+  resolveSelectedGpu,
+  sensorsOnGpu,
+  shouldRepickSensor,
+  type GpuSilence,
+} from "@/lib/gpu";
 import * as tauri from "@/lib/tauri";
+
+/**
+ * Best sensor of a given type out of an already-narrowed list, by keyword
+ * preference, falling back to the first of that type.
+ */
+function bestOf(candidates: Sensor[], sensorType: SensorType, prefer: string[]): string {
+  const ofType = candidates.filter((s) => s.sensorType === sensorType);
+  if (ofType.length === 0) return "";
+  for (const keyword of prefer) {
+    const match = ofType.find((s) =>
+      s.name.toLowerCase().includes(keyword.toLowerCase())
+    );
+    if (match) return match.identifier;
+  }
+  return ofType[0].identifier;
+}
 
 function findBest(
   sensors: Sensor[],
@@ -25,29 +50,31 @@ function findBest(
   const hwIds = new Set(
     hardwares.filter((h) => hwTypes.includes(h.hardwareType)).map((h) => h.identifier)
   );
-  const candidates = sensors.filter(
-    (s) => hwIds.has(s.hardwareIdentifier) && s.sensorType === sensorType
+  return bestOf(
+    sensors.filter((s) => hwIds.has(s.hardwareIdentifier)),
+    sensorType,
+    prefer
   );
-  if (candidates.length === 0) return "";
-  for (const keyword of prefer) {
-    const match = candidates.find((s) =>
-      s.name.toLowerCase().includes(keyword.toLowerCase())
-    );
-    if (match) return match.identifier;
-  }
-  return candidates[0].identifier;
+}
+
+/**
+ * What autoSelectSensors decided. `selectedGpuId` is separate from `sensors`
+ * because it lives at the top level of the settings shape, not under it.
+ */
+interface AutoSelection {
+  sensors: Partial<OverlaySettings["sensors"]>;
+  selectedGpuId: string;
 }
 
 function autoSelectSensors(
   data: HardwareMonitorData,
   settings: OverlaySettings
-): Partial<OverlaySettings["sensors"]> | null {
+): AutoSelection | null {
   const { sensors, hardwares } = data;
   const patch: Partial<OverlaySettings["sensors"]> = {};
   let changed = false;
 
   const cpuHw = [HardwareType.Cpu];
-  const gpuHw = [HardwareType.GpuNvidia, HardwareType.GpuAmd, HardwareType.GpuIntel];
 
   const tryFill = <K extends SensorKey>(
     key: K,
@@ -65,14 +92,55 @@ function autoSelectSensors(
     }
   };
 
+  // Every GPU reading comes from one GPU, so the GPU is resolved first and the
+  // rows are then filled from its sensors alone.
+  const gpus = listGpus(hardwares);
+  const selectedGpuId = resolveSelectedGpu(
+    settings.selectedGpuId,
+    settings.sensors.gpuUsage.customReadingId,
+    gpus,
+    sensors
+  );
+  const gpuSensors = sensorsOnGpu(sensors, selectedGpuId);
+
+  if (selectedGpuId !== settings.selectedGpuId) changed = true;
+
+  /**
+   * Fill a GPU row, and re-point it when it names a sensor on another GPU.
+   *
+   * Unlike tryFill, an existing choice is not automatically kept, which is
+   * what repairs a configuration written before the GPU was pinned. See
+   * shouldRepickSensor for when a choice is left alone.
+   *
+   * Clearing rather than keeping is deliberate when the selected GPU has no
+   * sensors at all, a card powered down or whose vendor SDK is not answering:
+   * bestOf returns "" and the row reads 0. Showing 0 for the GPU you chose is
+   * honest; quietly showing the other GPU's numbers is the bug this whole
+   * change exists to remove.
+   */
+  const fillOnGpu = <K extends SensorKey>(
+    key: K,
+    sType: SensorType,
+    prefer: string[]
+  ) => {
+    const current = settings.sensors[key];
+    if (!shouldRepickSensor(current.customReadingId, selectedGpuId, sensors)) return;
+
+    const id = bestOf(gpuSensors, sType, prefer);
+    if (id === current.customReadingId) return;
+
+    patch[key] = { ...current, customReadingId: id } as OverlaySettings["sensors"][K];
+    changed = true;
+  };
+
   tryFill("cpuUsage", cpuHw, SensorType.Load, ["CPU Total", "CPU Package", "CPU"]);
   tryFill("cpuTemp", cpuHw, SensorType.Temperature, ["CPU Package", "CPU Core", "CPU"]);
   tryFill("cpuConsumption", cpuHw, SensorType.Power, ["CPU Package", "CPU"]);
-  tryFill("gpuUsage", gpuHw, SensorType.Load, ["GPU Core", "D3D 3D", "GPU"]);
-  tryFill("gpuTemp", gpuHw, SensorType.Temperature, ["GPU Core", "GPU"]);
-  tryFill("vramUsage", gpuHw, SensorType.Load, ["GPU Memory", "Memory"]);
-  tryFill("totalVramUsed", gpuHw, SensorType.SmallData, ["GPU Memory Used", "Memory Used", "VRAM"]);
-  tryFill("gpuConsumption", gpuHw, SensorType.Power, ["GPU Package", "GPU Power", "GPU"]);
+  fillOnGpu("gpuUsage", SensorType.Load, ["GPU Core", "D3D 3D", "GPU"]);
+  fillOnGpu("gpuTemp", SensorType.Temperature, ["GPU Core", "GPU"]);
+  fillOnGpu("vramUsage", SensorType.Load, ["GPU Memory", "Memory"]);
+  fillOnGpu("totalVramUsed", SensorType.SmallData, ["GPU Memory Used", "Memory Used", "VRAM"]);
+  fillOnGpu("gpuConsumption", SensorType.Power, ["GPU Package", "GPU Power", "GPU"]);
   tryFill("ramUsage", [HardwareType.Memory], SensorType.Load, ["Memory Used", "Memory"]);
   // For network, pick the most active non-virtual adapter
   if (!settings.sensors.downRate.customReadingId || !settings.sensors.upRate.customReadingId) {
@@ -143,7 +211,7 @@ function autoSelectSensors(
     }
   }
 
-  return changed ? patch : null;
+  return changed ? { sensors: patch, selectedGpuId } : null;
 }
 
 /** Set once the sidecar-status event channel has delivered anything. See
@@ -168,10 +236,21 @@ interface SettingsStore {
   sidecarStatus: SidecarStatus;
   overlayVisible: boolean;
   appVersion: string;
+  /**
+   * How long the selected GPU has been reporting nothing. Read `.settled`;
+   * a single snapshot cannot tell a parked GPU from one still warming up.
+   */
+  gpuSilence: GpuSilence;
 
   // Settings actions
   loadSettings: () => Promise<void>;
   updateSettings: (patch: Partial<OverlaySettings>) => void;
+  /**
+   * Pin every GPU reading to one GPU. Not updateSettings({ selectedGpuId }),
+   * because changing the GPU has to re-point every GPU sensor row onto it in
+   * the same update, or they keep naming sensors on the old GPU.
+   */
+  selectGpu: (gpuId: string) => void;
   // Generic over SensorKey so framerate's extra targetAppName field is
   // accepted, while non-framerate keys still see only the base SensorConfig
   // shape.
@@ -222,6 +301,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   // Nothing has gone wrong until the supervisor says so, so a launch reads as
   // "still starting" rather than as a failure.
   sidecarStatus: { exits: 0, spawnError: null },
+  gpuSilence: NO_GPU_SILENCE,
   overlayVisible: false,
   // Empty until loadAppVersion() resolves the real version — better a brief
   // blank than a misleading hardcoded number.
@@ -313,6 +393,42 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     }
   },
 
+  selectGpu: (gpuId) => {
+    const state = get();
+    const withGpu = { ...state.settings, selectedGpuId: gpuId };
+
+    // Re-point every GPU row in the same tick rather than waiting for the
+    // next poll to do it. Same code path either way, so the two cannot drift;
+    // doing it here only means the sensor pickers never briefly read "Select"
+    // while showing sensors from a GPU that is no longer chosen.
+    const selection = state.sensorData
+      ? autoSelectSensors(state.sensorData, withGpu)
+      : null;
+
+    const newSettings = selection
+      ? {
+          ...withGpu,
+          selectedGpuId: selection.selectedGpuId,
+          sensors: { ...withGpu.sensors, ...selection.sensors },
+        }
+      : withGpu;
+
+    set({ settings: newSettings });
+    debouncedSave(newSettings);
+
+    // Re-time the silence clock against the GPU that was just chosen. Without
+    // this the old GPU's verdict survives until the next poll, so switching
+    // away from a parked GPU leaves its "reports 0" notice sitting under a GPU
+    // that is reading fine for up to a polling interval.
+    set({
+      gpuSilence: nextGpuSilence(
+        NO_GPU_SILENCE,
+        newSettings.selectedGpuId,
+        state.sensorData?.sensors ?? [],
+        Date.now(),
+      ),
+    });
+  },
   updateSettings: (patch) => {
     const newSettings = { ...get().settings, ...patch };
     set({ settings: newSettings });
@@ -391,14 +507,31 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     const state = get();
     const wasNull = state.sensorData === null;
     set({ sensorData: data });
-    // Auto-select sensor IDs the first time data arrives (if any are still empty)
-    const patch = autoSelectSensors(data, state.settings);
-    if (patch) {
-      const newSensors = { ...state.settings.sensors, ...patch };
-      const newSettings = { ...state.settings, sensors: newSensors };
+    // Fill in any sensor still unset, and re-point the GPU rows if they name
+    // a sensor on a GPU other than the selected one.
+    const selection = autoSelectSensors(data, state.settings);
+    if (selection) {
+      const newSensors = { ...state.settings.sensors, ...selection.sensors };
+      const newSettings = {
+        ...state.settings,
+        selectedGpuId: selection.selectedGpuId,
+        sensors: newSensors,
+      };
       set({ settings: newSettings });
       debouncedSave(newSettings);
     }
+    // Advance the "this GPU is reporting nothing" clock. Here rather than in a
+    // component timer because this already runs once per poll, so it needs no
+    // timer of its own and stays a pure function of the previous state, the
+    // snapshot, and the time.
+    set({
+      gpuSilence: nextGpuSilence(
+        state.gpuSilence,
+        selection?.selectedGpuId ?? state.settings.selectedGpuId,
+        data.sensors,
+        Date.now(),
+      ),
+    });
     // Auto-show overlay on first data arrival
     if (wasNull && !state.overlayVisible) {
       set({ overlayVisible: true });

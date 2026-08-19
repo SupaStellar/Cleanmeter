@@ -1,7 +1,16 @@
 import { useRef } from "react";
 import type { Hardware, Sensor } from "@/lib/types";
-import { HardwareType, SensorType } from "@/lib/types";
+import { SensorType } from "@/lib/types";
+import { listGpus, sensorsOnGpu } from "@/lib/gpu";
 import { useSettingsStore } from "@/stores/settings-store";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shadcn/select";
+import { InfoIcon } from "../settings/icons";
 import { SectionCard, SubCollapsible } from "./SectionCard";
 import { SensorSelect } from "./SensorSelect";
 import { TempRangeControl } from "./TempRangeControl";
@@ -11,36 +20,31 @@ interface Props {
   hardwares: Hardware[];
 }
 
-const GPU_HW_TYPES = [
-  HardwareType.GpuNvidia,
-  HardwareType.GpuAmd,
-  HardwareType.GpuIntel,
-];
-
 export function GpuSection({ sensors, hardwares }: Props) {
   const settings = useSettingsStore((s) => s.settings);
   const updateSensor = useSettingsStore((s) => s.updateSensor);
   const updateBoundary = useSettingsStore((s) => s.updateBoundary);
+  const selectGpu = useSettingsStore((s) => s.selectGpu);
+  // `.settled` rather than a per-snapshot check: one snapshot cannot tell a
+  // parked GPU from one whose sensors have not activated yet, and the notice
+  // would flash on every launch. See nextGpuSilence.
+  const gpuIsIdle = useSettingsStore((s) => s.gpuSilence.settled);
   const { gpuUsage, gpuTemp, gpuConsumption, vramUsage } = settings.sensors;
 
-  const gpuHwIds = new Set(
-    hardwares.filter((h) => GPU_HW_TYPES.includes(h.hardwareType)).map((h) => h.identifier),
-  );
-  const gpuLoadSensors = sensors.filter(
-    (s) => gpuHwIds.has(s.hardwareIdentifier) && s.sensorType === SensorType.Load,
-  );
-  const gpuTempSensors = sensors.filter(
-    (s) => gpuHwIds.has(s.hardwareIdentifier) && s.sensorType === SensorType.Temperature,
-  );
-  const gpuPowerSensors = sensors.filter(
-    (s) => gpuHwIds.has(s.hardwareIdentifier) && s.sensorType === SensorType.Power,
-  );
+  const gpus = listGpus(hardwares);
+  // Every row below draws from one GPU. Scoping the option lists is what makes
+  // a mixed configuration unreachable rather than merely discouraged: on a
+  // laptop the sensor names collide (both an NVIDIA and an Intel GPU expose a
+  // temperature called "GPU Core"), so an unscoped list offers two identical
+  // rows and no way to tell them apart.
+  const gpuSensors = sensorsOnGpu(sensors, settings.selectedGpuId);
+
+  const gpuLoadSensors = gpuSensors.filter((s) => s.sensorType === SensorType.Load);
+  const gpuTempSensors = gpuSensors.filter((s) => s.sensorType === SensorType.Temperature);
+  const gpuPowerSensors = gpuSensors.filter((s) => s.sensorType === SensorType.Power);
   // VRAM usage is a load-type sensor whose name indicates memory.
-  const vramSensors = sensors.filter(
-    (s) =>
-      gpuHwIds.has(s.hardwareIdentifier) &&
-      s.sensorType === SensorType.Load &&
-      s.name.toLowerCase().includes("memory"),
+  const vramSensors = gpuLoadSensors.filter((s) =>
+    s.name.toLowerCase().includes("memory"),
   );
 
   const anyEnabled =
@@ -84,6 +88,35 @@ export function GpuSection({ sensors, hardwares }: Props) {
   return (
     <SectionCard title="GPU" enabled={anyEnabled} onToggle={handleMaster}>
       <div className="flex flex-col gap-3">
+        {/* Only shown when there is a choice to make. On the overwhelming
+            majority of machines there is exactly one GPU, and a control whose
+            list has a single entry is noise. */}
+        {gpus.length > 1 && (
+          <div className="flex flex-col gap-3">
+            <Select value={settings.selectedGpuId} onValueChange={selectGpu}>
+              <SelectTrigger className="w-full rounded-[8px] border-[var(--borderBolder)] bg-[var(--bgSurfaceRaised)] font-medium shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {gpus.map((gpu) => (
+                  <SelectItem key={gpu.identifier} value={gpu.identifier}>
+                    {gpu.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {/* Only while the chosen GPU is actually reporting nothing. A GPU
+                that is reading fine needs no explanation, and a notice that is
+                always there stops being read. */}
+            {gpuIsIdle && (
+              <div className="flex items-center gap-2 text-[12px] font-medium text-muted-foreground">
+                <InfoIcon className="size-4 shrink-0" />
+                <span>A GPU that is idle or powered down reports 0.</span>
+              </div>
+            )}
+          </div>
+        )}
+
         <SubCollapsible
           label="GPU Usage"
           checked={gpuUsage.isEnabled}
