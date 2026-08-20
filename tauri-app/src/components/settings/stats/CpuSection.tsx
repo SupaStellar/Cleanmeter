@@ -65,20 +65,18 @@ export function CpuSection({ sensors, hardwares }: Props) {
           onCheckedChange={(v) => updateSensor("cpuUsage", { isEnabled: v })}
           defaultOpen
         >
-          <div className="flex flex-col gap-4">
-            {cpuLoadSensors.length > 0 && (
-              <SensorSelect
-                label="CPU Usage"
-                value={cpuUsage.customReadingId}
-                options={cpuLoadSensors}
-                onChange={(v) => updateSensor("cpuUsage", { customReadingId: v })}
-              />
-            )}
-            <TempRangeControl
-              boundaries={cpuUsage.boundaries}
-              onChange={(b) => updateBoundary("cpuUsage", b)}
+          {cpuLoadSensors.length > 0 && (
+            <SensorSelect
+              label="CPU Usage"
+              value={cpuUsage.customReadingId}
+              options={cpuLoadSensors}
+              onChange={(v) => updateSensor("cpuUsage", { customReadingId: v })}
             />
-          </div>
+          )}
+          <TempRangeControl
+            boundaries={cpuUsage.boundaries}
+            onChange={(b) => updateBoundary("cpuUsage", b)}
+          />
         </SubCollapsible>
 
         <SubCollapsible
@@ -86,22 +84,20 @@ export function CpuSection({ sensors, hardwares }: Props) {
           checked={cpuTemp.isEnabled}
           onCheckedChange={(v) => updateSensor("cpuTemp", { isEnabled: v })}
         >
-          <div className="flex flex-col gap-4">
-            {cpuTempSensors.length > 0 && (
-              <SensorSelect
-                label="CPU Temperature"
-                value={cpuTemp.customReadingId}
-                options={cpuTempSensors}
-                onChange={(v) => updateSensor("cpuTemp", { customReadingId: v })}
-              />
-            )}
-            <TempRangeControl
-              boundaries={cpuTemp.boundaries}
-              onChange={(b) => updateBoundary("cpuTemp", b)}
-              isTemperature
-              max={120}
+          {cpuTempSensors.length > 0 && (
+            <SensorSelect
+              label="CPU Temperature"
+              value={cpuTemp.customReadingId}
+              options={cpuTempSensors}
+              onChange={(v) => updateSensor("cpuTemp", { customReadingId: v })}
             />
-          </div>
+          )}
+          <TempRangeControl
+            boundaries={cpuTemp.boundaries}
+            onChange={(b) => updateBoundary("cpuTemp", b)}
+            isTemperature
+            max={120}
+          />
         </SubCollapsible>
 
         <SubCollapsible
@@ -109,18 +105,16 @@ export function CpuSection({ sensors, hardwares }: Props) {
           checked={cpuConsumption.isEnabled}
           onCheckedChange={(v) => updateSensor("cpuConsumption", { isEnabled: v })}
         >
-          <div className="flex flex-col gap-4">
-            {cpuPowerSensors.length > 0 && (
-              <SensorSelect
-                label="CPU Power"
-                value={cpuConsumption.customReadingId}
-                options={cpuPowerSensors}
-                onChange={(v) =>
-                  updateSensor("cpuConsumption", { customReadingId: v })
-                }
-              />
-            )}
-          </div>
+          {cpuPowerSensors.length > 0 && (
+            <SensorSelect
+              label="CPU Power"
+              value={cpuConsumption.customReadingId}
+              options={cpuPowerSensors}
+              onChange={(v) =>
+                updateSensor("cpuConsumption", { customReadingId: v })
+              }
+            />
+          )}
         </SubCollapsible>
       </div>
     </SectionCard>

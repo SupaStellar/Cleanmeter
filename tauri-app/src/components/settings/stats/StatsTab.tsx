@@ -32,7 +32,7 @@ export function StatsTab() {
   }, [updateStatus]);
 
   return (
-    <div className="flex h-full w-full flex-col gap-4">
+    <div className="flex h-full w-full flex-col gap-[var(--spacingM)]">
       <HotkeyBar />
       <FpsSection />
       <GpuSection sensors={sensors} hardwares={hardwares} />

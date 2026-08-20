@@ -144,13 +144,18 @@ export default function App() {
     }
   }, [settings.isDarkTheme]);
 
+  // The window edge is an outline rather than a border: Figma strokes this
+  // frame OUTSIDE, so its stroke costs no layout and 651 is the content box.
+  // A 1px border ate 2 of that and left every card 601 instead of 603.
   return (
-    <div className="relative mx-auto flex h-screen w-full max-w-[651px] flex-col overflow-hidden rounded-[12px] border border-foreground/10 bg-background text-foreground shadow-sm">
+    <div className="relative mx-auto flex h-screen w-full max-w-[651px] flex-col overflow-hidden rounded-[12px] outline outline-1 -outline-offset-1 outline-foreground/10 bg-background text-foreground shadow-sm">
       {showSplash && <SplashScreen onDone={handleSplashDone} />}
       <TopBar />
       <MonitoringBanner />
       <UpdateBanner />
-      <div className="flex min-h-0 flex-1 flex-col gap-5 px-6 pb-6 pt-6">
+      {/* Figma's window: 651 wide, 24 of padding around a 603 content column,
+          20 between the tabs and the content. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-[var(--spacingL)] p-[var(--spacingXl)]">
         <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
         <div className="min-h-0 flex-1 overflow-y-auto">
           {/* Tabs stay mounted and hide via CSS so local UI state (expanded

@@ -7,9 +7,9 @@ import {
   Select,
   SelectContent,
   SelectItem,
-  SelectTrigger,
   SelectValue,
 } from "@/components/shadcn/select";
+import { SelectFieldTrigger } from "@/components/ui/SelectField";
 import { cn } from "@/lib/utils";
 import { getAutoStart, setAutoStart } from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -35,8 +35,8 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <section className="flex w-full flex-col gap-5 rounded-[12px] bg-[var(--bgSurfaceRaised)] p-5">
-      <h2 className="text-[13px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+    <section className="flex w-full flex-col gap-[var(--spacingL)] rounded-[var(--cornerXl)] bg-[var(--bgSurfaceRaised)] p-[var(--spacingL)]">
+      <h2 className="text-[13px] font-semibold uppercase leading-[16px] tracking-[0.1em] text-muted-foreground">
         {title}
       </h2>
       {children}
@@ -73,48 +73,48 @@ function GeneralSection() {
 
   return (
     <SectionCard title="General">
-      <div className="flex flex-col gap-5">
-        <div className="flex flex-col gap-3">
-          <label className="flex cursor-pointer items-center gap-2 text-[14px] font-medium text-foreground">
+      {/* Three blocks, laid out by the card's own 20 gap rather than a wrapper
+          of its own: Figma 2526:6755 puts the checkboxes, the divider and the
+          Pixel Shift row 20 apart. */}
+      <div className="flex flex-col gap-[var(--spacingS)]">
+        <label className="flex cursor-pointer items-center gap-[var(--spacingXs)] text-[14px] font-medium text-foreground">
             <Checkbox
               checked={startWithWindows}
               disabled={autoStartPending}
               onCheckedChange={(v) => handleStartWithWindows(v === true)}
             />
-            Start with windows
-          </label>
-          <label className="flex cursor-pointer items-center gap-2 text-[14px] font-medium text-foreground">
-            <Checkbox
-              checked={startMinimized}
-              onCheckedChange={(v) =>
-                updatePreferences({ startMinimized: v === true })
-              }
-            />
-            Start minimized
-          </label>
-        </div>
-        <div className="h-px w-full bg-[var(--borderSubtle)]" />
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-[var(--cornerRound)] border border-[var(--borderBold)] bg-[var(--bgSurfaceRaised)]">
-            {/* The glyph is geometrically centered but top-heavy (solid
-                monitor body over thin legs), which reads as sitting high in
-                the circle — nudge down 1px for optical center. */}
-            <ComputerIcon className="size-5 translate-y-[1px] text-[var(--textParagraph1)]" />
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col gap-[6px]">
-            <span className="text-[14px] font-medium text-[var(--textHeading)]">
-              Pixel Shift
-            </span>
-            <span className="text-[14px] font-normal text-[var(--textParagraph1)]">
-              Shifts the overlay periodically to avoid OLED burn-in.
-            </span>
-          </div>
-          <Switch
-            checked={pixelShift}
-            onCheckedChange={(v) => updateSettings({ pixelShift: v })}
-            aria-label="Pixel Shift"
+          Start with windows
+        </label>
+        <label className="flex cursor-pointer items-center gap-[var(--spacingXs)] text-[14px] font-medium text-foreground">
+          <Checkbox
+            checked={startMinimized}
+            onCheckedChange={(v) =>
+              updatePreferences({ startMinimized: v === true })
+            }
           />
+          Start minimized
+        </label>
+      </div>
+      <div className="h-px w-full shrink-0 bg-[var(--borderSubtle)]" />
+      <div className="flex items-center gap-[var(--spacingS)]">
+        <div className="flex size-[40px] shrink-0 items-center justify-center rounded-[var(--cornerRound)] border border-[var(--borderBold)] bg-[var(--bgSurfaceRaised)]">
+          {/* No optical nudge: the exported glyph carries Figma's own 1.67
+              inset inside a 20 box, so centring the box centres the glyph. */}
+          <ComputerIcon className="size-[20px] text-[var(--textParagraph1)]" />
         </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-[6px]">
+          <span className="text-[14px] font-medium leading-[17px] text-[var(--textHeading)]">
+            Pixel Shift
+          </span>
+          <span className="text-[14px] font-normal leading-[17px] text-[var(--textParagraph1)]">
+            Shifts the overlay periodically to avoid OLED burn-in.
+          </span>
+        </div>
+        <Switch
+          checked={pixelShift}
+          onCheckedChange={(v) => updateSettings({ pixelShift: v })}
+          aria-label="Pixel Shift"
+        />
       </div>
     </SectionCard>
   );
@@ -178,16 +178,16 @@ function PollingRateSection() {
 
   return (
     <SectionCard title="Polling rate">
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-[var(--spacingS)]">
         <Select
           value={String(pollingRate)}
           onValueChange={(v) =>
             updateSettings({ pollingRate: parseInt(v, 10) })
           }
         >
-          <SelectTrigger className="w-full rounded-[8px] border-[var(--borderBolder)] bg-[var(--bgSurfaceRaised)] font-medium shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
+          <SelectFieldTrigger label="Polling rate:">
             <SelectValue />
-          </SelectTrigger>
+          </SelectFieldTrigger>
           <SelectContent>
             {POLLING_RATES.map((rate) => (
               <SelectItem key={rate} value={String(rate)}>
@@ -196,8 +196,8 @@ function PollingRateSection() {
             ))}
           </SelectContent>
         </Select>
-        <div className="flex items-center gap-2 text-[12px] font-medium text-muted-foreground">
-          <InfoIcon className="size-4 shrink-0" />
+        <div className="flex items-center gap-[var(--spacingXxxs)] text-[12px] font-medium leading-[15px] text-[var(--textParagraph1)]">
+          <InfoIcon className="size-[16px] shrink-0" />
           <span>The interval in milliseconds the app will update data</span>
         </div>
       </div>
@@ -252,7 +252,10 @@ function AppearanceSection() {
 
   return (
     <SectionCard title="Appearance">
-      <div className="flex gap-3">
+      {/* Figma 2526:6791: three cards 12 apart, each a 104 preview over a 49
+          label row. The border is an inset shadow rather than a real border so
+          the 2 of a selected card does not resize the content. */}
+      <div className="flex gap-[var(--spacingS)]">
         {THEME_OPTIONS.map(({ value, label, Preview }) => {
           const selected = themeMode === value;
           return (
@@ -267,13 +270,17 @@ function AppearanceSection() {
               style={{
                 boxShadow: selected
                   ? "inset 0 0 0 2px var(--borderBrand), 0 4px 8px 0 rgba(0,0,0,0.02)"
-                  : "inset 0 0 0 1px var(--borderBold), 0 4px 8px 0 rgba(0,0,0,0.02)",
+                  // Border/Bold already carries alpha, and Figma halves it
+                  // again with a 50% stroke opacity on the layer. Mixing the
+                  // token toward transparent reproduces that in both themes
+                  // instead of hardcoding one theme's result.
+                  : "inset 0 0 0 1px color-mix(in srgb, var(--borderBold) 50%, transparent), 0 4px 8px 0 rgba(0,0,0,0.02)",
               }}
             >
-              <div className="h-[104px] w-full pb-0 pl-1 pr-1 pt-1">
+              <div className="h-[104px] w-full pb-0 pl-[4px] pr-[4px] pt-[4px]">
                 <Preview />
               </div>
-              <div className="flex h-[49px] items-center px-4 text-[14px] font-medium text-foreground">
+              <div className="flex h-[49px] items-center px-[var(--spacingM)] text-[14px] font-medium leading-[17px] text-[var(--textHeading)]">
                 {label}
               </div>
             </button>
@@ -348,6 +355,7 @@ const DISCORD_INVITE_URL = "https://discord.gg/SCgXtTMNvJ";
 // The actual "download & install" happens from the floating UpdateBanner.
 function UpdatesButton() {
   const status = useUpdaterStore((s) => s.status);
+  const dismissed = useUpdaterStore((s) => s.dismissed);
   const check = useUpdaterStore((s) => s.check);
 
   const busy =
@@ -355,18 +363,29 @@ function UpdatesButton() {
     status === "downloading" ||
     status === "installing";
 
+  // "ready" is deliberately not busy: a downloaded update whose pill was
+  // dismissed is brought back by pressing this, which is what check() does
+  // when it sees that status.
+  //
+  // The two labels that point at the pill only apply while the pill is on
+  // screen. Once it has been dismissed they would be pointing at nothing, so
+  // the button goes back to inviting the press that brings it back.
+  const pending = (status === "available" || status === "ready") && !dismissed;
+
   const label =
     status === "checking"
       ? "Checking for updates…"
-      : status === "available"
-        ? "Update available — see banner"
-        : status === "downloading" || status === "installing"
-          ? "Updating…"
-          : status === "uptodate"
-            ? "You're on the latest version"
-            : status === "error"
-              ? "Couldn't check — try again"
-              : "Check for latest updates";
+      : pending && status === "available"
+        ? "Update available!"
+        : pending
+          ? "Update ready to install"
+          : status === "downloading" || status === "installing"
+            ? "Updating…"
+            : status === "uptodate"
+              ? "You're on the latest version"
+              : status === "error"
+                ? "Couldn't check, try again"
+                : "Check for latest updates";
 
   return (
     <FooterLinkButton
@@ -383,8 +402,8 @@ export function SettingsTab() {
   const appVersion = useSettingsStore((s) => s.appVersion);
 
   return (
-    <div className="flex h-full w-full flex-col gap-5">
-      <div className="flex w-full flex-col gap-4">
+    <div className="flex h-full w-full flex-col gap-[var(--spacingL)]">
+      <div className="flex w-full flex-col gap-[var(--spacingM)]">
         <GeneralSection />
         <TemperatureUnitsSection />
         <PollingRateSection />

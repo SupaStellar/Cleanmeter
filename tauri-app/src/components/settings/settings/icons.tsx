@@ -94,50 +94,56 @@ export function BrowserUpdatedIcon({ className }: IconProps) {
 // Computer / monitor icon — Figma node 2524:5178 (Pixel Shift row). 20px,
 // 1.5 stroke in currentColor. Geometry copied verbatim from the Figma export
 // (viewBox kept at the source 18.1667 units so paths stay exact).
+// Computer glyph, exported from Figma 2524:5178. A 20 box holding a 16.67
+// glyph, so it is centred by its own 1.67 inset and needs no nudging. The
+// previous version drew the same paths into an 18.1667 viewBox, which scaled
+// the glyph up by 1.1 and lost that inset.
 export function ComputerIcon({ className }: IconProps) {
   return (
     <svg
       width="20"
       height="20"
-      viewBox="0 0 18.1667 18.1667"
+      viewBox="0 0 20 20"
       fill="none"
       className={className}
       aria-hidden
     >
       <g stroke="currentColor" strokeWidth="1.5">
         <path
-          d="M10.75 0.75H7.41667C4.68398 0.75 3.31763 0.75 2.34909 1.42818C1.99076 1.67909 1.67909 1.99076 1.42818 2.34909C0.75 3.31763 0.75 4.68398 0.75 7.41667C0.75 10.1494 0.75 11.5157 1.42818 12.4842C1.67909 12.8426 1.99076 13.1542 2.34909 13.4052C3.31763 14.0833 4.68398 14.0833 7.41667 14.0833H10.75C13.4827 14.0833 14.849 14.0833 15.8176 13.4052C16.1759 13.1542 16.4876 12.8426 16.7385 12.4842C17.4167 11.5157 17.4167 10.1494 17.4167 7.41667C17.4167 4.68398 17.4167 3.31763 16.7385 2.34909C16.4876 1.99076 16.1759 1.67909 15.8176 1.42818C14.849 0.75 13.4827 0.75 10.75 0.75Z"
+          d="M11.666 1.66663H8.33268C5.59999 1.66663 4.23365 1.66663 3.2651 2.34481C2.90677 2.59571 2.5951 2.90738 2.3442 3.26571C1.66602 4.23426 1.66602 5.6006 1.66602 8.33329C1.66602 11.066 1.66602 12.4323 2.3442 13.4009C2.5951 13.7592 2.90677 14.0709 3.2651 14.3218C4.23365 15 5.59999 15 8.33268 15H11.666C14.3987 15 15.7651 15 16.7336 14.3218C17.0919 14.0709 17.4036 13.7592 17.6545 13.4009C18.3327 12.4323 18.3327 11.066 18.3327 8.33329C18.3327 5.6006 18.3327 4.23426 17.6545 3.26571C17.4036 2.90738 17.0919 2.59571 16.7336 2.34481C15.7651 1.66663 14.3987 1.66663 11.666 1.66663Z"
           strokeLinecap="round"
         />
         <path
-          d="M8.25 11.5833H9.91667"
+          d="M9.16602 12.5H10.8327"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
         <path
-          d="M11.1667 17.4167L10.9038 17.0676C10.3111 16.2807 10.1641 15.0787 10.539 14.0833M7 17.4167L7.26292 17.0676C7.85561 16.2807 8.00255 15.0787 7.62769 14.0833"
+          d="M12.0827 18.3333L11.8198 17.9843C11.2271 17.1974 11.0801 15.9953 11.455 15M7.91602 18.3333L8.17893 17.9843C8.77163 17.1974 8.91856 15.9953 8.54371 15"
           strokeLinecap="round"
         />
-        <path d="M4.91667 17.4167H13.25" strokeLinecap="round" />
+        <path d="M5.83398 18.3334H14.1673" strokeLinecap="round" />
       </g>
     </svg>
   );
 }
 
-// Info icon — Figma node 2075:8803 (Material Symbols rounded filled, 16px).
+// Info glyph, exported from Figma 2759:12474. A 13.33 glyph inside a 16 box,
+// which is the whole point: the previous version drew the circle edge to edge,
+// so it rendered a fifth larger than every info row in the design.
 export function InfoIcon({ className }: IconProps) {
   return (
     <svg
       width="16"
       height="16"
-      viewBox="0 0 27 27"
+      viewBox="0 0 16 16"
       fill="none"
       className={className}
       aria-hidden
     >
       <path
         fill="currentColor"
-        d="M13.5 20.25c.3825 0 .7031-.1293.9618-.3881.2588-.2587.3882-.5793.3882-.9618V13.5c0-.3825-.1294-.7032-.3882-.9619-.2587-.2588-.5793-.3881-.9618-.3881-.3825 0-.7032.1293-.9619.3881-.2588.2587-.3881.5794-.3881.9619v5.3999c0 .3825.1293.7031.3881.9618.2587.2588.5794.3881.9619.3881zm0-10.8c.3825 0 .7031-.1294.9618-.3881.2588-.2588.3882-.5794.3882-.9619 0-.3825-.1294-.7031-.3882-.9619-.2587-.2588-.5793-.3881-.9618-.3881-.3825 0-.7032.1293-.9619.3881-.2588.2588-.3881.5794-.3881.9619 0 .3825.1293.7031.3881.9619.2587.2587.5794.3881.9619.3881zM13.5 27c-1.8675 0-3.6225-.3544-5.265-1.0631C6.5925 25.228 5.1637 24.2662 3.9487 23.0512 2.7337 21.8362 1.7719 20.4074 1.0631 18.7649.3544 17.1224 0 15.3675 0 13.5c0-1.8675.3544-3.6225 1.0631-5.265C1.7719 6.5925 2.7337 5.1637 3.9487 3.9487 5.1637 2.7337 6.5925 1.7719 8.235 1.0631 9.8775.3544 11.6325 0 13.5 0c1.8675 0 3.6224.3544 5.2649 1.0631C20.4074 1.7719 21.8362 2.7337 23.0512 3.9487 24.2662 5.1637 25.228 6.5925 25.9368 8.235 26.6455 9.8775 26.9999 11.6325 26.9999 13.5c0 1.8675-.3544 3.6224-1.0631 5.2649-.7088 1.6425-1.6706 3.0713-2.8856 4.2863-1.215 1.215-2.6438 2.1768-4.2863 2.8856C17.1224 26.6455 15.3675 26.9999 13.5 26.9999zm0-2.7c3.0149 0 5.5687-1.0462 7.6612-3.1387 2.0925-2.0925 3.1387-4.6463 3.1387-7.6612 0-3.015-1.0462-5.5687-3.1387-7.6612C19.0687 3.7462 16.5149 2.7 13.5 2.7c-3.015 0-5.5687 1.0462-7.6612 3.1387C3.7462 7.9312 2.7 10.485 2.7 13.5c0 3.0149 1.0462 5.5687 3.1388 7.6612C7.9313 23.2537 10.485 24.2999 13.5 24.2999z"
+        d="M8.00114 11.332C8.19003 11.332 8.34836 11.2681 8.47614 11.1404C8.60392 11.0126 8.66781 10.8543 8.66781 10.6654V7.9987C8.66781 7.80981 8.60392 7.65148 8.47614 7.5237C8.34836 7.39592 8.19003 7.33203 8.00114 7.33203C7.81225 7.33203 7.65392 7.39592 7.52614 7.5237C7.39836 7.65148 7.33447 7.80981 7.33447 7.9987V10.6654C7.33447 10.8543 7.39836 11.0126 7.52614 11.1404C7.65392 11.2681 7.81225 11.332 8.00114 11.332ZM8.00114 5.9987C8.19003 5.9987 8.34836 5.93481 8.47614 5.80703C8.60392 5.67925 8.66781 5.52092 8.66781 5.33203C8.66781 5.14314 8.60392 4.98481 8.47614 4.85703C8.34836 4.72925 8.19003 4.66536 8.00114 4.66536C7.81225 4.66536 7.65392 4.72925 7.52614 4.85703C7.39836 4.98481 7.33447 5.14314 7.33447 5.33203C7.33447 5.52092 7.39836 5.67925 7.52614 5.80703C7.65392 5.93481 7.81225 5.9987 8.00114 5.9987ZM8.00114 14.6654C7.07892 14.6654 6.21225 14.4904 5.40114 14.1404C4.59003 13.7904 3.88447 13.3154 3.28447 12.7154C2.68447 12.1154 2.20947 11.4098 1.85947 10.5987C1.50947 9.78759 1.33447 8.92092 1.33447 7.9987C1.33447 7.07648 1.50947 6.20981 1.85947 5.3987C2.20947 4.58759 2.68447 3.88203 3.28447 3.28203C3.88447 2.68203 4.59003 2.20703 5.40114 1.85703C6.21225 1.50703 7.07892 1.33203 8.00114 1.33203C8.92336 1.33203 9.79003 1.50703 10.6011 1.85703C11.4123 2.20703 12.1178 2.68203 12.7178 3.28203C13.3178 3.88203 13.7928 4.58759 14.1428 5.3987C14.4928 6.20981 14.6678 7.07648 14.6678 7.9987C14.6678 8.92092 14.4928 9.78759 14.1428 10.5987C13.7928 11.4098 13.3178 12.1154 12.7178 12.7154C12.1178 13.3154 11.4123 13.7904 10.6011 14.1404C9.79003 14.4904 8.92336 14.6654 8.00114 14.6654ZM8.00114 13.332C9.49003 13.332 10.7511 12.8154 11.7845 11.782C12.8178 10.7487 13.3345 9.48759 13.3345 7.9987C13.3345 6.50981 12.8178 5.2487 11.7845 4.21536C10.7511 3.18203 9.49003 2.66536 8.00114 2.66536C6.51225 2.66536 5.25114 3.18203 4.21781 4.21536C3.18447 5.2487 2.66781 6.50981 2.66781 7.9987C2.66781 9.48759 3.18447 10.7487 4.21781 11.782C5.25114 12.8154 6.51225 13.332 8.00114 13.332Z"
       />
     </svg>
   );
@@ -187,17 +193,41 @@ export function ChevronRightIcon({ className }: IconProps) {
 // "Visual" mock-window with 8px padding, holding three 120×26 bars (gap 6,
 // rounded-4) filled #F0F1F1. The Visual is 6px taller than the parent so the
 // bottom bar reads as slightly clipped. On the dark variant Figma applies
-// 10% layer opacity to the bars — they render as a subtle dark stripe on
-// the #161B26 inner, not as bright white.
+/**
+ * The mock app window inside a theme preview. Figma 2526:6791: 136 wide, 8 of
+ * padding, radius 8, pinned 16 in and 16 down, holding three 26-tall bars 6
+ * apart. It is 106 tall against a 100 tall preview, so the last bar is cut off
+ * by the preview's own clip, which is what the design shows.
+ *
+ * The bars are Bg/Surface at full strength on a light window and at 10% layer
+ * opacity on a dark one, so they read as a subtle stripe rather than white.
+ */
+function ThemeWindow({
+  inner,
+  barOpacity = 1,
+}: {
+  inner: string;
+  barOpacity?: number;
+}) {
+  return (
+    <div
+      className="absolute left-[16px] top-[16px] flex w-[136px] flex-col gap-[6px] rounded-[8px] p-[8px]"
+      style={{ backgroundColor: inner }}
+    >
+      <div className="h-[26px] rounded-[4px] bg-[#F0F1F1]" style={{ opacity: barOpacity }} />
+      <div className="h-[26px] rounded-[4px] bg-[#F0F1F1]" style={{ opacity: barOpacity }} />
+      <div className="h-[26px] rounded-[4px] bg-[#F0F1F1]" style={{ opacity: barOpacity }} />
+    </div>
+  );
+}
+
 function ThemePreviewBars({
   bg,
   inner,
-  bar,
   barOpacity = 1,
 }: {
   bg: string;
   inner: string;
-  bar: string;
   barOpacity?: number;
 }) {
   return (
@@ -205,69 +235,34 @@ function ThemePreviewBars({
       className="relative h-full w-full overflow-hidden rounded-[4px]"
       style={{ backgroundColor: bg }}
     >
-      <div
-        className="absolute left-1/2 top-[6px] flex w-[136px] -translate-x-1/2 flex-col gap-[6px] rounded-[8px] p-2"
-        style={{ backgroundColor: inner }}
-      >
-        <div
-          className="h-[26px] rounded-[4px]"
-          style={{ backgroundColor: bar, opacity: barOpacity }}
-        />
-        <div
-          className="h-[26px] rounded-[4px]"
-          style={{ backgroundColor: bar, opacity: barOpacity }}
-        />
-        <div
-          className="h-[26px] rounded-[4px]"
-          style={{ backgroundColor: bar, opacity: barOpacity }}
-        />
-      </div>
+      <ThemeWindow inner={inner} barOpacity={barOpacity} />
     </div>
   );
 }
 
 export function ThemePreviewLight() {
-  return <ThemePreviewBars bg="#F5F5F6" inner="#FFFFFF" bar="#F0F1F1" />;
+  return <ThemePreviewBars bg="#F5F5F6" inner="#FFFFFF" />;
 }
 
 export function ThemePreviewDark() {
-  return (
-    <ThemePreviewBars
-      bg="#0C111D"
-      inner="#161B26"
-      bar="#F0F1F1"
-      barOpacity={0.1}
-    />
-  );
+  return <ThemePreviewBars bg="#0C111D" inner="#161B26" barOpacity={0.1} />;
 }
 
-// System preview (Figma 2075:8832): outer preview has a light bg with a
-// dark overlay covering the LEFT half — base bg is #F5F5F6, left 50% is
-// #0C111D. A single centered Visual spans both halves; its inner bg and
-// each bar are split-coloured at the same 50% seam so the rounded corners
-// and bar shapes look continuous across the dark/light divide.
-const SYSTEM_INNER_BG =
-  "linear-gradient(to right, #161B26 50%, #FFFFFF 50%)";
-const SYSTEM_BAR_BG =
-  "linear-gradient(to right, rgba(240,241,241,0.1) 50%, #F0F1F1 50%)";
-
+/**
+ * System: the light preview with a clipped dark half laid over its left side,
+ * carrying its own copy of the window at the same 16 offset.
+ *
+ * That is how Figma builds it, and it is also why the seam stays exact. The
+ * previous version painted a gradient at 50% of the window instead, which only
+ * lines up with the half's edge when the window happens to be centred, and the
+ * card is a flex child whose width is not fixed.
+ */
 export function ThemePreviewSystem() {
   return (
-    <div
-      className="relative h-full w-full overflow-hidden rounded-[4px]"
-      style={{ backgroundColor: "#F5F5F6" }}
-    >
-      <div
-        className="absolute inset-y-0 left-0 w-1/2"
-        style={{ backgroundColor: "#0C111D" }}
-      />
-      <div
-        className="absolute left-1/2 top-[6px] flex w-[136px] -translate-x-1/2 flex-col gap-[6px] rounded-[8px] p-2"
-        style={{ background: SYSTEM_INNER_BG }}
-      >
-        <div className="h-[26px] rounded-[4px]" style={{ background: SYSTEM_BAR_BG }} />
-        <div className="h-[26px] rounded-[4px]" style={{ background: SYSTEM_BAR_BG }} />
-        <div className="h-[26px] rounded-[4px]" style={{ background: SYSTEM_BAR_BG }} />
+    <div className="relative h-full w-full overflow-hidden rounded-[4px] bg-[#F5F5F6]">
+      <ThemeWindow inner="#FFFFFF" />
+      <div className="absolute inset-y-0 left-0 w-1/2 overflow-hidden rounded-l-[4px] bg-[#0C111D]">
+        <ThemeWindow inner="#161B26" barOpacity={0.1} />
       </div>
     </div>
   );

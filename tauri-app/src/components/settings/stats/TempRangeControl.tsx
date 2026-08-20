@@ -9,7 +9,8 @@ import {
 } from "@/lib/boundaries";
 
 /**
- * 3-segment range control from Figma. Defaults to a 0-100% scale (GPU/CPU
+ * 3-segment range control from Figma 2759:12231. Each segment is 65 tall: a 17
+ * label row, 8, then a 40 pair of cells. Defaults to a 0-100% scale (GPU/CPU
  * usage); pass `isTemperature` + `max` (in °C) to reuse for temperatures.
  * Boundaries.low / .medium are the upper bounds of the Low / Medium segments.
  * Boundaries.high is the absolute max.
@@ -75,7 +76,7 @@ export function TempRangeControl({
   });
 
   return (
-    <div className="flex gap-4">
+    <div className="flex gap-[var(--spacingM)]">
       <RangeSegment color="#17B26A" label="Low" min={lowMin} max={lowMax} unit={displayUnit} inputMax={displayInputMax} readOnlyMin editor={editor("low")} />
       <RangeSegment color="#FEC84B" label="Medium" min={medMin} max={medMax} unit={displayUnit} inputMax={displayInputMax} readOnlyMin editor={editor("medium")} />
       <RangeSegment color="#F04438" label="High" min={highMin} max={highMax} unit={displayUnit} inputMax={displayInputMax} readOnlyMin editor={editor("high")} />
@@ -114,10 +115,10 @@ function RangeSegment({
   editor: SegmentEditor;
 }) {
   return (
-    <div className="flex flex-1 flex-col gap-2">
-      <div className="flex items-center gap-1.5">
-        <span className="size-1.5 rounded-full" style={{ background: color }} />
-        <span className="text-[14px] font-medium text-foreground">{label}</span>
+    <div className="flex flex-1 flex-col gap-[var(--spacingXs)]">
+      <div className="flex items-center gap-[var(--spacingXxs)]">
+        <span className="size-[6px] shrink-0 rounded-[var(--cornerRound)]" style={{ background: color }} />
+        <span className="text-[14px] font-medium leading-[17px] text-foreground">{label}</span>
       </div>
       <div className="flex">
         <ValueInput value={min} unit={unit} inputMax={inputMax} readOnly={readOnlyMin} muted className="rounded-l-[8px]" />
@@ -180,7 +181,7 @@ function ValueInput({
 
   return (
     <div
-      className={`flex h-10 flex-1 items-center border border-[var(--borderBolder)] px-3 ${muted ? "bg-sub-card" : "bg-[var(--bgSurfaceRaised)]"} ${className ?? ""}`}
+      className={`flex h-[40px] flex-1 items-center border border-[var(--borderBolder)] px-[var(--spacingS)] ${muted ? "bg-sub-card" : "bg-[var(--bgSurfaceRaised)]"} ${className ?? ""}`}
     >
       <input
         type="number"

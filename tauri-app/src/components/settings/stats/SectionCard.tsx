@@ -12,6 +12,10 @@ import {
 /**
  * White section card with an uppercase label + optional right-side switch.
  * Matches Figma cards 2075:5766 (FPS), 2075:5793 (GPU), etc.
+ *
+ * Padding, gap and radius are px tokens rather than p-5 / gap-5 / rounded-xl:
+ * :root sets font-size 14px, so a rem utility lands at 87.5% of its nominal
+ * value and the 20 Figma redlines were rendering as 17.5.
  */
 export function SectionCard({
   title,
@@ -29,12 +33,12 @@ export function SectionCard({
   return (
     <section
       className={cn(
-        "flex w-full flex-col gap-5 rounded-[12px] bg-[var(--bgSurfaceRaised)] p-5",
+        "flex w-full flex-col gap-[var(--spacingL)] rounded-[var(--cornerXl)] bg-[var(--bgSurfaceRaised)] p-[var(--spacingL)]",
         className,
       )}
     >
       <div className="flex items-center justify-between">
-        <span className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <span className="text-[13px] font-semibold uppercase leading-[16px] tracking-wide text-muted-foreground">
           {title}
         </span>
         {onToggle !== undefined && (
@@ -97,7 +101,7 @@ export function SubCollapsible({
   }
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="flex flex-col gap-2">
+    <Collapsible open={open} onOpenChange={setOpen} className="flex flex-col gap-[var(--spacingXs)]">
       <div className="flex items-center gap-2">
         <Checkbox
           checked={checked}
@@ -118,14 +122,37 @@ export function SubCollapsible({
       </div>
       {children && (
         <CollapsibleContent className="overflow-hidden data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up">
-          <div className="flex gap-5 pl-3">
-            <div className="w-[2px] shrink-0 rounded-full bg-divider" />
-            <div className="flex-1 rounded-[8px] bg-sub-card p-4">
-              {children}
+          {/* Figma 2759:12229: a 2px rail 12 in from the left, then the blocks
+              20 across from it, stacked 12 apart. */}
+          <div className="flex gap-[var(--spacingL)] pl-[var(--spacingS)]">
+            <div className="w-[2px] shrink-0 rounded-[var(--cornerRound)] bg-[var(--borderSubtle)]" />
+            <div className="flex min-w-0 flex-1 flex-col gap-[var(--spacingS)]">
+              {/* One card per block, not one card around all of them: the
+                  design separates the sensor picker from the threshold row.
+                  toArray drops the falsy children a `cond && <X/>` leaves
+                  behind, so a hidden block does not leave an empty card. */}
+              {React.Children.toArray(children).map((child, i) => (
+                <SubCard key={i}>{child}</SubCard>
+              ))}
             </div>
           </div>
         </CollapsibleContent>
       )}
     </Collapsible>
+  );
+}
+
+/**
+ * One block inside an expanded SubCollapsible.
+ *
+ * Figma 2759:12490 / 2759:12231: radius 8, 16 all round, Bg/Surface Sunken
+ * Subtler. Gap 16 is the threshold row's; the picker card holds a single child
+ * so its own 6 never shows.
+ */
+function SubCard({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-[var(--spacingM)] rounded-[var(--cornerL)] bg-[var(--bgSurfaceSunkenSubtler)] p-[var(--spacingM)]">
+      {children}
+    </div>
   );
 }
