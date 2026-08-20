@@ -7,12 +7,48 @@ import type {
   AppPreferences,
   SidecarStatus,
 } from "./types";
+import { previewPresentMonApps, previewSensorData, previewUpdate } from "./preview-fixture";
 
 // ─── Browser detection ──────────────────────────────────────────
 // When running via `npm run dev` in a browser (no Tauri runtime),
 // all invoke/listen calls are no-ops so the UI can be previewed.
 
 export const isBrowser = !("__TAURI_INTERNALS__" in window);
+
+// ─── Browser-preview fixture ────────────────────────────────────
+// The preview has no sidecar, so the sensor listeners below never fire: every
+// picker is empty, no reading has a value, and the monitoring banner appears
+// once the startup grace expires. Replaying a captured snapshot instead is what
+// makes the settings UI reviewable in a browser, including the GPU picker,
+// which only exists on a machine reporting more than one GPU.
+//
+// Gated on import.meta.env.DEV as well as isBrowser: Vite folds that to false
+// in `npm run build`, so neither the replay nor the fixture it imports can
+// reach a shipped bundle. `tauri dev` is unaffected: it has a Tauri runtime,
+// so isBrowser is false there and the real events flow.
+const usePreviewFixture = import.meta.env.DEV && isBrowser;
+
+const PREVIEW_TICK_MS = 1000;
+
+/**
+ * Feed a preview payload to a listener the way the sidecar would.
+ *
+ * Deferred by a macrotask rather than delivered inline: loadSettings() resolves
+ * on a microtask in the preview, and a snapshot landing before it would have
+ * the GPU selection it resolves overwritten by the settings arriving after.
+ */
+function replayPreview<T>(
+  next: () => T,
+  callback: (value: T) => void,
+  everyMs?: number,
+): Promise<UnlistenFn> {
+  const first = setTimeout(() => callback(next()), 0);
+  const repeat = everyMs ? setInterval(() => callback(next()), everyMs) : undefined;
+  return Promise.resolve(() => {
+    clearTimeout(first);
+    if (repeat) clearInterval(repeat);
+  });
+}
 
 async function safeInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   if (isBrowser) return undefined as T;
@@ -95,6 +131,8 @@ export type AppUpdate = import("@tauri-apps/plugin-updater").Update;
 // Returns the pending Update when a newer release exists, or null when the app
 // is current (or running in the browser preview, which has no Tauri runtime).
 export const checkForUpdate = async (): Promise<AppUpdate | null> => {
+  // The preview reports an update so the download banner has a state to be in.
+  if (usePreviewFixture) return previewUpdate();
   if (isBrowser) return null;
   const { check } = await import("@tauri-apps/plugin-updater");
   return check();
@@ -121,19 +159,32 @@ export const prepareForUpdate = async (): Promise<void> => {
 export const onSensorData = (
   callback: (data: HardwareMonitorData) => void
 ): Promise<UnlistenFn> =>
-  safeListen<HardwareMonitorData>("sensor-data", (event) =>
-    callback(event.payload)
-  );
+  usePreviewFixture
+    ? // Re-sent on a tick, like a real poll: the values are identical every
+      // time, but a store that receives one snapshot and never another cannot
+      // show anything that reacts to a reading changing.
+      replayPreview(
+        () => ({ ...previewSensorData(), lastPollTime: Date.now() }),
+        callback,
+        PREVIEW_TICK_MS,
+      )
+    : safeListen<HardwareMonitorData>("sensor-data", (event) =>
+        callback(event.payload)
+      );
 
 export const onPresentMonApps = (
   callback: (apps: string[]) => void
 ): Promise<UnlistenFn> =>
-  safeListen<string[]>("present-mon-apps", (event) => callback(event.payload));
+  usePreviewFixture
+    ? replayPreview(previewPresentMonApps, callback)
+    : safeListen<string[]>("present-mon-apps", (event) => callback(event.payload));
 
 export const onPipeStatus = (
   callback: (status: PipeStatus) => void
 ): Promise<UnlistenFn> =>
-  safeListen<PipeStatus>("pipe-status", (event) => callback(event.payload));
+  usePreviewFixture
+    ? replayPreview(() => ({ connected: true }), callback)
+    : safeListen<PipeStatus>("pipe-status", (event) => callback(event.payload));
 
 export const onSidecarStatus = (
   callback: (status: SidecarStatus) => void
