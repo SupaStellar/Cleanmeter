@@ -5,8 +5,12 @@ built by the `build.yml` GitHub Actions workflow on a Windows runner.
 
 ## Cut a release
 
-1. Bump the version in `tauri-app/src-tauri/tauri.conf.json` (keep
-   `tauri-app/package.json` in sync), e.g. `2.2.4` → `2.2.5`.
+1. Bump the version in all five places that carry it, e.g. `2.2.4` → `2.2.5`:
+   `tauri-app/src-tauri/tauri.conf.json`, `tauri-app/package.json`,
+   `tauri-app/package-lock.json` (both root entries),
+   `tauri-app/src-tauri/Cargo.toml`, and the `cleanmeter` package entry in
+   `tauri-app/src-tauri/Cargo.lock`. A missed lockfile makes `npm ci` or
+   `cargo build --locked` disagree with its manifest in CI.
 2. Commit, then tag and push:
    ```
    git tag v2.2.5
