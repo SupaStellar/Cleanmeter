@@ -1,9 +1,15 @@
 import { CollapsibleCard } from "../style/CollapsibleCard";
 
-// Copy transcribed verbatim from Figma node 2664:2793 (curly quotes and all).
-// Line breaks are pinned to match the Figma layout exactly: this is a
-// fixed-width (563px) panel, so each line is an explicit break; blank lines
-// between paragraphs are the double newline.
+// Copy transcribed verbatim from Figma node 2664:2793 (curly quotes and all),
+// with the closing paragraph carrying two corrections Saad made after that
+// node was drawn: "feature requests" rather than "feature request", and "an
+// overlay that gamers" rather than "an overlay gamers".
+//
+// Line breaks are pinned to match the Figma layout: this is a fixed-width
+// (563px) panel, so each line is an explicit break and blank lines between
+// paragraphs are the double newline. The two added words push the closing
+// paragraph past its old break points, so its last two lines are re-flowed to
+// keep every line inside the panel; nothing else moves.
 const ABOUT_PARAGRAPHS: string[][] = [
   [
     "“Most performance monitoring overlays are cluttered, difficult to configure, and",
@@ -23,15 +29,15 @@ const ABOUT_PARAGRAPHS: string[][] = [
   ],
   [
     "We’re building Cleanmeter alongside the PC community, taking in all the feedback,",
-    "feature request, and issues to create an overlay gamers, creators, and PC",
-    "enthusiasts actually enjoy using. :) ”",
+    "feature requests, and issues to create an overlay that gamers, creators,",
+    "and PC enthusiasts actually enjoy using. :) ”",
   ],
 ];
 const ABOUT_BODY = ABOUT_PARAGRAPHS.map((lines) => lines.join("\n")).join("\n\n");
 
 export function AboutSection() {
   return (
-    <CollapsibleCard title="About">
+    <CollapsibleCard title="About" defaultOpen={false}>
       <div className="flex flex-col gap-5">
         <p className="whitespace-pre-line text-[14px] font-medium leading-[1.5] text-foreground">
           {ABOUT_BODY}

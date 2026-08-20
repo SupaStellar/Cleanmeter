@@ -7,9 +7,9 @@ import {
   Select,
   SelectContent,
   SelectItem,
-  SelectTrigger,
   SelectValue,
 } from "@/components/shadcn/select";
+import { SelectFieldTrigger } from "@/components/ui/SelectField";
 import { InfoIcon } from "../settings/icons";
 import { SectionCard, SubCollapsible } from "./SectionCard";
 import { SensorSelect } from "./SensorSelect";
@@ -25,10 +25,6 @@ export function GpuSection({ sensors, hardwares }: Props) {
   const updateSensor = useSettingsStore((s) => s.updateSensor);
   const updateBoundary = useSettingsStore((s) => s.updateBoundary);
   const selectGpu = useSettingsStore((s) => s.selectGpu);
-  // `.settled` rather than a per-snapshot check: one snapshot cannot tell a
-  // parked GPU from one whose sensors have not activated yet, and the notice
-  // would flash on every launch. See nextGpuSilence.
-  const gpuIsIdle = useSettingsStore((s) => s.gpuSilence.settled);
   const { gpuUsage, gpuTemp, gpuConsumption, vramUsage } = settings.sensors;
 
   const gpus = listGpus(hardwares);
@@ -87,16 +83,20 @@ export function GpuSection({ sensors, hardwares }: Props) {
 
   return (
     <SectionCard title="GPU" enabled={anyEnabled} onToggle={handleMaster}>
-      <div className="flex flex-col gap-3">
-        {/* Only shown when there is a choice to make. On the overwhelming
-            majority of machines there is exactly one GPU, and a control whose
-            list has a single entry is noise. */}
-        {gpus.length > 1 && (
-          <div className="flex flex-col gap-3">
+      {/* Two blocks, not one: the card lays its children out 20 apart, which is
+          the gap Figma puts between the GPU picker and the sensor rows, while
+          the rows themselves sit 12 apart inside their own block. */}
+      {/* The picker is only shown when there is a choice to make. On the
+          overwhelming majority of machines there is exactly one GPU, and a
+          control whose list has a single entry is noise; that machine sees the
+          card exactly as it was before the picker existed. */}
+      {gpus.length > 1 && (
+        <>
+          <div className="flex flex-col gap-[var(--spacingS)]">
             <Select value={settings.selectedGpuId} onValueChange={selectGpu}>
-              <SelectTrigger className="w-full rounded-[8px] border-[var(--borderBolder)] bg-[var(--bgSurfaceRaised)] font-medium shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
+              <SelectFieldTrigger label="Selected GPU:">
                 <SelectValue />
-              </SelectTrigger>
+              </SelectFieldTrigger>
               <SelectContent>
                 {gpus.map((gpu) => (
                   <SelectItem key={gpu.identifier} value={gpu.identifier}>
@@ -105,38 +105,37 @@ export function GpuSection({ sensors, hardwares }: Props) {
                 ))}
               </SelectContent>
             </Select>
-            {/* Only while the chosen GPU is actually reporting nothing. A GPU
-                that is reading fine needs no explanation, and a notice that is
-                always there stops being read. */}
-            {gpuIsIdle && (
-              <div className="flex items-center gap-2 text-[12px] font-medium text-muted-foreground">
-                <InfoIcon className="size-4 shrink-0" />
-                <span>A GPU that is idle or powered down reports 0.</span>
-              </div>
-            )}
+            {/* Shown for as long as the picker is, per Figma. It explains what
+                a 0 reading means rather than reporting one, so it is a standing
+                note about the control and not a state of the GPU. */}
+            <div className="flex items-center gap-[var(--spacingXxxs)] text-[12px] font-medium leading-[15px] text-[var(--textParagraph1)]">
+              <InfoIcon className="size-[16px] shrink-0" />
+              <span>A GPU will report stats only when it’s being used.</span>
+            </div>
           </div>
-        )}
+          <div className="h-px w-full shrink-0 bg-[var(--borderSubtle)]" />
+        </>
+      )}
 
+      <div className="flex flex-col gap-[var(--spacingS)]">
         <SubCollapsible
           label="GPU Usage"
           checked={gpuUsage.isEnabled}
           onCheckedChange={(v) => updateSensor("gpuUsage", { isEnabled: v })}
           defaultOpen
         >
-          <div className="flex flex-col gap-4">
-            {gpuLoadSensors.length > 0 && (
-              <SensorSelect
-                label="GPU Usage"
-                value={gpuUsage.customReadingId}
-                options={gpuLoadSensors}
-                onChange={(v) => updateSensor("gpuUsage", { customReadingId: v })}
-              />
-            )}
-            <TempRangeControl
-              boundaries={gpuUsage.boundaries}
-              onChange={(b) => updateBoundary("gpuUsage", b)}
+          {gpuLoadSensors.length > 0 && (
+            <SensorSelect
+              label="GPU Usage"
+              value={gpuUsage.customReadingId}
+              options={gpuLoadSensors}
+              onChange={(v) => updateSensor("gpuUsage", { customReadingId: v })}
             />
-          </div>
+          )}
+          <TempRangeControl
+            boundaries={gpuUsage.boundaries}
+            onChange={(b) => updateBoundary("gpuUsage", b)}
+          />
         </SubCollapsible>
 
         <SubCollapsible
@@ -144,22 +143,20 @@ export function GpuSection({ sensors, hardwares }: Props) {
           checked={gpuTemp.isEnabled}
           onCheckedChange={(v) => updateSensor("gpuTemp", { isEnabled: v })}
         >
-          <div className="flex flex-col gap-4">
-            {gpuTempSensors.length > 0 && (
-              <SensorSelect
-                label="GPU Temperature"
-                value={gpuTemp.customReadingId}
-                options={gpuTempSensors}
-                onChange={(v) => updateSensor("gpuTemp", { customReadingId: v })}
-              />
-            )}
-            <TempRangeControl
-              boundaries={gpuTemp.boundaries}
-              onChange={(b) => updateBoundary("gpuTemp", b)}
-              isTemperature
-              max={120}
+          {gpuTempSensors.length > 0 && (
+            <SensorSelect
+              label="GPU Temperature"
+              value={gpuTemp.customReadingId}
+              options={gpuTempSensors}
+              onChange={(v) => updateSensor("gpuTemp", { customReadingId: v })}
             />
-          </div>
+          )}
+          <TempRangeControl
+            boundaries={gpuTemp.boundaries}
+            onChange={(b) => updateBoundary("gpuTemp", b)}
+            isTemperature
+            max={120}
+          />
         </SubCollapsible>
 
         <SubCollapsible
@@ -167,16 +164,14 @@ export function GpuSection({ sensors, hardwares }: Props) {
           checked={gpuConsumption.isEnabled}
           onCheckedChange={(v) => updateSensor("gpuConsumption", { isEnabled: v })}
         >
-          <div className="flex flex-col gap-4">
-            {gpuPowerSensors.length > 0 && (
-              <SensorSelect
-                label="GPU Power"
-                value={gpuConsumption.customReadingId}
-                options={gpuPowerSensors}
-                onChange={(v) => updateSensor("gpuConsumption", { customReadingId: v })}
-              />
-            )}
-          </div>
+          {gpuPowerSensors.length > 0 && (
+            <SensorSelect
+              label="GPU Power"
+              value={gpuConsumption.customReadingId}
+              options={gpuPowerSensors}
+              onChange={(v) => updateSensor("gpuConsumption", { customReadingId: v })}
+            />
+          )}
         </SubCollapsible>
 
         <SubCollapsible
@@ -187,20 +182,18 @@ export function GpuSection({ sensors, hardwares }: Props) {
             updateSensor("totalVramUsed", { isEnabled: v });
           }}
         >
-          <div className="flex flex-col gap-4">
-            {vramSensors.length > 0 && (
-              <SensorSelect
-                label="VRAM Usage"
-                value={vramUsage.customReadingId}
-                options={vramSensors}
-                onChange={(v) => updateSensor("vramUsage", { customReadingId: v })}
-              />
-            )}
-            <TempRangeControl
-              boundaries={vramUsage.boundaries}
-              onChange={(b) => updateBoundary("vramUsage", b)}
+          {vramSensors.length > 0 && (
+            <SensorSelect
+              label="VRAM Usage"
+              value={vramUsage.customReadingId}
+              options={vramSensors}
+              onChange={(v) => updateSensor("vramUsage", { customReadingId: v })}
             />
-          </div>
+          )}
+          <TempRangeControl
+            boundaries={vramUsage.boundaries}
+            onChange={(b) => updateBoundary("vramUsage", b)}
+          />
         </SubCollapsible>
       </div>
     </SectionCard>

@@ -281,7 +281,7 @@ impl Default for SensorsConfig {
 }
 
 fn default_pill_opacity() -> f32 { 0.3 }
-fn default_font_size_value() -> f32 { 12.0 }
+fn default_font_size_value() -> f32 { 18.0 }
 fn default_font_size_label() -> f32 { 12.0 }
 fn default_number_font_size() -> f32 { 14.0 }
 fn default_number_label_font_size() -> f32 { 10.0 }
@@ -377,7 +377,7 @@ impl Default for OverlaySettings {
             position_y: 0,
             opacity: 1.0,
             pill_opacity: 0.3,
-            font_size_value: 12.0,
+            font_size_value: 18.0,
             font_size_label: 12.0,
             number_font_size: 14.0,
             number_label_font_size: 10.0,

@@ -1,13 +1,13 @@
 import { useRef } from "react";
-import { Info } from "lucide-react";
 import { Checkbox } from "@/components/shadcn/checkbox";
 import {
   Select,
   SelectContent,
   SelectItem,
-  SelectTrigger,
   SelectValue,
 } from "@/components/shadcn/select";
+import { SelectFieldTrigger } from "@/components/ui/SelectField";
+import { InfoIcon } from "../settings/icons";
 import { useSettingsStore } from "@/stores/settings-store";
 import { AUTO_OPTION, monitorAppOptions } from "@/lib/fps-apps";
 import { SectionCard } from "./SectionCard";
@@ -64,19 +64,16 @@ export function FpsSection() {
           recently, so the control disappeared at the desktop and whenever a
           fullscreen game stopped presenting, taking Auto (and any pick the
           user wanted to undo) with it. See monitorAppOptions. */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-[var(--spacingS)]">
         <Select
           value={selectedApp}
           onValueChange={(v) =>
             updateSensor("framerate", { targetAppName: v === AUTO_OPTION ? "" : v })
           }
         >
-          <SelectTrigger className="h-10 rounded-[8px] text-[14px]">
-            <span className="flex items-center gap-2">
-              <span className="text-[14px] font-normal text-muted-foreground">Monitor app:</span>
-              <SelectValue placeholder="Auto" />
-            </span>
-          </SelectTrigger>
+          <SelectFieldTrigger label="Monitor app:">
+            <SelectValue placeholder="Auto" />
+          </SelectFieldTrigger>
           <SelectContent>
             <SelectItem value={AUTO_OPTION}>Auto</SelectItem>
             {appOptions.map((app) => (
@@ -86,9 +83,9 @@ export function FpsSection() {
             ))}
           </SelectContent>
         </Select>
-        <div className="flex items-center gap-1">
-          <Info className="size-4 text-muted-foreground" strokeWidth={2} />
-          <span className="text-[12px] font-medium text-muted-foreground">
+        <div className="flex items-center gap-[var(--spacingXxxs)] text-[12px] font-medium leading-[15px] text-[var(--textParagraph1)]">
+          <InfoIcon className="size-[16px] shrink-0" />
+          <span>
             {presentMonApps.length > 0
               ? "Apps are auto updated every 10 seconds."
               : "No apps detected yet. Auto follows the app in focus."}

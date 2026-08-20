@@ -34,17 +34,30 @@ function Checkbox({
     <CheckboxPrimitive.Root
       data-slot="checkbox"
       className={cn(
-        "peer size-[18px] shrink-0 rounded-[4px] border border-[var(--bgSurfaceSunken)] bg-[var(--bgSurfaceRaised)]",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+        // 24 box, 19.2 visual: Figma's Checkbox [1.0] instance is 24 square
+        // and that is what sets the height of every row it sits in.
+        "group flex size-[24px] shrink-0 items-center justify-center outline-none",
         "disabled:cursor-not-allowed disabled:opacity-50",
-        "data-[state=checked]:bg-primary data-[state=checked]:border-primary data-[state=checked]:text-primary-foreground",
         className,
       )}
       {...props}
     >
-      <CheckboxPrimitive.Indicator className="flex items-center justify-center text-current">
-        <CheckmarkIcon />
-      </CheckboxPrimitive.Indicator>
+      <span
+        className={cn(
+          "relative flex size-[19.2px] items-center justify-center rounded-[4px]",
+          "bg-[var(--bgSurfaceSunken)] group-data-[state=checked]:bg-[var(--bgBrand)]",
+          "transition-colors duration-150 motion-reduce:transition-none",
+          "group-focus-visible:ring-2 group-focus-visible:ring-ring group-focus-visible:ring-offset-1",
+        )}
+      >
+        {/* Unchecked is a 15.6 raised square inside the 19.2 sunken one, which
+            is what leaves Figma's 1.8 ring rather than a 1px border. It gives
+            way to the check. */}
+        <span className="absolute size-[15.6px] rounded-[2.6px] bg-[var(--bgSurfaceRaised)] group-data-[state=checked]:hidden" />
+        <CheckboxPrimitive.Indicator className="relative flex items-center justify-center text-[var(--bgSurfaceRaised)]">
+          <CheckmarkIcon />
+        </CheckboxPrimitive.Indicator>
+      </span>
     </CheckboxPrimitive.Root>
   );
 }

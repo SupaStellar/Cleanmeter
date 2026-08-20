@@ -12,16 +12,13 @@ const buttonVariants = cva(
           "rounded-[var(--cornerRound)] bg-[var(--bgSurfaceRaised)] text-[var(--textHeading)] hover:bg-[var(--bgSurfaceSunken)] active:bg-[var(--bgSurfaceRaised)]",
         "filled-dark":
           "rounded-[var(--cornerRound)] bg-[var(--bgBrand)] text-[var(--textInverse)] hover:bg-[var(--bgBrandHover)] active:bg-[var(--bgBrand)]",
-        link: "text-[var(--textInverse)] hover:text-[var(--textParagraph1)] active:text-[var(--textInverse)]",
+        link: "rounded-[var(--cornerRound)] text-[var(--textInverse)] hover:text-[var(--textParagraph1)] active:text-[var(--textInverse)]",
       },
       size: {
         sm: "px-[var(--spacingL)] py-[var(--spacingS)] text-body-sm-medium",
         md: "h-[54px] px-[var(--spacingXxl)] py-[var(--spacingS)] text-body-md-medium",
       },
     },
-    compoundVariants: [
-      { variant: "link", size: "sm", className: "px-0 py-0" },
-    ],
     defaultVariants: {
       variant: "filled-white",
       size: "sm",
