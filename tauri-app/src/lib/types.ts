@@ -200,7 +200,7 @@ export const DEFAULT_SETTINGS: OverlaySettings = {
   // Legacy: pill alpha is now driven by `opacity` above. Kept on the settings
   // shape (shared with the Rust struct) but no longer read by the UI.
   pillOpacity: 0.3,
-  fontSizeValue: 12,
+  fontSizeValue: 18,
   fontSizeLabel: 12,
   numberFontSize: 14,
   numberLabelFontSize: 10,
