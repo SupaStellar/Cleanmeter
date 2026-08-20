@@ -156,6 +156,12 @@ export const useUpdaterStore = create<UpdaterStore>((set, get) => ({
       // would fail to overwrite it ("Error opening file for writing"). This
       // belongs to the install rather than the download, so the sidecar keeps
       // running (and the overlay keeps reading) while bytes come down.
+      //
+      // One way only: prepare_for_update clears the supervisor's running flag,
+      // nothing sets it back, and the supervisor thread returns on seeing it
+      // false. If the install then fails, the app has no sensor readings until
+      // it restarts, which is why the pill says so rather than re-offering the
+      // install as though nothing happened.
       await prepareForUpdate();
       await pendingUpdate.install();
       // Relaunch into the new version. On Windows the NSIS installer may close

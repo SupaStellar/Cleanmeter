@@ -142,6 +142,7 @@ const PILL_WIDTH_DOWNLOADING = "max-w-[394px]";
 export function UpdateBanner() {
   const status = useUpdaterStore((s) => s.status);
   const version = useUpdaterStore((s) => s.availableVersion);
+  const error = useUpdaterStore((s) => s.error);
   const progress = useUpdaterStore((s) => s.progress);
   const dismissed = useUpdaterStore((s) => s.dismissed);
   const download = useUpdaterStore((s) => s.download);
@@ -163,6 +164,13 @@ export function UpdateBanner() {
   // share one branch.
   const downloaded = status === "ready" || installing;
 
+  // An install only fails after prepare_for_update has stopped the sidecar
+  // supervisor, and nothing restarts it: the flag it clears is never set back,
+  // and the supervisor thread has already returned. So a failed install leaves
+  // the app with no sensor readings until it is restarted, and saying "ready to
+  // install" again would hide that. Same slot, same buttons, truthful title.
+  const installFailed = status === "ready" && !!error;
+
   // Figma has no installing state, so it reuses the ready one and drops the
   // buttons. It is on screen for the moment between the installer starting and
   // the app relaunching.
@@ -170,9 +178,11 @@ export function UpdateBanner() {
     ? "Downloading update..."
     : installing
       ? "Installing update..."
-      : status === "ready"
-        ? "Update ready to install"
-        : "New update is available";
+      : installFailed
+        ? "Install failed, restart Cleanmeter"
+        : status === "ready"
+          ? "Update ready to install"
+          : "New update is available";
 
   // Inset 24 on all three sides, matching the window's own padding, so the
   // pill lines up with the cards above it at every width and not only where it
