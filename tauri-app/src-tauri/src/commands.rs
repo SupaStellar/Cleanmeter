@@ -187,22 +187,25 @@ fn foreground_is_ours() -> bool {
 /// Use this instead of `WebviewWindow::set_focus()`. That call routes to tao's
 /// `force_window_active`, which tries `SetForegroundWindow` and, when Windows refuses
 /// it, synthesises a left-Alt press and release through `SendInput` to break the
-/// foreground lock. The injection is system-wide, not scoped to our window: the
-/// Alt-down is delivered to whoever is in front, and the Alt-up arrives after the
-/// foreground has already moved to us, so the window that was in front can be left
-/// believing Alt is still held. Every later keystroke there becomes Alt+key. For a HUD
-/// that exists to sit next to games, with keys physically held down, that is not a
-/// risk worth carrying for a focus nicety.
+/// foreground lock. Windows refuses it exactly when we are not the foreground process
+/// and did not receive the last input event, which is the normal state while someone is
+/// playing, so the injecting branch is the in-game branch.
 ///
-/// Windows refuses `SetForegroundWindow` exactly when we are not the foreground
-/// process and did not receive the last input event, which is the normal state while
-/// someone is playing. So the injecting branch is the in-game branch.
+/// Measured against a borderless-windowed foreground app: both halves of the pair land
+/// together, because tao sends them in a single `SendInput` call before it touches the
+/// foreground again. The app in front sees Alt held for about a millisecond and then
+/// released; the keystroke does not stick. Its window procedure receives no key
+/// messages at all, so anything reading `WM_KEYDOWN` never sees it. Only code polling
+/// `GetAsyncKeyState`/`GetKeyState` or reading Raw Input can observe the blip.
+///
+/// Brief, then, but still fabricated system-wide input from a process whose whole job
+/// is to draw an overlay beside games that read key state directly. Not worth carrying
+/// for a focus nicety when the alternative costs nothing.
 ///
 /// This mirrors tao's decision tree and its `SetForegroundWindow` attempt, so every
 /// case that already worked behaves identically. Only the refused branch differs:
 /// flash the taskbar button rather than forge input. The caller has already called
-/// `show()`, so a refusal still leaves the window up, just not in front, which is the
-/// same outcome the user gets today whenever the Alt hack fails to win the race.
+/// `show()`, so a refusal still leaves the window up, just not in front.
 #[cfg(windows)]
 pub fn bring_to_front(window: &tauri::WebviewWindow) {
     use windows::Win32::Foundation::HWND;
