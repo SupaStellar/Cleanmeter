@@ -182,6 +182,82 @@ fn foreground_is_ours() -> bool {
     false
 }
 
+/// Bring a window to the front without letting tao fabricate a keystroke.
+///
+/// Use this instead of `WebviewWindow::set_focus()`. That call routes to tao's
+/// `force_window_active`, which tries `SetForegroundWindow` and, when Windows refuses
+/// it, synthesises a left-Alt press and release through `SendInput` to break the
+/// foreground lock. The injection is system-wide, not scoped to our window: the
+/// Alt-down is delivered to whoever is in front, and the Alt-up arrives after the
+/// foreground has already moved to us, so the window that was in front can be left
+/// believing Alt is still held. Every later keystroke there becomes Alt+key. For a HUD
+/// that exists to sit next to games, with keys physically held down, that is not a
+/// risk worth carrying for a focus nicety.
+///
+/// Windows refuses `SetForegroundWindow` exactly when we are not the foreground
+/// process and did not receive the last input event, which is the normal state while
+/// someone is playing. So the injecting branch is the in-game branch.
+///
+/// This mirrors tao's decision tree and its `SetForegroundWindow` attempt, so every
+/// case that already worked behaves identically. Only the refused branch differs:
+/// flash the taskbar button rather than forge input. The caller has already called
+/// `show()`, so a refusal still leaves the window up, just not in front, which is the
+/// same outcome the user gets today whenever the Alt hack fails to win the race.
+#[cfg(windows)]
+pub fn bring_to_front(window: &tauri::WebviewWindow) {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::UI::WindowsAndMessaging::{
+        FlashWindowEx, GetForegroundWindow, IsIconic, SetForegroundWindow, FLASHWINFO, FLASHW_TRAY,
+    };
+
+    // tauri's HWND comes from its own (newer) windows crate; both are a newtype over
+    // *mut c_void, so the pointer carries across.
+    let Ok(raw) = window.hwnd() else {
+        return;
+    };
+    let hwnd = HWND(raw.0 as _);
+
+    unsafe {
+        // Mirrors tao: a minimized window is left alone. Read through IsIconic rather
+        // than Tauri's is_minimized() so this cannot race a queued window message.
+        if IsIconic(hwnd).as_bool() {
+            return;
+        }
+        if hwnd == GetForegroundWindow() {
+            return;
+        }
+        if SetForegroundWindow(hwnd).as_bool() {
+            return;
+        }
+
+        // Refused. Signal instead of forcing: three flashes of the taskbar button,
+        // which then stop on their own.
+        //
+        // FLASHW_TRAY rather than FLASHW_ALL because this window is created with
+        // decorations: false, so there is no caption for FLASHW_CAPTION to flash.
+        //
+        // Deliberately no FLASHW_TIMERNOFG. That flag means "flash continuously until
+        // the window comes to the foreground", which contradicts a uCount and would
+        // leave the button flashing until clicked on exactly the paths where the user
+        // never asked for the window: autostart at logon above all.
+        let info = FLASHWINFO {
+            cbSize: std::mem::size_of::<FLASHWINFO>() as u32,
+            hwnd,
+            dwFlags: FLASHW_TRAY,
+            uCount: 3,
+            dwTimeout: 0, // 0 means the default caret blink rate
+        };
+        let _ = FlashWindowEx(&info);
+    }
+}
+
+/// Non-Windows stub. `set_focus` only injects input in tao's Windows backend, so
+/// everywhere else the plain call is already the right one.
+#[cfg(not(windows))]
+pub fn bring_to_front(window: &tauri::WebviewWindow) {
+    let _ = window.set_focus();
+}
+
 /// Recompute the gate from live window state and apply it.
 ///
 /// The overlay accepts mouse input only while the settings window is visible *and*
