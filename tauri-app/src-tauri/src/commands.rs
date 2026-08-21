@@ -207,8 +207,7 @@ fn foreground_is_ours() -> bool {
 pub fn bring_to_front(window: &tauri::WebviewWindow) {
     use windows::Win32::Foundation::HWND;
     use windows::Win32::UI::WindowsAndMessaging::{
-        FlashWindowEx, GetForegroundWindow, IsIconic, SetForegroundWindow, FLASHWINFO,
-        FLASHWINFO_FLAGS, FLASHW_ALL, FLASHW_TIMERNOFG,
+        FlashWindowEx, GetForegroundWindow, IsIconic, SetForegroundWindow, FLASHWINFO, FLASHW_TRAY,
     };
 
     // tauri's HWND comes from its own (newer) windows crate; both are a newtype over
@@ -231,14 +230,22 @@ pub fn bring_to_front(window: &tauri::WebviewWindow) {
             return;
         }
 
-        // Refused. Signal instead of forcing. FLASHW_TIMERNOFG stops the flashing by
-        // itself once the window is brought forward, so nothing has to clear it.
+        // Refused. Signal instead of forcing: three flashes of the taskbar button,
+        // which then stop on their own.
+        //
+        // FLASHW_TRAY rather than FLASHW_ALL because this window is created with
+        // decorations: false, so there is no caption for FLASHW_CAPTION to flash.
+        //
+        // Deliberately no FLASHW_TIMERNOFG. That flag means "flash continuously until
+        // the window comes to the foreground", which contradicts a uCount and would
+        // leave the button flashing until clicked on exactly the paths where the user
+        // never asked for the window: autostart at logon above all.
         let info = FLASHWINFO {
             cbSize: std::mem::size_of::<FLASHWINFO>() as u32,
             hwnd,
-            dwFlags: FLASHWINFO_FLAGS(FLASHW_ALL.0 | FLASHW_TIMERNOFG.0),
+            dwFlags: FLASHW_TRAY,
             uCount: 3,
-            dwTimeout: 0,
+            dwTimeout: 0, // 0 means the default caret blink rate
         };
         let _ = FlashWindowEx(&info);
     }
