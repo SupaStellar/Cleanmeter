@@ -30,7 +30,7 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             let app = tray.app_handle();
             if let Some(window) = app.get_webview_window("settings") {
                 let _ = window.show();
-                let _ = window.set_focus();
+                crate::commands::bring_to_front(&window);
             }
         }
     });
@@ -39,7 +39,7 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         "show_settings" => {
             if let Some(window) = app.get_webview_window("settings") {
                 let _ = window.show();
-                let _ = window.set_focus();
+                crate::commands::bring_to_front(&window);
             }
         }
         "toggle_overlay" => {

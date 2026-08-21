@@ -266,7 +266,7 @@ pub fn run() {
             // Focus the existing settings window when a second instance launches
             if let Some(window) = app.get_webview_window("settings") {
                 let _ = window.show();
-                let _ = window.set_focus();
+                commands::bring_to_front(&window);
             }
         }))
         .setup(|app| {
@@ -346,7 +346,7 @@ pub fn run() {
                 // hidden (config is visible:false) so the app starts to tray.
                 if !start_minimized {
                     let _ = window.show();
-                    let _ = window.set_focus();
+                    commands::bring_to_front(&window);
                 }
             }
 
