@@ -21,6 +21,7 @@ vi.mock("@/lib/tauri", () => ({
 }));
 
 const { useSettingsStore } = await import("./settings-store");
+const tauri = await import("@/lib/tauri");
 
 /**
  * The machine from issue #48. Both GPUs expose a temperature called
@@ -56,6 +57,7 @@ const DATA: HardwareMonitorData = {
     sensor("/gpu-nvidia/0", "/gpu-nvidia/0/load/0", "GPU Core", SensorType.Load, 40),
     sensor("/gpu-nvidia/0", "/gpu-nvidia/0/load/3", "GPU Memory", SensorType.Load, 30),
     sensor("/gpu-nvidia/0", "/gpu-nvidia/0/temperature/0", "GPU Core", SensorType.Temperature, 60),
+    sensor("/gpu-nvidia/0", "/gpu-nvidia/0/temperature/1", "GPU Hot Spot", SensorType.Temperature, 72),
     sensor("/gpu-nvidia/0", "/gpu-nvidia/0/power/0", "GPU Package", SensorType.Power, 70),
     sensor("/gpu-nvidia/0", "/gpu-nvidia/0/smalldata/1", "GPU Memory Used", SensorType.SmallData, 2048),
     sensor("/gpu-nvidia/0", "/gpu-nvidia/0/smalldata/2", "GPU Memory Total", SensorType.SmallData, 4096),
@@ -82,6 +84,7 @@ function gpuRows() {
     selectedGpuId,
     gpuUsage: sensors.gpuUsage.customReadingId,
     gpuTemp: sensors.gpuTemp.customReadingId,
+    gpuTempAdditional: sensors.gpuTemp.additionalReadingIds,
     gpuConsumption: sensors.gpuConsumption.customReadingId,
     vramUsage: sensors.vramUsage.customReadingId,
     totalVramUsed: sensors.totalVramUsed.customReadingId,
@@ -91,13 +94,44 @@ function gpuRows() {
 /** Every GPU row names a sensor on `gpuId`, or names nothing at all. */
 function allRowsOn(gpuId: string) {
   const rows = gpuRows();
-  return [rows.gpuUsage, rows.gpuTemp, rows.gpuConsumption, rows.vramUsage, rows.totalVramUsed]
+  return [
+    rows.gpuUsage,
+    rows.gpuTemp,
+    ...rows.gpuTempAdditional,
+    rows.gpuConsumption,
+    rows.vramUsage,
+    rows.totalVramUsed,
+  ]
     .filter(Boolean)
     .every((id) => id.startsWith(gpuId));
 }
 
 beforeEach(() => {
+  vi.clearAllMocks();
   seed({});
+});
+
+describe("loading settings from before multi-value readings", () => {
+  it("hydrates an empty supplemental list without changing the primary reading", async () => {
+    const oldGpuTemp = {
+      isEnabled: true,
+      customReadingId: "/gpu-nvidia/0/temperature/0",
+      boundaries: { low: 60, medium: 80, high: 90 },
+    };
+    vi.mocked(tauri.getSettings).mockResolvedValue({
+      ...DEFAULT_SETTINGS,
+      sensors: {
+        ...DEFAULT_SETTINGS.sensors,
+        gpuTemp: oldGpuTemp as OverlaySettings["sensors"]["gpuTemp"],
+      },
+    });
+
+    await useSettingsStore.getState().loadSettings();
+
+    const config = useSettingsStore.getState().settings.sensors.gpuTemp;
+    expect(config.customReadingId).toBe("/gpu-nvidia/0/temperature/0");
+    expect(config.additionalReadingIds).toEqual([]);
+  });
 });
 
 describe("choosing a GPU on a two-GPU machine", () => {
@@ -116,6 +150,13 @@ describe("choosing a GPU on a two-GPU machine", () => {
     expect(rows.gpuTemp).toBe("/gpu-nvidia/0/temperature/0");
     expect(rows.gpuConsumption).toBe("/gpu-nvidia/0/power/0");
     expect(rows.totalVramUsed).toBe("/gpu-nvidia/0/smalldata/1");
+    expect(rows.gpuTempAdditional).toEqual([]);
+  });
+
+  it("keeps extra values opt-in so existing overlays do not grow on upgrade", () => {
+    useSettingsStore.getState().setSensorData(DATA);
+
+    expect(gpuRows().gpuTempAdditional).toEqual([]);
   });
 });
 
@@ -195,6 +236,25 @@ describe("upgrading an existing install", () => {
 
     expect(gpuRows().gpuTemp).toBe(late);
   });
+
+  it("keeps supplemental readings that have not activated yet", () => {
+    const late = "/gpu-nvidia/0/temperature/9";
+    seed({
+      selectedGpuId: "/gpu-nvidia/0",
+      sensors: {
+        ...DEFAULT_SETTINGS.sensors,
+        gpuTemp: {
+          ...DEFAULT_SETTINGS.sensors.gpuTemp,
+          customReadingId: "/gpu-nvidia/0/temperature/0",
+          additionalReadingIds: [late],
+        },
+      },
+    });
+
+    useSettingsStore.getState().setSensorData(DATA);
+
+    expect(gpuRows().gpuTempAdditional).toEqual([late]);
+  });
 });
 
 describe("selectGpu", () => {
@@ -209,6 +269,26 @@ describe("selectGpu", () => {
     expect(rows.gpuUsage).toBe("/gpu-intel/0/load/0");
     expect(rows.gpuTemp).toBe("/gpu-intel/0/temperature/0");
     expect(rows.gpuConsumption).toBe("/gpu-intel/0/power/0");
+    expect(allRowsOn("/gpu-intel/0")).toBe(true);
+  });
+
+  it("clears supplemental readings tied to the previous GPU", () => {
+    seed({
+      selectedGpuId: "/gpu-nvidia/0",
+      sensors: {
+        ...DEFAULT_SETTINGS.sensors,
+        gpuTemp: {
+          ...DEFAULT_SETTINGS.sensors.gpuTemp,
+          customReadingId: "/gpu-nvidia/0/temperature/0",
+          additionalReadingIds: ["/gpu-nvidia/0/temperature/1"],
+        },
+      },
+    });
+    useSettingsStore.getState().setSensorData(DATA);
+
+    useSettingsStore.getState().selectGpu("/gpu-intel/0");
+
+    expect(gpuRows().gpuTempAdditional).toEqual([]);
     expect(allRowsOn("/gpu-intel/0")).toBe(true);
   });
 

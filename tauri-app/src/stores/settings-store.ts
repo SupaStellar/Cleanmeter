@@ -22,7 +22,16 @@ import {
   shouldRepickSensor,
   type GpuSilence,
 } from "@/lib/gpu";
+import { sensorReadingIds, sensorReadingPatch } from "@/lib/sensor-readings";
 import * as tauri from "@/lib/tauri";
+
+const GPU_SENSOR_KEYS = [
+  "gpuUsage",
+  "gpuTemp",
+  "gpuConsumption",
+  "vramUsage",
+  "totalVramUsed",
+] as const satisfies readonly SensorKey[];
 
 /**
  * Best sensor of a given type out of an already-narrowed list, by keyword
@@ -71,6 +80,7 @@ function autoSelectSensors(
   settings: OverlaySettings
 ): AutoSelection | null {
   const { sensors, hardwares } = data;
+  const sensorsById = new Map(sensors.map((sensor) => [sensor.identifier, sensor]));
   const patch: Partial<OverlaySettings["sensors"]> = {};
   let changed = false;
 
@@ -124,12 +134,26 @@ function autoSelectSensors(
     prefer: string[]
   ) => {
     const current = settings.sensors[key];
-    if (!shouldRepickSensor(current.customReadingId, selectedGpuId, sensors)) return;
+    const id = shouldRepickSensor(current.customReadingId, selectedGpuId, sensors)
+      ? bestOf(gpuSensors, sType, prefer)
+      : current.customReadingId;
+    // A saved supplemental reading can be absent during GPU warm-up, so keep
+    // unknown identifiers. Once an identifier resolves to another GPU, remove
+    // it rather than allowing one metric to mix sources.
+    const additionalReadingIds = current.additionalReadingIds.filter((readingId) => {
+      const sensor = sensorsById.get(readingId);
+      return sensor === undefined || sensor.hardwareIdentifier === selectedGpuId;
+    });
+    const readingPatch = sensorReadingPatch([id, ...additionalReadingIds]);
+    const unchanged =
+      readingPatch.customReadingId === current.customReadingId &&
+      readingPatch.additionalReadingIds.length === current.additionalReadingIds.length &&
+      readingPatch.additionalReadingIds.every(
+        (readingId, index) => readingId === current.additionalReadingIds[index],
+      );
+    if (unchanged) return;
 
-    const id = bestOf(gpuSensors, sType, prefer);
-    if (id === current.customReadingId) return;
-
-    patch[key] = { ...current, customReadingId: id } as OverlaySettings["sensors"][K];
+    patch[key] = { ...current, ...readingPatch } as OverlaySettings["sensors"][K];
     changed = true;
   };
 
@@ -315,9 +339,15 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       const mergedSensors = { ...DEFAULT_SETTINGS.sensors };
       const savedSensors = (saved?.sensors ?? {}) as Partial<OverlaySettings["sensors"]>;
       for (const key of Object.keys(DEFAULT_SETTINGS.sensors) as (keyof OverlaySettings["sensors"])[]) {
-        mergedSensors[key] = {
+        const merged = {
           ...DEFAULT_SETTINGS.sensors[key],
           ...(savedSensors[key] ?? {}),
+        } as OverlaySettings["sensors"][typeof key];
+        // Older saves have only customReadingId. Normalizing here also removes
+        // duplicate IDs before the settings reach either window.
+        mergedSensors[key] = {
+          ...merged,
+          ...sensorReadingPatch(sensorReadingIds(merged)),
         } as OverlaySettings["sensors"][typeof key];
       }
       const settings: OverlaySettings = saved
@@ -395,7 +425,20 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 
   selectGpu: (gpuId) => {
     const state = get();
-    const withGpu = { ...state.settings, selectedGpuId: gpuId };
+    let sensorsForGpu = state.settings.sensors;
+    if (gpuId !== state.settings.selectedGpuId) {
+      sensorsForGpu = { ...state.settings.sensors };
+      for (const key of GPU_SENSOR_KEYS) {
+        sensorsForGpu[key] = {
+          ...sensorsForGpu[key],
+          // Supplemental values are tied to the old source. The auto-selector
+          // below chooses a new primary, and the user can add readings exposed
+          // by the newly selected GPU without stale cross-GPU IDs lingering.
+          additionalReadingIds: [],
+        } as OverlaySettings["sensors"][typeof key];
+      }
+    }
+    const withGpu = { ...state.settings, selectedGpuId: gpuId, sensors: sensorsForGpu };
 
     // Re-point every GPU row in the same tick rather than waiting for the
     // next poll to do it. Same code path either way, so the two cannot drift;

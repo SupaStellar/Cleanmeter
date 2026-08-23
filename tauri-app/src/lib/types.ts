@@ -47,7 +47,13 @@ export interface Boundaries {
 
 export interface SensorConfig {
   isEnabled: boolean;
+  /**
+   * Primary reading for this metric. Kept as a scalar for compatibility with
+   * settings written before metrics could display more than one reading.
+   */
   customReadingId: string;
+  /** Ordered readings rendered after the primary reading. */
+  additionalReadingIds: string[];
 }
 
 export interface GraphSensorConfig extends SensorConfig {
@@ -211,18 +217,18 @@ export const DEFAULT_SETTINGS: OverlaySettings = {
   pixelShift: false,
   selectedGpuId: "",
   sensors: {
-    framerate: { isEnabled: true, customReadingId: "", targetAppName: "" },
-    frametime: { isEnabled: true, customReadingId: "" },
-    cpuTemp: { isEnabled: true, customReadingId: "", boundaries: { low: 60, medium: 80, high: 90 } },
-    cpuUsage: { isEnabled: true, customReadingId: "", boundaries: { low: 60, medium: 80, high: 90 } },
-    cpuConsumption: { isEnabled: true, customReadingId: "" },
-    gpuTemp: { isEnabled: true, customReadingId: "", boundaries: { low: 60, medium: 80, high: 90 } },
-    gpuUsage: { isEnabled: true, customReadingId: "", boundaries: { low: 60, medium: 80, high: 90 } },
-    vramUsage: { isEnabled: true, customReadingId: "", boundaries: { low: 60, medium: 80, high: 90 } },
-    gpuConsumption: { isEnabled: true, customReadingId: "" },
-    totalVramUsed: { isEnabled: true, customReadingId: "" },
-    ramUsage: { isEnabled: true, customReadingId: "", boundaries: { low: 60, medium: 80, high: 90 } },
-    upRate: { isEnabled: true, customReadingId: "" },
-    downRate: { isEnabled: true, customReadingId: "" },
+    framerate: { isEnabled: true, customReadingId: "", additionalReadingIds: [], targetAppName: "" },
+    frametime: { isEnabled: true, customReadingId: "", additionalReadingIds: [] },
+    cpuTemp: { isEnabled: true, customReadingId: "", additionalReadingIds: [], boundaries: { low: 60, medium: 80, high: 90 } },
+    cpuUsage: { isEnabled: true, customReadingId: "", additionalReadingIds: [], boundaries: { low: 60, medium: 80, high: 90 } },
+    cpuConsumption: { isEnabled: true, customReadingId: "", additionalReadingIds: [] },
+    gpuTemp: { isEnabled: true, customReadingId: "", additionalReadingIds: [], boundaries: { low: 60, medium: 80, high: 90 } },
+    gpuUsage: { isEnabled: true, customReadingId: "", additionalReadingIds: [], boundaries: { low: 60, medium: 80, high: 90 } },
+    vramUsage: { isEnabled: true, customReadingId: "", additionalReadingIds: [], boundaries: { low: 60, medium: 80, high: 90 } },
+    gpuConsumption: { isEnabled: true, customReadingId: "", additionalReadingIds: [] },
+    totalVramUsed: { isEnabled: true, customReadingId: "", additionalReadingIds: [] },
+    ramUsage: { isEnabled: true, customReadingId: "", additionalReadingIds: [], boundaries: { low: 60, medium: 80, high: 90 } },
+    upRate: { isEnabled: true, customReadingId: "", additionalReadingIds: [] },
+    downRate: { isEnabled: true, customReadingId: "", additionalReadingIds: [] },
   },
 };

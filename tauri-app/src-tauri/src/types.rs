@@ -179,6 +179,8 @@ pub struct SensorConfig {
     pub is_enabled: bool,
     #[serde(rename = "customReadingId")]
     pub custom_reading_id: String,
+    #[serde(rename = "additionalReadingIds", default)]
+    pub additional_reading_ids: Vec<String>,
 }
 
 impl Default for SensorConfig {
@@ -186,6 +188,7 @@ impl Default for SensorConfig {
         SensorConfig {
             is_enabled: true,
             custom_reading_id: String::new(),
+            additional_reading_ids: Vec::new(),
         }
     }
 }
@@ -199,6 +202,8 @@ pub struct FramerateSensorConfig {
     pub is_enabled: bool,
     #[serde(rename = "customReadingId")]
     pub custom_reading_id: String,
+    #[serde(rename = "additionalReadingIds", default)]
+    pub additional_reading_ids: Vec<String>,
     #[serde(rename = "targetAppName", default)]
     pub target_app_name: String,
 }
@@ -208,6 +213,7 @@ impl Default for FramerateSensorConfig {
         FramerateSensorConfig {
             is_enabled: true,
             custom_reading_id: String::new(),
+            additional_reading_ids: Vec::new(),
             target_app_name: String::new(),
         }
     }
@@ -219,6 +225,8 @@ pub struct GraphSensorConfig {
     pub is_enabled: bool,
     #[serde(rename = "customReadingId")]
     pub custom_reading_id: String,
+    #[serde(rename = "additionalReadingIds", default)]
+    pub additional_reading_ids: Vec<String>,
     pub boundaries: Boundaries,
 }
 
@@ -227,6 +235,7 @@ impl Default for GraphSensorConfig {
         GraphSensorConfig {
             is_enabled: true,
             custom_reading_id: String::new(),
+            additional_reading_ids: Vec::new(),
             boundaries: Boundaries::default(),
         }
     }
@@ -478,6 +487,23 @@ mod tests {
         assert_eq!(restored.selected_gpu_id, "/gpu-nvidia/0");
     }
 
+    #[test]
+    fn additional_sensor_readings_survive_a_save_and_load_round_trip() {
+        let mut settings = OverlaySettings::default();
+        settings.sensors.gpu_temp.custom_reading_id =
+            "/gpu-nvidia/0/temperature/0".to_string();
+        settings.sensors.gpu_temp.additional_reading_ids =
+            vec!["/gpu-nvidia/0/temperature/1".to_string()];
+
+        let json = serde_json::to_string(&settings).expect("serialise");
+        let restored: OverlaySettings = serde_json::from_str(&json).expect("deserialise");
+
+        assert_eq!(
+            restored.sensors.gpu_temp.additional_reading_ids,
+            vec!["/gpu-nvidia/0/temperature/1"]
+        );
+    }
+
     /// Every settings file written before this field existed lacks the key.
     /// Without `default` on it, serde rejects the whole file and the user is
     /// silently reset to defaults on upgrade.
@@ -494,5 +520,26 @@ mod tests {
             serde_json::from_value(without).expect("an older settings file must still load");
 
         assert_eq!(loaded.selected_gpu_id, "");
+    }
+
+    #[test]
+    fn a_settings_file_written_before_multi_value_readings_still_loads() {
+        let mut old = serde_json::to_value(OverlaySettings::default()).expect("to value");
+        let sensors = old
+            .get_mut("sensors")
+            .and_then(serde_json::Value::as_object_mut)
+            .expect("sensors object");
+        for config in sensors.values_mut() {
+            config
+                .as_object_mut()
+                .expect("sensor config")
+                .remove("additionalReadingIds");
+        }
+
+        let loaded: OverlaySettings =
+            serde_json::from_value(old).expect("an older settings file must still load");
+
+        assert!(loaded.sensors.gpu_temp.additional_reading_ids.is_empty());
+        assert!(loaded.sensors.cpu_temp.additional_reading_ids.is_empty());
     }
 }
