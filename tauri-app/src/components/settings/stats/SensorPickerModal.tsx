@@ -193,7 +193,7 @@ export function SensorPickerModal({
             "left-1/2 top-[77px] -translate-x-1/2 translate-y-0",
             "grid w-[calc(100%-48px)] max-w-[603px] gap-0 overflow-hidden",
             multiple ? "grid-rows-[auto_1fr_auto]" : "grid-rows-[auto_1fr]",
-            "rounded-[12px] bg-[var(--bgSurfaceRaised)] shadow-lg",
+            "rounded-[var(--cornerXl)] bg-[var(--bgSurfaceRaised)] shadow-lg",
             "data-[state=open]:slide-in-from-top-2 data-[state=closed]:slide-out-to-top-2",
           )}
           onOpenAutoFocus={(e) => {

@@ -21,7 +21,7 @@ export function MetricValue({
   title,
 }: MetricValueProps) {
   return (
-    <div className="flex items-center gap-1" title={title}>
+    <div className="flex items-center gap-[var(--spacingXxxs)]" title={title}>
       {label && (
         <span
           style={{

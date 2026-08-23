@@ -68,7 +68,10 @@ export function MultiValueMetric({
   return (
     <>
       {showProgress ? (
-        <div className="flex items-center gap-1" title={readings.primary?.name}>
+        <div
+          className="flex items-center gap-[var(--spacingXxxs)]"
+          title={readings.primary?.name}
+        >
           {primaryLabel && (
             <span
               style={{
