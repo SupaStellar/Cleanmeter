@@ -2,6 +2,7 @@ import { useRef } from "react";
 import type { Hardware, Sensor } from "@/lib/types";
 import { SensorType } from "@/lib/types";
 import { listGpus, sensorsOnGpu } from "@/lib/gpu";
+import { sensorReadingIds, sensorReadingPatch } from "@/lib/sensor-readings";
 import { useSettingsStore } from "@/stores/settings-store";
 import {
   Select,
@@ -146,9 +147,10 @@ export function GpuSection({ sensors, hardwares }: Props) {
           {gpuTempSensors.length > 0 && (
             <SensorSelect
               label="GPU Temperature"
-              value={gpuTemp.customReadingId}
+              multiple
+              values={sensorReadingIds(gpuTemp)}
               options={gpuTempSensors}
-              onChange={(v) => updateSensor("gpuTemp", { customReadingId: v })}
+              onChange={(values) => updateSensor("gpuTemp", sensorReadingPatch(values))}
             />
           )}
           <TempRangeControl

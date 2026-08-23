@@ -4,6 +4,7 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogDescription,
   DialogOverlay,
   DialogPortal,
   DialogTitle,
@@ -15,8 +16,11 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   title: string;
   value: string;
+  values?: string[];
+  multiple?: boolean;
   options: Sensor[];
   onChange: (v: string) => void;
+  onValuesChange?: (values: string[]) => void;
 }
 
 // Icons exported from Figma 2353:2207 (close), 2353:2211 (search),
@@ -84,13 +88,18 @@ export function SensorPickerModal({
   onOpenChange,
   title,
   value,
+  values,
+  multiple = false,
   options,
   onChange,
+  onValuesChange,
 }: Props) {
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
+  const [draftValues, setDraftValues] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const selectionKey = (values ?? []).join("\u0000");
 
   // Reset the search field whenever the modal closes. Prop-sync effect, not a
   // render cascade — the setState only fires on the open→closed transition.
@@ -108,10 +117,19 @@ export function SensorPickerModal({
   // Seed the highlight at the currently-selected row on open.
   useEffect(() => {
     if (!open) return;
-    const idx = options.findIndex((s) => s.identifier === value);
+    const selectedValue = multiple ? values?.[0] : value;
+    const idx = options.findIndex((s) => s.identifier === selectedValue);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setActiveIndex(idx >= 0 ? idx : 0);
-  }, [open, value, options]);
+  }, [open, value, values, options, multiple]);
+
+  useEffect(() => {
+    if (!open) return;
+    // The multi-select is transactional. Closing with the X, Escape, or Cancel
+    // leaves settings untouched; Apply commits this draft in one store update.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDraftValues(multiple && selectionKey ? selectionKey.split("\u0000") : []);
+  }, [open, multiple, selectionKey]);
 
   // Every keystroke re-narrows the list. Snap to the top match so Enter
   // selects what the user is reading at the top.
@@ -121,7 +139,22 @@ export function SensorPickerModal({
   }, [query]);
 
   const handleSelect = (id: string) => {
+    if (multiple) {
+      setDraftValues((current) =>
+        current.includes(id)
+          ? current.filter((selectedId) => selectedId !== id)
+          : [...current, id],
+      );
+      return;
+    }
+
     onChange(id);
+    onOpenChange(false);
+  };
+
+  const applySelection = () => {
+    if (draftValues.length === 0) return;
+    onValuesChange?.(draftValues);
     onOpenChange(false);
   };
 
@@ -152,13 +185,14 @@ export function SensorPickerModal({
         {/* Overlay sits below the 52px title bar so the bar stays interactive */}
         <DialogOverlay className="top-[52px]" />
         <DialogContent
-          aria-describedby={undefined}
+          {...(multiple ? {} : { "aria-describedby": undefined })}
           // Top-anchored layout matches the existing Figma frame (52px title
           // bar + 25px gap). max-w-[603px] caps width; mx-6 reproduces the
           // 24px gutters by sizing to viewport minus 48px.
           className={cn(
             "left-1/2 top-[77px] -translate-x-1/2 translate-y-0",
-            "grid w-[calc(100%-48px)] max-w-[603px] grid-rows-[auto_1fr] gap-0 overflow-hidden",
+            "grid w-[calc(100%-48px)] max-w-[603px] gap-0 overflow-hidden",
+            multiple ? "grid-rows-[auto_1fr_auto]" : "grid-rows-[auto_1fr]",
             "rounded-[12px] bg-[var(--bgSurfaceRaised)] shadow-lg",
             "data-[state=open]:slide-in-from-top-2 data-[state=closed]:slide-out-to-top-2",
           )}
@@ -174,8 +208,17 @@ export function SensorPickerModal({
           }}
         >
           <div className="flex flex-col gap-4 border-b border-[var(--borderSubtle)] bg-[var(--bgSurfaceRaised)] p-5">
-            <div className="flex items-center justify-between">
-              <DialogTitle>{title}</DialogTitle>
+            <div className="flex items-start justify-between gap-[var(--spacingM)]">
+              <div className="flex min-w-0 flex-col gap-[var(--spacingXxxs)]">
+                <DialogTitle className="text-balance">{title}</DialogTitle>
+                {multiple && (
+                  <DialogDescription
+                    className="text-pretty text-[13px] leading-[18px] text-[var(--textParagraph1)]"
+                  >
+                    Choose one or more readings. The first selected reading uses the gauge.
+                  </DialogDescription>
+                )}
+              </div>
               <DialogClose
                 aria-label="Close"
                 className={cn(
@@ -228,7 +271,9 @@ export function SensorPickerModal({
               </div>
             ) : (
               filtered.map((s, i) => {
-                const selected = s.identifier === value;
+                const selected = multiple
+                  ? draftValues.includes(s.identifier)
+                  : s.identifier === value;
                 const highlighted = selected || i === activeIndex;
                 return (
                   <button
@@ -236,6 +281,7 @@ export function SensorPickerModal({
                     type="button"
                     onClick={() => handleSelect(s.identifier)}
                     onMouseEnter={() => setActiveIndex(i)}
+                    aria-pressed={multiple ? selected : undefined}
                     className={cn(
                       "flex h-10 items-center justify-between gap-2 rounded-[8px] px-3 py-2 text-left",
                       "transition-[background-color,transform] duration-100 ease-out motion-reduce:transition-none",
@@ -245,8 +291,15 @@ export function SensorPickerModal({
                       highlighted && "bg-[var(--bgSurfaceSunkenSubtle)]",
                     )}
                   >
-                    <span className="truncate text-[14px] font-medium text-[var(--textHeading)]">
-                      {s.name}
+                    <span className="flex min-w-0 items-center gap-[var(--spacingXs)]">
+                      <span className="truncate text-[14px] font-medium text-[var(--textHeading)]">
+                        {s.name}
+                      </span>
+                      {multiple && draftValues[0] === s.identifier && draftValues.length > 1 && (
+                        <span className="shrink-0 rounded-[var(--cornerRound)] bg-[var(--bgSurfaceSunken)] px-[var(--spacingXs)] py-[var(--spacingXxxxs)] text-[11px] font-medium leading-[14px] text-[var(--textParagraph1)]">
+                          Gauge
+                        </span>
+                      )}
                     </span>
                     {selected && (
                       <CheckIcon className="size-5 shrink-0 text-[var(--iconBolderActive)]" />
@@ -256,6 +309,32 @@ export function SensorPickerModal({
               })
             )}
           </div>
+          {multiple && (
+            <div className="flex items-center justify-end gap-[var(--spacingXs)] border-t border-[var(--borderSubtle)] bg-[var(--bgSurfaceRaised)] p-[var(--spacingM)]">
+              <DialogClose
+                className={cn(
+                  "h-[40px] rounded-[var(--cornerRound)] px-[var(--spacingL)] text-[14px] font-medium text-[var(--textHeading)]",
+                  "bg-[var(--bgSurfaceSunken)] transition-[background-color,scale] duration-150 hover:bg-[var(--bgSurfaceSunkenSubtle)] active:scale-[0.96]",
+                  "shadow-focus-default focus-visible:outline-none motion-reduce:transition-none",
+                )}
+              >
+                Cancel
+              </DialogClose>
+              <button
+                type="button"
+                disabled={draftValues.length === 0}
+                onClick={applySelection}
+                className={cn(
+                  "h-[40px] rounded-[var(--cornerRound)] px-[var(--spacingL)] text-[14px] font-medium text-[var(--textInverse)]",
+                  "bg-[var(--bgBrand)] transition-[background-color,scale] duration-150 hover:bg-[var(--bgBrandHover)] active:scale-[0.96]",
+                  "shadow-focus-default focus-visible:outline-none motion-reduce:transition-none",
+                  "disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100",
+                )}
+              >
+                Apply {draftValues.length > 0 ? `(${draftValues.length})` : ""}
+              </button>
+            </div>
+          )}
         </DialogContent>
       </DialogPortal>
     </Dialog>
