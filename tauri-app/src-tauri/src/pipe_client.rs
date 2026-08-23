@@ -565,13 +565,19 @@ mod tests {
             &[
                 ("CPU Total", "/load/0", "/amdcpu/0"),
                 ("GPU Core", "/temperature/0", "/gpu-nvidia/0"),
+                ("GPU Hot Spot", "/temperature/1", "/gpu-nvidia/0"),
             ],
         );
         let parsed = parse_data_packet(&packet).expect("a well-formed packet must parse");
         assert_eq!(parsed.hardwares.len(), 2);
-        assert_eq!(parsed.sensors.len(), 2);
+        assert_eq!(parsed.sensors.len(), 3);
         assert_eq!(parsed.hardwares[0].name, "CPU");
         assert_eq!(parsed.sensors[1].name, "GPU Core");
+        assert_eq!(parsed.sensors[2].name, "GPU Hot Spot");
+        assert_eq!(
+            parsed.sensors[1].hardware_identifier,
+            parsed.sensors[2].hardware_identifier
+        );
     }
 
     /// An empty snapshot is what the sidecar sends before LibreHardwareMonitor
