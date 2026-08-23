@@ -1,6 +1,8 @@
 import { Pill } from "./Pill";
 import { ProgressRing } from "./ProgressRing";
 import { ProgressBar } from "./ProgressBar";
+import { MetricValue } from "./MetricValue";
+import { MultiValueMetric } from "./MultiValueMetric";
 import { useSettingsStore } from "@/stores/settings-store";
 import { SensorType } from "@/lib/types";
 import type { Sensor } from "@/lib/types";
@@ -8,6 +10,14 @@ import { findSensorById, formatValue, formatTemperature } from "@/lib/utils";
 
 interface GpuSectionProps {
   isHorizontal: boolean;
+}
+
+function gpuTemperatureLabel(sensor: Sensor): string {
+  const compact = sensor.name
+    .replace(/^GPU\s+/i, "")
+    .replace(/\s+Temperature$/i, "")
+    .trim();
+  return compact || sensor.name;
 }
 
 export function GpuSection({ isHorizontal }: GpuSectionProps) {
@@ -35,7 +45,6 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
   const Progress = progressType === "bar" ? ProgressBar : ProgressRing;
   const showProgress = progressType !== "none";
 
-  const gpuTempVal = findSensorById(sensors, gpuTemp.customReadingId)?.value ?? 0;
   const gpuUsageVal = findSensorById(sensors, gpuUsage.customReadingId)?.value ?? 0;
   const gpuPowerVal = findSensorById(sensors, gpuConsumption.customReadingId)?.value ?? 0;
 
@@ -78,27 +87,31 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
       ? Math.min((vramUsedVal / vramTotalVal) * 100, 100)
       : vramLoadVal;
 
-  const temp = formatTemperature(gpuTempVal, settings.temperatureUnit);
+  const metricTextProps = {
+    valueFontSize,
+    labelFontSize,
+    valueFontWeight,
+    labelFontWeight,
+  };
 
   return (
     <Pill title="GPU" isHorizontal={isHorizontal}>
       {gpuTemp.isEnabled && (
-        showProgress ? (
-          <Progress
-            value={gpuTempVal}
-            max={100}
-            label={temp.label}
-            unit={temp.symbol}
-            boundaries={gpuTemp.boundaries}
-          />
-        ) : (
-          <div className="flex items-center gap-1">
-            <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
-              {temp.label}
-            </span>
-            <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{temp.symbol}</span>
-          </div>
-        )
+        <MultiValueMetric
+          sensors={sensors}
+          config={gpuTemp}
+          progressType={progressType}
+          format={(value) => {
+            const temperature = formatTemperature(value, settings.temperatureUnit);
+            return { value: temperature.label, unit: temperature.symbol };
+          }}
+          labelForSensor={gpuTemperatureLabel}
+          boundaries={gpuTemp.boundaries}
+          accepts={(sensor) =>
+            !settings.selectedGpuId || sensor.hardwareIdentifier === settings.selectedGpuId
+          }
+          {...metricTextProps}
+        />
       )}
       {gpuUsage.isEnabled && (
         showProgress ? (
@@ -110,12 +123,7 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
             boundaries={gpuUsage.boundaries}
           />
         ) : (
-          <div className="flex items-center gap-1">
-            <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
-              {formatValue(gpuUsageVal)}
-            </span>
-            <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>%</span>
-          </div>
+          <MetricValue value={formatValue(gpuUsageVal)} unit="%" {...metricTextProps} />
         )
       )}
       {/* VRAM is gated on vramUsage alone — totalVramUsed is a removed-from-UI
@@ -132,23 +140,17 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
             boundaries={vramUsage.boundaries}
           />
         ) : (
-          <div className="flex items-center gap-1">
-            <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
-              {vramUsedVal > 0 ? formatValue(vramUsedVal, 1) : formatValue(vramUsageVal, 0)}
-            </span>
-            <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{vramUsedVal > 0 ? "GB" : "%"}</span>
-          </div>
+          <MetricValue
+            value={vramUsedVal > 0 ? formatValue(vramUsedVal, 1) : formatValue(vramUsageVal, 0)}
+            unit={vramUsedVal > 0 ? "GB" : "%"}
+            {...metricTextProps}
+          />
         )
       )}
       {/* Power consumption has no threshold ring in the canonical build —
           always a plain value + unit (matches v2.2.x early build). */}
       {gpuConsumption.isEnabled && (
-        <div className="flex items-center gap-1">
-          <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
-            {formatValue(gpuPowerVal)}
-          </span>
-          <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>W</span>
-        </div>
+        <MetricValue value={formatValue(gpuPowerVal)} unit="W" {...metricTextProps} />
       )}
     </Pill>
   );
