@@ -23,6 +23,7 @@ import {
   type GpuSilence,
 } from "@/lib/gpu";
 import { sensorReadingIds, sensorReadingPatch } from "@/lib/sensor-readings";
+import { isGamePresenting } from "@/lib/game-visibility";
 import * as tauri from "@/lib/tauri";
 
 const GPU_SENSOR_KEYS = [
@@ -259,6 +260,7 @@ interface SettingsStore {
   pipeStatus: PipeStatus;
   sidecarStatus: SidecarStatus;
   overlayVisible: boolean;
+  gameActive: boolean;
   appVersion: string;
   /**
    * How long the selected GPU has been reporting nothing. Read `.settled`;
@@ -327,6 +329,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   sidecarStatus: { exits: 0, spawnError: null },
   gpuSilence: NO_GPU_SILENCE,
   overlayVisible: false,
+  gameActive: false,
   // Empty until loadAppVersion() resolves the real version — better a brief
   // blank than a misleading hardcoded number.
   appVersion: "",
@@ -412,6 +415,14 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       if (settings.fontSizeValue > 24) settings.fontSizeValue = 24;
       if (settings.fontSizeLabel > 18) settings.fontSizeLabel = 18;
       set({ settings });
+      // The sensor listener can win the startup race and show the overlay
+      // before persisted settings finish loading. Reapply the saved policy so
+      // a desktop session never remains visible until the next game transition.
+      if (settings.showOverlayOnlyInGames) {
+        const visible = get().gameActive;
+        set({ overlayVisible: visible });
+        tauri.setOverlayVisible(visible);
+      }
       // Push the persisted target-app to the C# poller so it starts in sync.
       // Empty string means Auto (foreground-window detection on the C# side).
       tauri.selectPresentMonApp(settings.sensors.framerate.targetAppName || "Auto");
@@ -473,9 +484,16 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     });
   },
   updateSettings: (patch) => {
-    const newSettings = { ...get().settings, ...patch };
+    const state = get();
+    const newSettings = { ...state.settings, ...patch };
     set({ settings: newSettings });
     debouncedSave(newSettings);
+
+    if (patch.showOverlayOnlyInGames !== undefined) {
+      const visible = !patch.showOverlayOnlyInGames || state.gameActive;
+      set({ overlayVisible: visible });
+      tauri.setOverlayVisible(visible);
+    }
 
     if (patch.opacity !== undefined) {
       tauri.setOverlayOpacity(patch.opacity);
@@ -549,7 +567,8 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   setSensorData: (data) => {
     const state = get();
     const wasNull = state.sensorData === null;
-    set({ sensorData: data });
+    const gameActive = isGamePresenting(data);
+    set({ sensorData: data, gameActive });
     // Fill in any sensor still unset, and re-point the GPU rows if they name
     // a sensor on a GPU other than the selected one.
     const selection = autoSelectSensors(data, state.settings);
@@ -575,8 +594,18 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
         Date.now(),
       ),
     });
-    // Auto-show overlay on first data arrival
-    if (wasNull && !state.overlayVisible) {
+    // Game-only visibility changes only on an actual game-state transition.
+    // That lets the existing hotkey hide the overlay for the rest of the
+    // current session instead of the next 500ms sensor poll undoing the hide.
+    if (
+      state.settings.showOverlayOnlyInGames &&
+      gameActive !== state.gameActive &&
+      gameActive !== state.overlayVisible
+    ) {
+      set({ overlayVisible: gameActive });
+      tauri.setOverlayVisible(gameActive);
+    } else if (wasNull && !state.settings.showOverlayOnlyInGames && !state.overlayVisible) {
+      // Preserve the original behavior when the opt-in policy is off.
       set({ overlayVisible: true });
       tauri.setOverlayVisible(true);
     }
@@ -604,8 +633,18 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     }
   },
   setPipeStatus: (status) => {
-    const wasConnected = get().pipeStatus.connected;
+    const state = get();
+    const wasConnected = state.pipeStatus.connected;
     set({ pipeStatus: status });
+    // A disconnected sidecar cannot prove a game is active. Reset the edge so
+    // the first live reading after reconnect can show the overlay again.
+    if (!status.connected) {
+      set({ gameActive: false });
+      if (state.settings.showOverlayOnlyInGames && state.overlayVisible) {
+        set({ overlayVisible: false });
+        tauri.setOverlayVisible(false);
+      }
+    }
     // After a (re)connect, resync the target-app filter — the C# poller
     // restarts with `_currentSelectedApp = NONE`, so without this it would
     // count every app's frames again until the next dropdown change.
@@ -616,14 +655,22 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   },
 
   toggleOverlay: () => {
-    const visible = !get().overlayVisible;
+    const state = get();
+    const visible =
+      !state.overlayVisible &&
+      (!state.settings.showOverlayOnlyInGames || state.gameActive);
+    if (visible === state.overlayVisible) return;
     set({ overlayVisible: visible });
     tauri.setOverlayVisible(visible);
   },
 
   setOverlayVisible: (visible) => {
-    set({ overlayVisible: visible });
-    tauri.setOverlayVisible(visible);
+    const state = get();
+    const allowed =
+      visible && (!state.settings.showOverlayOnlyInGames || state.gameActive);
+    if (allowed === state.overlayVisible) return;
+    set({ overlayVisible: allowed });
+    tauri.setOverlayVisible(allowed);
   },
 
   loadAppVersion: async () => {

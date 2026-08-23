@@ -352,6 +352,10 @@ pub struct OverlaySettings {
     pub polling_rate: u64,
     #[serde(rename = "isLoggingEnabled")]
     pub is_logging_enabled: bool,
+    // Opt-in visibility policy. Older settings files have no key, so false
+    // preserves the previous always-visible behavior on upgrade.
+    #[serde(rename = "showOverlayOnlyInGames", default)]
+    pub show_overlay_only_in_games: bool,
     // Burn-in mitigation: when true the overlay is nudged a few pixels on a
     // slow cycle (applied entirely on the JS side). `default` keeps older save
     // files loading cleanly. Must live here or serde drops it on save (see the
@@ -394,6 +398,7 @@ impl Default for OverlaySettings {
             label_font_weight: 500,
             polling_rate: 500,
             is_logging_enabled: false,
+            show_overlay_only_in_games: false,
             pixel_shift: false,
             selected_gpu_id: String::new(),
             sensors: SensorsConfig::default(),
@@ -504,6 +509,20 @@ mod tests {
         );
     }
 
+    #[test]
+    fn game_only_visibility_survives_a_save_and_load_round_trip() {
+        let settings = OverlaySettings {
+            show_overlay_only_in_games: true,
+            ..Default::default()
+        };
+
+        let json = serde_json::to_string(&settings).expect("serialise");
+        assert!(json.contains("\"showOverlayOnlyInGames\":true"));
+
+        let restored: OverlaySettings = serde_json::from_str(&json).expect("deserialise");
+        assert!(restored.show_overlay_only_in_games);
+    }
+
     /// Every settings file written before this field existed lacks the key.
     /// Without `default` on it, serde rejects the whole file and the user is
     /// silently reset to defaults on upgrade.
@@ -541,5 +560,19 @@ mod tests {
 
         assert!(loaded.sensors.gpu_temp.additional_reading_ids.is_empty());
         assert!(loaded.sensors.cpu_temp.additional_reading_ids.is_empty());
+    }
+
+    #[test]
+    fn a_settings_file_written_before_game_only_visibility_still_loads() {
+        let mut old = serde_json::to_value(OverlaySettings::default()).expect("to value");
+        old.as_object_mut()
+            .expect("settings object")
+            .remove("showOverlayOnlyInGames")
+            .expect("the key should exist in current settings");
+
+        let loaded: OverlaySettings =
+            serde_json::from_value(old).expect("an older settings file must still load");
+
+        assert!(!loaded.show_overlay_only_in_games);
     }
 }

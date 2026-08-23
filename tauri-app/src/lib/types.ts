@@ -112,6 +112,8 @@ export interface OverlaySettings {
   labelFontWeight: number;
   pollingRate: number;
   isLoggingEnabled: boolean;
+  /** Hide the overlay unless PresentMon sees the monitored game presenting. */
+  showOverlayOnlyInGames: boolean;
   // When true, the overlay is nudged a few pixels on a slow cycle to spread
   // OLED wear (burn-in mitigation). See pixel-shift logic in OverlayApp.
   pixelShift: boolean;
@@ -214,6 +216,7 @@ export const DEFAULT_SETTINGS: OverlaySettings = {
   labelFontWeight: 500,
   pollingRate: 500,
   isLoggingEnabled: false,
+  showOverlayOnlyInGames: false,
   pixelShift: false,
   selectedGpuId: "",
   sensors: {

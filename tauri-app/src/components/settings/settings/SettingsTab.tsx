@@ -1,5 +1,6 @@
 import * as React from "react";
 import * as RadioGroupPrimitive from "@radix-ui/react-radio-group";
+import { Gamepad2 } from "lucide-react";
 import { Checkbox } from "@/components/shadcn/checkbox";
 import { RadioGroup } from "@/components/shadcn/radio-group";
 import { Switch } from "@/components/shadcn/switch";
@@ -48,6 +49,9 @@ function GeneralSection() {
   const startMinimized = useSettingsStore((s) => s.preferences.startMinimized);
   const updatePreferences = useSettingsStore((s) => s.updatePreferences);
   const pixelShift = useSettingsStore((s) => s.settings.pixelShift);
+  const showOverlayOnlyInGames = useSettingsStore(
+    (s) => s.settings.showOverlayOnlyInGames,
+  );
   const updateSettings = useSettingsStore((s) => s.updateSettings);
   const [startWithWindows, setStartWithWindows] = React.useState(false);
   // Rapid toggles fire concurrent setAutoStart calls that can resolve out
@@ -73,9 +77,7 @@ function GeneralSection() {
 
   return (
     <SectionCard title="General">
-      {/* Three blocks, laid out by the card's own 20 gap rather than a wrapper
-          of its own: Figma 2526:6755 puts the checkboxes, the divider and the
-          Pixel Shift row 20 apart. */}
+      {/* Rows use the card's own 20px gap, matching the existing General card. */}
       <div className="flex flex-col gap-[var(--spacingS)]">
         <label className="flex cursor-pointer items-center gap-[var(--spacingXs)] text-[14px] font-medium text-foreground">
             <Checkbox
@@ -96,7 +98,7 @@ function GeneralSection() {
         </label>
       </div>
       <div className="h-px w-full shrink-0 bg-[var(--borderSubtle)]" />
-      <div className="flex items-center gap-[var(--spacingS)]">
+      <div className="flex min-h-[40px] items-center gap-[var(--spacingS)]">
         <div className="flex size-[40px] shrink-0 items-center justify-center rounded-[var(--cornerRound)] border border-[var(--borderBold)] bg-[var(--bgSurfaceRaised)]">
           {/* No optical nudge: the exported glyph carries Figma's own 1.67
               inset inside a 20 box, so centring the box centres the glyph. */}
@@ -111,9 +113,35 @@ function GeneralSection() {
           </span>
         </div>
         <Switch
+          className="relative before:absolute before:-inset-x-[2px] before:-inset-y-[10px]"
           checked={pixelShift}
           onCheckedChange={(v) => updateSettings({ pixelShift: v })}
           aria-label="Pixel Shift"
+        />
+      </div>
+      <div className="flex min-h-[40px] items-center gap-[var(--spacingS)]">
+        <div className="flex size-[40px] shrink-0 items-center justify-center rounded-[var(--cornerRound)] border border-[var(--borderBold)] bg-[var(--bgSurfaceRaised)]">
+          <Gamepad2
+            aria-hidden
+            className="size-[20px] text-[var(--textParagraph1)]"
+            strokeWidth={1.5}
+          />
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-[6px]">
+          <span className="text-[14px] font-medium leading-[17px] text-[var(--textHeading)]">
+            Show only in games
+          </span>
+          <span className="text-pretty text-[14px] font-normal leading-[17px] text-[var(--textParagraph1)]">
+            Shows the overlay while a monitored game is presenting frames.
+          </span>
+        </div>
+        <Switch
+          className="relative before:absolute before:-inset-x-[2px] before:-inset-y-[10px]"
+          checked={showOverlayOnlyInGames}
+          onCheckedChange={(v) =>
+            updateSettings({ showOverlayOnlyInGames: v })
+          }
+          aria-label="Show overlay only in games"
         />
       </div>
     </SectionCard>
