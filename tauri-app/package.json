@@ -1,7 +1,7 @@
 {
   "name": "cleanmeter",
   "private": true,
-  "version": "2.2.16",
+  "version": "2.2.17",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "scripts": {
