@@ -10,15 +10,27 @@ import { SelectFieldTrigger } from "@/components/ui/SelectField";
 import { InfoIcon } from "../settings/icons";
 import { useSettingsStore } from "@/stores/settings-store";
 import { AUTO_OPTION, monitorAppOptions } from "@/lib/fps-apps";
+import { DEFAULT_SETTINGS } from "@/lib/types";
 import { SectionCard } from "./SectionCard";
+
+// Every reading this card owns, in the order the checkboxes appear. The card's
+// master toggle stores and restores all of them, so a reading added later only
+// has to be listed here rather than threaded through the toggle by hand.
+const FPS_READINGS = [
+  "framerate",
+  "frametime",
+  "onePercentLow",
+  "zeroPointOnePercentLow",
+] as const;
+type FpsReading = (typeof FPS_READINGS)[number];
 
 export function FpsSection() {
   const settings = useSettingsStore((s) => s.settings);
   const updateSensor = useSettingsStore((s) => s.updateSensor);
   const presentMonApps = useSettingsStore((s) => s.presentMonApps);
-  const { framerate, frametime } = settings.sensors;
-  const anyEnabled = framerate.isEnabled || frametime.isEnabled;
-  const prevState = useRef<{ framerate: boolean; frametime: boolean } | null>(null);
+  const { framerate, frametime, onePercentLow, zeroPointOnePercentLow } = settings.sensors;
+  const anyEnabled = FPS_READINGS.some((key) => settings.sensors[key].isEnabled);
+  const prevState = useRef<Record<FpsReading, boolean> | null>(null);
   // `|| ""` guards a settings.json written before targetAppName existed, where
   // the field is absent at runtime whatever the type says.
   const { value: selectedApp, options: appOptions } = monitorAppOptions({
@@ -32,13 +44,21 @@ export function FpsSection() {
       enabled={anyEnabled}
       onToggle={(enabled) => {
         if (!enabled) {
-          prevState.current = { framerate: framerate.isEnabled, frametime: frametime.isEnabled };
-          updateSensor("framerate", { isEnabled: false });
-          updateSensor("frametime", { isEnabled: false });
+          prevState.current = Object.fromEntries(
+            FPS_READINGS.map((key) => [key, settings.sensors[key].isEnabled]),
+          ) as Record<FpsReading, boolean>;
+          FPS_READINGS.forEach((key) => updateSensor(key, { isEnabled: false }));
         } else {
           const prev = prevState.current;
-          updateSensor("framerate", { isEnabled: prev ? prev.framerate : true });
-          updateSensor("frametime", { isEnabled: prev ? prev.frametime : true });
+          // With nothing stored (the card was already off at launch), fall back
+          // to each reading's shipped default rather than switching everything
+          // on: the two percentile lows default to off, and a blanket `true`
+          // here would enable readings the user never asked for.
+          FPS_READINGS.forEach((key) =>
+            updateSensor(key, {
+              isEnabled: prev ? prev[key] : DEFAULT_SETTINGS.sensors[key].isEnabled,
+            }),
+          );
         }
       }}
     >
@@ -56,6 +76,22 @@ export function FpsSection() {
             onCheckedChange={(v) => updateSensor("frametime", { isEnabled: v === true })}
           />
           <span className="text-[14px] font-medium text-foreground">Frame time graph</span>
+        </label>
+        <label className="flex cursor-pointer items-center gap-2">
+          <Checkbox
+            checked={onePercentLow.isEnabled}
+            onCheckedChange={(v) => updateSensor("onePercentLow", { isEnabled: v === true })}
+          />
+          <span className="text-[14px] font-medium text-foreground">1% Lows</span>
+        </label>
+        <label className="flex cursor-pointer items-center gap-2">
+          <Checkbox
+            checked={zeroPointOnePercentLow.isEnabled}
+            onCheckedChange={(v) =>
+              updateSensor("zeroPointOnePercentLow", { isEnabled: v === true })
+            }
+          />
+          <span className="text-[14px] font-medium text-foreground">0.1% Lows</span>
         </label>
       </div>
 

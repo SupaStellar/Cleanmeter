@@ -190,6 +190,23 @@ impl Default for SensorConfig {
     }
 }
 
+/// A `SensorConfig` that starts switched off, for readings added after release.
+///
+/// Two things depend on this. First, `#[serde(default = ...)]` on the fields
+/// using it is load-bearing, not tidiness: every settings.json written before
+/// these fields existed omits them, a missing field fails the whole parse, and
+/// `Settings::load_from_file` quarantines an unparseable file — so without a
+/// default, upgrading would wipe every setting the user has. Second, the
+/// default has to be `false` where `SensorConfig::default()` is `true`,
+/// because an upgrade must not add readings to an overlay the user has
+/// already sized and positioned without being asked.
+fn sensor_config_disabled() -> SensorConfig {
+    SensorConfig {
+        is_enabled: false,
+        custom_reading_id: String::new(),
+    }
+}
+
 // Mirrors the TS FramerateSensorConfig: SensorConfig + the PresentMon app
 // filter. `default` on target_app_name keeps existing saved settings loadable
 // (older builds didn't write the field).
@@ -236,6 +253,10 @@ impl Default for GraphSensorConfig {
 pub struct SensorsConfig {
     pub framerate: FramerateSensorConfig,
     pub frametime: SensorConfig,
+    #[serde(rename = "onePercentLow", default = "sensor_config_disabled")]
+    pub one_percent_low: SensorConfig,
+    #[serde(rename = "zeroPointOnePercentLow", default = "sensor_config_disabled")]
+    pub zero_point_one_percent_low: SensorConfig,
     #[serde(rename = "cpuTemp")]
     pub cpu_temp: GraphSensorConfig,
     #[serde(rename = "cpuUsage")]
@@ -265,6 +286,8 @@ impl Default for SensorsConfig {
         SensorsConfig {
             framerate: FramerateSensorConfig::default(),
             frametime: SensorConfig::default(),
+            one_percent_low: sensor_config_disabled(),
+            zero_point_one_percent_low: sensor_config_disabled(),
             cpu_temp: GraphSensorConfig::default(),
             cpu_usage: GraphSensorConfig::default(),
             cpu_consumption: SensorConfig::default(),

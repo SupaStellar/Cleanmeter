@@ -19,6 +19,8 @@ public class PresentMonPoller(ILogger logger)
     public PresentMonSensor Displayed { get; private set; }
     public PresentMonSensor Presented { get; private set; }
     public PresentMonSensor Frametime { get; private set; }
+    public PresentMonSensor OnePercentLow { get; private set; }
+    public PresentMonSensor ZeroPointOnePercentLow { get; private set; }
 
     public Action OnUpdateApps;
 
@@ -98,6 +100,30 @@ public class PresentMonPoller(ILogger logger)
     private double _latestStartTimeMs;
     private long _lastRowArrivalMs;
 
+    // Percentile lows (1% / 0.1%) accumulate over the whole session rather
+    // than the 1s window above, which holds ~120 frames at 120fps and so has
+    // no meaningful "worst 1%" at all. Session-length is also what RTSS / MSI
+    // Afterburner use by default ("unlimited"), and matching the overlay most
+    // of our users already run matters more than any window we could pick:
+    // the common way someone sanity-checks this number is to run both at once.
+    //
+    // See FrameLows for why this is a histogram and not a list of frametimes,
+    // and for which of the three competing "1% low" definitions it implements.
+    private const double ONE_PERCENT = 0.01;
+    private const double ZERO_POINT_ONE_PERCENT = 0.001;
+    private const double LOWS_MIN_TOTAL_MS = 5_000;
+    // A short gap (alt-tab, a loading screen, a pause menu) must NOT wipe a
+    // session-long statistic, so this deliberately survives the FPS_STALE_MS
+    // zeroing that resets the 1s averages. It is dropped only once rows have
+    // been absent long enough that the game is plainly gone, rather than
+    // leaving a dead game's lows on screen at the desktop.
+    private const int LOWS_ABANDON_MS = 30_000;
+    private readonly FrameLows _lows = new();
+    // The app whose frames are currently in the histogram. See the reset guard
+    // in ParseData for why attribution is tracked here rather than inferred
+    // from the selection or the foreground.
+    private string _lowsApp = "";
+
     // FPS diagnostics. Counters live under _stateLock alongside the other
     // attribution state. Rollup task logs once per FPS_DIAG_WINDOW_MS so the
     // log line cadence matches what the overlay shows; raw-row dump is one-
@@ -155,6 +181,13 @@ public class PresentMonPoller(ILogger logger)
             Displayed = new PresentMonSensor(_hardware, "displayed", 0, "Displayed Frames");
             Presented = new PresentMonSensor(_hardware, "presented", 1, "Presented Frames");
             Frametime = new PresentMonSensor(_hardware, "frametime", 2, "Frametime");
+            // Spelled out rather than "1% Low": MonitorPoller.RemoveSpecialCharacters
+            // rewrites anything outside [a-zA-Z0-9_ .] to an underscore before the
+            // name goes on the wire, so "1% Low" would reach the sensor picker as
+            // "1_ Low". The overlay resolves these by identifier, but the picker
+            // shows the name.
+            OnePercentLow = new PresentMonSensor(_hardware, "onepercentlow", 3, "1 Percent Low");
+            ZeroPointOnePercentLow = new PresentMonSensor(_hardware, "zeropointonepercentlow", 4, "0.1 Percent Low");
 
             // Resolve the foreground app once, synchronously, before PresentMon
             // starts emitting rows. Without this, the first ~500ms of CSV output
@@ -454,6 +487,36 @@ public class PresentMonPoller(ILogger logger)
             _presentedSumMs += ftMs;
             UpdateFromBuffer(_presentedFrames, ref _presentedSumMs, Presented);
 
+            // The percentile lows read the same present-to-present interval as
+            // the Presented sensor (the reading the overlay defaults to), but
+            // accumulate for the session instead of a 1s window. One
+            // increment per row: no trim, no re-sort, no growth.
+            //
+            // Reset on the app whose frames are actually being counted, not on
+            // the setting or the foreground, because three separate paths can
+            // change it and only one of them is an explicit user action:
+            // SetSelectedApp (the user picks another app), a foreground change
+            // in Auto mode, and — the one that has no event at all — the
+            // fallback at the top of this method, which starts counting the
+            // foreground once a manually-picked app has been silent for
+            // SELECTED_APP_STALE_MS. Without this guard that last path blends
+            // apps into one histogram indefinitely, and since the window is
+            // the whole session it never ages out.
+            //
+            // Worst case is the fallback engaging and disengaging repeatedly,
+            // which SELECTED_APP_STALE_MS caps at one reset per 5s. That keeps
+            // the histogram under its warm-up so the overlay shows nothing,
+            // which is the right outcome when attribution is genuinely
+            // ambiguous: no reading beats a blended one.
+            if (!string.Equals(_lowsApp, rowApp, StringComparison.OrdinalIgnoreCase))
+            {
+                _lows.Clear();
+                OnePercentLow.Value = 0;
+                ZeroPointOnePercentLow.Value = 0;
+                _lowsApp = rowApp;
+            }
+            _lows.Add(ftMs);
+
             // Displayed FPS uses the display-to-display interval (column
             // 17), NOT the present-to-present interval. The presented-FPS
             // and displayed-FPS values diverge whenever the display
@@ -514,6 +577,14 @@ public class PresentMonPoller(ILogger logger)
             Presented.Value = 0;
             Displayed.Value = 0;
             Frametime.Value = 0;
+            // The lows survive an alt-tab (see LOWS_ABANDON_MS) but never a
+            // change of monitored app: the window is the whole session, so
+            // without this the old game's stutters would sit in the new
+            // game's reading for as long as the app stays open.
+            _lows.Clear();
+            _lowsApp = "";
+            OnePercentLow.Value = 0;
+            ZeroPointOnePercentLow.Value = 0;
             // Reset the stale-fallback clock so a freshly-picked app gets a
             // full SELECTED_APP_STALE_MS grace period before we'd ever
             // fall back to foreground attribution.
@@ -679,6 +750,7 @@ public class PresentMonPoller(ILogger logger)
             int presentedQueue, displayedQueue;
             float fps, ft;
             bool stale;
+            long lowsFrames;
             lock (_stateLock)
             {
                 // Re-trim and recompute under the lock so the overlay value
@@ -698,6 +770,21 @@ public class PresentMonPoller(ILogger logger)
                     Presented.Value = 0;
                     Displayed.Value = 0;
                     Frametime.Value = 0;
+
+                    // The percentile buffer is deliberately NOT cleared here.
+                    // Staleness fires on every alt-tab, loading screen and
+                    // pause menu, and wiping a session-long statistic each time
+                    // would leave it permanently empty for anyone who tabs
+                    // out. It is dropped only once the game has been gone for
+                    // LOWS_ABANDON_MS, so the desktop doesn't sit there
+                    // showing a closed game's lows.
+                    if (_lastRowArrivalMs == 0 || wallNow - _lastRowArrivalMs > LOWS_ABANDON_MS)
+                    {
+                        _lows.Clear();
+                        _lowsApp = "";
+                        OnePercentLow.Value = 0;
+                        ZeroPointOnePercentLow.Value = 0;
+                    }
                 }
                 else
                 {
@@ -722,6 +809,23 @@ public class PresentMonPoller(ILogger logger)
                 displayedQueue = _displayedFrames.Count;
                 fps = Presented.Value ?? 0f;
                 ft = Frametime.Value ?? 0f;
+                // Computed under the lock rather than on a snapshot taken out
+                // of it. The walk starts at the slowest frame recorded and
+                // stops at the 1% crossing, so it reads a few thousand bucket
+                // counts and takes microseconds — nothing like sorting a
+                // session's frametimes, which the histogram means never
+                // happens. Publishing here also keeps the write to
+                // PresentMonSensor.Value (a float?, so a torn read is
+                // possible) on the same lock the pipe serializer takes.
+                //
+                // Deliberately outside the stale/else split above: when rows
+                // have merely paused, the session's frames are still there and
+                // the lows should keep reporting rather than blank out with
+                // the 1s averages.
+                OnePercentLow.Value = _lows.Compute(ONE_PERCENT, LOWS_MIN_TOTAL_MS);
+                ZeroPointOnePercentLow.Value =
+                    _lows.Compute(ZERO_POINT_ONE_PERCENT, LOWS_MIN_TOTAL_MS);
+                lowsFrames = _lows.FrameCount;
             }
             var countedStr = counted.Count == 0
                 ? "-"
@@ -731,13 +835,14 @@ public class PresentMonPoller(ILogger logger)
                 : string.Join(", ", dropped.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key}:{kv.Value}"));
 
             logger.LogDebug(
-                "[FPS-DEBUG] fg={Fg} sel={Sel} fps={Fps:F1} ft={Ft:F2}ms buf.presented={QP} buf.displayed={QD} rows={Total} short={Short} stale={Stale} counted=[{Counted}] dropped=[{Dropped}]",
+                "[FPS-DEBUG] fg={Fg} sel={Sel} fps={Fps:F1} ft={Ft:F2}ms buf.presented={QP} buf.displayed={QD} lows.frames={LowsFrames} rows={Total} short={Short} stale={Stale} counted=[{Counted}] dropped=[{Dropped}]",
                 string.IsNullOrEmpty(fg) ? "(empty)" : fg,
                 sel,
                 fps,
                 ft,
                 presentedQueue,
                 displayedQueue,
+                lowsFrames,
                 total,
                 shortRows,
                 stale,
@@ -781,6 +886,15 @@ public class PresentMonPoller(ILogger logger)
                             Presented.Value = 0;
                             Displayed.Value = 0;
                             Frametime.Value = 0;
+                            // The percentile histogram is deliberately NOT
+                            // cleared here. A foreground change is not the
+                            // same event as "a different app's frames arrived"
+                            // — alt-tabbing to something that never presents
+                            // (Notepad, a settings window) would wipe a
+                            // session-long statistic that LOWS_ABANDON_MS
+                            // exists to protect. ParseData resets it on the
+                            // precise condition instead, when a row from a
+                            // different app is actually counted.
                         }
                     }
                 }
