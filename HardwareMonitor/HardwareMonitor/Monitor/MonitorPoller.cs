@@ -664,6 +664,8 @@ public class MonitorPoller(
         sensorList.Add(MapSensor(_presentMonPoller.Displayed));
         sensorList.Add(MapSensor(_presentMonPoller.Presented));
         sensorList.Add(MapSensor(_presentMonPoller.Frametime));
+        sensorList.Add(MapSensor(_presentMonPoller.OnePercentLow));
+        sensorList.Add(MapSensor(_presentMonPoller.ZeroPointOnePercentLow));
 
         sharedMemoryData.Sensors = sensorList;
     }

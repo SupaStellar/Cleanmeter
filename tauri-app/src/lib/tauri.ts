@@ -7,7 +7,12 @@ import type {
   AppPreferences,
   SidecarStatus,
 } from "./types";
-import { previewPresentMonApps, previewSensorData, previewUpdate } from "./preview-fixture";
+import {
+  previewPresentMonApps,
+  previewSensorData,
+  previewSettings,
+  previewUpdate,
+} from "./preview-fixture";
 
 // ─── Browser detection ──────────────────────────────────────────
 // When running via `npm run dev` in a browser (no Tauri runtime),
@@ -67,7 +72,15 @@ async function safeListen<T>(
 
 // ─── Settings Commands ──────────────────────────────────────────
 
-export const getSettings = () => safeInvoke<OverlaySettings>("get_settings");
+export const getSettings = () =>
+  // The percentile lows ship disabled, so a browser preview left on the
+  // shipped defaults renders the FPS pill without them and the one layout
+  // that needs reviewing is the one you cannot see. Same reasoning as the
+  // two-GPU sensor fixture: the preview should show the state we design
+  // against, and `usePreviewFixture` keeps it out of any built bundle.
+  usePreviewFixture
+    ? Promise.resolve(previewSettings())
+    : safeInvoke<OverlaySettings>("get_settings");
 export const saveSettings = (settings: OverlaySettings) =>
   safeInvoke("save_settings", { settings });
 export const clearSettings = () => safeInvoke("clear_settings");

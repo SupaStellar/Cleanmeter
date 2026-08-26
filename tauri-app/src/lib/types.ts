@@ -65,6 +65,8 @@ export interface FramerateSensorConfig extends SensorConfig {
 export interface SensorsConfig {
   framerate: FramerateSensorConfig;
   frametime: SensorConfig;
+  onePercentLow: SensorConfig;
+  zeroPointOnePercentLow: SensorConfig;
   cpuTemp: GraphSensorConfig;
   cpuUsage: GraphSensorConfig;
   cpuConsumption: SensorConfig;
@@ -213,6 +215,12 @@ export const DEFAULT_SETTINGS: OverlaySettings = {
   sensors: {
     framerate: { isEnabled: true, customReadingId: "", targetAppName: "" },
     frametime: { isEnabled: true, customReadingId: "" },
+    // Off by default. These are new readings, and an upgrade that silently
+    // adds two numbers to an overlay someone has already positioned and sized
+    // is a change they did not ask for. The Figma settings card shows both
+    // unchecked for the same reason.
+    onePercentLow: { isEnabled: false, customReadingId: "" },
+    zeroPointOnePercentLow: { isEnabled: false, customReadingId: "" },
     cpuTemp: { isEnabled: true, customReadingId: "", boundaries: { low: 60, medium: 80, high: 90 } },
     cpuUsage: { isEnabled: true, customReadingId: "", boundaries: { low: 60, medium: 80, high: 90 } },
     cpuConsumption: { isEnabled: true, customReadingId: "" },

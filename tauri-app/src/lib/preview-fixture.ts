@@ -1,6 +1,6 @@
 import type { DownloadEvent, Update } from "@tauri-apps/plugin-updater";
-import type { HardwareMonitorData } from "./types";
-import { HardwareType, SensorType } from "./types";
+import type { HardwareMonitorData, OverlaySettings } from "./types";
+import { DEFAULT_SETTINGS, HardwareType, SensorType } from "./types";
 
 /**
  * What the browser preview (`npm run dev`) pretends the sidecar is sending.
@@ -90,6 +90,12 @@ export function previewSensorData(): HardwareMonitorData {
 
       sensor("/presentmon", "/presentmon/presented", "Presented", SensorType.Load, 144),
       sensor("/presentmon", "/presentmon/frametime", "Frametime", SensorType.Load, 6.94),
+      // Values taken from the Figma sample (2785:1408 "65", 2785:1413 "12") so
+      // the preview can be diffed against the frame directly. The sidecar
+      // reports 0 for either of these until its window holds enough frames,
+      // and the overlay hides a 0 — set one to 0 here to preview that state.
+      sensor("/presentmon", "/presentmon/onepercentlow", "1 Percent Low", SensorType.Load, 65),
+      sensor("/presentmon", "/presentmon/zeropointonepercentlow", "0.1 Percent Low", SensorType.Load, 12),
     ],
   };
 }
@@ -97,6 +103,36 @@ export function previewSensorData(): HardwareMonitorData {
 /** Something for the FPS app picker to list. */
 export function previewPresentMonApps(): string[] {
   return ["Cyberpunk2077.exe", "cs2.exe"];
+}
+
+/**
+ * The settings the browser preview starts from.
+ *
+ * Identical to the shipped defaults except that both percentile lows are
+ * switched on. They ship off so an upgrade doesn't add readings to an overlay
+ * someone has already sized, but a preview that inherits that leaves the FPS
+ * pill rendering exactly as it did before the feature existed, hiding the one
+ * layout worth reviewing. Same reasoning as the two-GPU sensor snapshot above:
+ * the preview should show the state we design against.
+ */
+export function previewSettings(): OverlaySettings {
+  // The HUD has two layouts and the settings window that toggles them is a
+  // different Tauri window, which the browser preview does not have — so
+  // without this the vertical pill is unreachable at
+  // http://localhost:1420/overlay.html. Add ?vertical to see it.
+  const vertical = new URLSearchParams(window.location.search).has("vertical");
+  return {
+    ...DEFAULT_SETTINGS,
+    isHorizontal: !vertical,
+    sensors: {
+      ...DEFAULT_SETTINGS.sensors,
+      onePercentLow: { ...DEFAULT_SETTINGS.sensors.onePercentLow, isEnabled: true },
+      zeroPointOnePercentLow: {
+        ...DEFAULT_SETTINGS.sensors.zeroPointOnePercentLow,
+        isEnabled: true,
+      },
+    },
+  };
 }
 
 /**
