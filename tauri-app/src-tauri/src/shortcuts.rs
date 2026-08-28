@@ -117,7 +117,16 @@ pub fn toggle_recording(app: &AppHandle) {
 
     if let Some(sender) = app.try_state::<PipeCommandSender>() {
         if let Err(e) = sender.0.try_send(PipeCommand::SetLowsRecording(next)) {
-            warn!("Could not send recording state to the sidecar: {}", e);
+            // Put the flag back. `fetch_xor` above has to happen first to
+            // serialise two presses landing together, but a command the
+            // sidecar never received must not leave this side believing the
+            // run changed state: a dropped stop would have us reporting
+            // "stopped" while the histogram kept accumulating. The reconnect
+            // in pipe_client re-asserts whatever this flag says, so the value
+            // it holds has to stay the truth.
+            state.recording.store(was, Ordering::Relaxed);
+            warn!("Could not send recording state to the sidecar, reverting: {}", e);
+            return;
         }
     }
     info!("Percentile-low recording {}", if next { "started" } else { "stopped" });

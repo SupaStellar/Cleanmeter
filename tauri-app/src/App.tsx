@@ -14,6 +14,8 @@ import { checkDotnetRuntime, onSettingsChanged, onShortcutStatus } from "@/lib/t
 import { STARTUP_GRACE_MS, monitoringVerdict } from "@/lib/monitoring";
 import { SplashScreen } from "@/components/SplashScreen";
 import { Toast } from "@/components/ui/Toast";
+import { useToastStore } from "@/stores/toast-store";
+import { HOTKEY_IN_USE_MESSAGE } from "@/lib/shortcuts";
 
 function MonitoringBanner() {
   const sensorData = useSettingsStore((s) => s.sensorData);
@@ -133,13 +135,33 @@ export default function App() {
   }, []);
 
   // Which global shortcuts the OS refused. Emitted on every registration
-  // pass, so this both raises and clears the warning on a shortcut field —
+  // pass, so this both raises and clears the marker on a shortcut field —
   // nothing here has to reason about which of the two it is looking at.
+  //
+  // A shortcut that has just BECOME unavailable also raises the refusal toast,
+  // the same one an in-app clash raises from ShortcutField: from the user's
+  // side "the other row has it" and "another app has it" are one fact, so they
+  // get one message (Saad, 2026-08-28).
+  //
+  // Raised here rather than in the field because this is where the status
+  // lands, and the failure is only known after the save round-trips through
+  // Rust — the field has already committed and stopped listening by then.
   useEffect(() => {
     let active = true;
     let unlisten: (() => void) | undefined;
+    // The first pass is startup's, and it reports what could not be bound from
+    // stored settings. Toasting there would fire on every launch for a combo
+    // some other application permanently owns, which is not news — the field's
+    // stroke already says it. Only a change from this point on is an event.
+    let seenFirstStatus = false;
     onShortcutStatus((unavailable) => {
+      const previous = useSettingsStore.getState().unavailableShortcuts;
       useSettingsStore.setState({ unavailableShortcuts: unavailable });
+      const newlyRefused = Object.keys(unavailable).some((k) => previous[k] === undefined);
+      if (seenFirstStatus && newlyRefused) {
+        useToastStore.getState().showToast(HOTKEY_IN_USE_MESSAGE);
+      }
+      seenFirstStatus = true;
     })
       .then((u) => {
         if (active) unlisten = u;

@@ -16,6 +16,18 @@
  * keeps an unregisterable combo out of settings.json in the first place.
  */
 
+/**
+ * The one message shown when a combo cannot be bound, whichever way it failed.
+ *
+ * Two different refusals reach the user — the other action in this app already
+ * holds the combo, or another application does and Windows will not give it up
+ * — and they are one message on purpose (Saad, 2026-08-28). From where the
+ * user is standing they are the same fact: the key they just pressed is taken.
+ * Splitting them into a toast and an inline note made the same outcome look
+ * like two different problems.
+ */
+export const HOTKEY_IN_USE_MESSAGE = "Assigned hotkey is already in use";
+
 /** Modifier keys, which can never be the main key of a shortcut. */
 const MODIFIER_CODES = new Set([
   "ControlLeft",

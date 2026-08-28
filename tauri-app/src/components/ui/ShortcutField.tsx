@@ -5,10 +5,10 @@ import { cn } from "@/lib/utils";
 import {
   acceleratorFromEvent,
   findShortcutConflict,
+  HOTKEY_IN_USE_MESSAGE,
   inProgressKeyLabels,
   shortcutKeyLabels,
 } from "@/lib/shortcuts";
-import { InfoIcon } from "@/components/settings/settings/icons";
 import { setShortcutCapturing } from "@/lib/tauri";
 import { useToastStore } from "@/stores/toast-store";
 import { DeleteIcon, RestoreIcon } from "./shortcut-icons";
@@ -131,14 +131,12 @@ export function ShortcutField({
         // toast says why, so the combo they pressed is visibly rejected
         // instead of silently taking a key off the other row.
         //
-        // A toast rather than a line under the field (Figma 2819:9753): this
-        // is an event — one press, refused — not a property of the binding,
-        // and the field it happened in still shows a perfectly valid
-        // shortcut. `unavailable` below is the opposite case and stays
-        // inline for exactly that reason.
+        // A toast (Figma 2819:9753). The other way a binding is refused —
+        // another application owning the combo — raises the SAME toast, from
+        // App.tsx where that status arrives.
         stopListening();
         fieldRef.current?.blur();
-        showToast("Assigned hotkey is already in use");
+        showToast(HOTKEY_IN_USE_MESSAGE);
         return;
       }
       stopListening();
@@ -188,12 +186,6 @@ export function ShortcutField({
 
   const isBound = accelerator !== "";
   const boundKeys = shortcutKeyLabels(accelerator);
-  // The one warning the field still renders itself. A refused capture is a
-  // moment and goes to the toast; this is a standing fact about the binding
-  // sitting in the field — another application owns the combo, and it will
-  // keep owning it — so it has to stay on screen for as long as that is
-  // true. A toast that has already faded cannot say that.
-  const warning = unavailable ? "Already in use by another app" : null;
   // Which of the two board shapes is on screen. Keycaps and text sit at
   // different heights in the frame, so this drives the padding as well as the
   // content — see the note on the field button.
@@ -207,12 +199,10 @@ export function ShortcutField({
   const showsKeycaps = keysOnShow !== null;
 
   return (
-    // Not in Figma: the frame draws no conflict board, so the warning below is
-    // assembled out of patterns the app already uses rather than invented.
-    // Field-then-note at gap 12 is how every other explained control in this
-    // app is built (the Selected app picker, Selected GPU, Polling rate), and
-    // the note itself is that same 12/medium row with a 16px icon at gap 4 —
-    // only the colour moves, from Text/Paragraph 1 to the warning ramp.
+    // Not in Figma: the frame draws no board for a combo another application
+    // owns. It is carried by the field's own stroke alone — the message for it
+    // is the toast, the same one an in-app clash raises. An inline note used to
+    // sit here as well and it made one outcome look like two problems.
     <div className="flex flex-col gap-[var(--spacingS)]">
       {/* Figma 2792:4025: radius 8, 16 all round, Bg/Surface Sunken Subtler,
           space-between, centred, gap 16. */}
@@ -296,12 +286,15 @@ export function ShortcutField({
                 // strokes). .cm-shortcut-listening lays the revolving Blue/600
                 // gradient over it.
                 "cm-shortcut-listening border border-[var(--borderBold)]"
-              : warning
-                ? // Cleanmeter's yellow, taken through the warning ramp rather
-                  // than as the raw #FEC84B off the logo: Border/Warning over
-                  // Bg/Warning Subtler is the pairing the token set already
-                  // defines, and it keeps the keycaps inside legible where a
-                  // full #FEC84B fill would not.
+              : unavailable
+                ? // Cleanmeter's logo yellow (--yellow300, #FEC84B) over
+                  // Bg/Warning Subtler. NOT --borderWarning (#DC6803): that is
+                  // the token set's semantic warning border, and it is a dark
+                  // orange that reads as an error next to these keycaps rather
+                  // than as "this one is not available". Figma draws no board
+                  // for this state, so neither choice is spec — if the
+                  // semantic token is wanted here, it is a visible change and
+                  // a deliberate one.
                   "border border-[var(--yellow300)] bg-[var(--bgWarningSubtler)]"
                 : isBound
                   ? "border border-[var(--borderSubtle)]"
@@ -319,7 +312,7 @@ export function ShortcutField({
               : `${label}: no shortcut. Press to bind one.`
           }
         >
-          {!isBound && !listening && !warning && <DashedRing />}
+          {!isBound && !listening && !unavailable && <DashedRing />}
           {keysOnShow ? (
             // Keys, in one of three situations: bound and idle (2792:4118),
             // bound and listening — where they simply stay put — and mid
@@ -349,15 +342,6 @@ export function ShortcutField({
         </FieldBox>
         </div>
       </div>
-
-      {warning && (
-        <div className="flex items-center gap-[var(--spacingXxxs)] text-[12px] font-medium leading-[15px] text-[var(--textWarning)]">
-          {/* The Figma-exported info glyph, tinted. Warning has no icon of its
-              own in this app and drawing a triangle by hand is not on. */}
-          <InfoIcon className="size-[16px] shrink-0" />
-          <span>{warning}</span>
-        </div>
-      )}
     </div>
   );
 }
