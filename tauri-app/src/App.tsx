@@ -156,8 +156,18 @@ export default function App() {
     // stroke already says it. Only a change from this point on is an event.
     let seenFirstStatus = false;
     onShortcutStatus((unavailable) => {
-      const newlyRefused = Object.keys(unavailable).some(
-        (k) => previousRefusals.current[k] === undefined,
+      // Compared by VALUE, not by key presence. Keyed on presence alone, a
+      // field that was already refused could be re-bound to a second combo
+      // the OS also owns and say nothing at all: the key was still in the
+      // map, so the refusal read as the same one already reported. The field
+      // is left unmarked by design, so the toast is the whole report, and
+      // swallowing it left a rejected binding with no feedback anywhere.
+      //
+      // An identical re-emission stays silent, which is what matters for the
+      // other path: apply_all fires on every save, empty object included, so
+      // an unchanged entry must not toast on unrelated settings changes.
+      const newlyRefused = Object.entries(unavailable).some(
+        ([k, accelerator]) => previousRefusals.current[k] !== accelerator,
       );
       previousRefusals.current = unavailable;
       if (seenFirstStatus && newlyRefused) {

@@ -351,7 +351,19 @@ public class MonitorPoller(
     private void SetLowsRecording(byte[] data)
     {
         if (ReadPayload(data, MonitorPacketCommand.SetLowsRecording) is not { } payload) return;
-        _presentMonPoller.SetLowsRecording(payload != 0);
+        // The protocol defines exactly 1 and 0, so anything else is a
+        // malformed packet rather than a truthy one. Treated as `!= 0`, a
+        // garbled payload of 2 would start a recording run and clear the
+        // histogram, throwing away a finished result the user was reading.
+        // Dropping it costs nothing: the only writer sends 1 or 0.
+        if (payload is not (0 or 1))
+        {
+            logger.LogWarning(
+                "Dropping SetLowsRecording with payload {Payload}; expected 0 or 1",
+                payload);
+            return;
+        }
+        _presentMonPoller.SetLowsRecording(payload == 1);
     }
 
     private void SelectPollingRate(byte[] data)

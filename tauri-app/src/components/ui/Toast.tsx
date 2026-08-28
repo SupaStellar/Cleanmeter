@@ -93,8 +93,26 @@ export function Toast() {
     };
   }, [message, token, clearToast]);
 
-  if (!message) return null;
+  return (
+    <>
+      {/* The live region is mounted for the life of the window, empty, and the
+          message is inserted into it. Several screen readers announce only
+          mutations inside a region that already existed, and the visual pill
+          below enters the DOM in the same commit as its text, so an
+          announcement hung on the pill itself can simply be dropped.
 
+          Visually inert (sr-only clips it to 1px), so the pill's geometry and
+          motion are untouched; the pill is aria-hidden because this region is
+          what speaks, and both would say it twice. */}
+      <div role="status" aria-live="polite" className="sr-only">
+        {message ?? ""}
+      </div>
+      {message && <ToastPill message={message} open={open} />}
+    </>
+  );
+}
+
+function ToastPill({ message, open }: { message: string; open: boolean }) {
   return (
     // The positioner carries the centring translate and the toast carries the
     // animated one. Both on one element would mean re-declaring the -50%
@@ -109,10 +127,11 @@ export function Toast() {
     <div className="pointer-events-none absolute left-1/2 top-[76px] z-20 -translate-x-1/2">
       <div
         data-state={open ? "open" : "closed"}
-        // role=status, not role=alert: alert interrupts a screen reader
-        // mid-sentence, and a refused keybinding does not warrant that.
-        role="status"
-        aria-live="polite"
+        // Announced by the mounted live region above, not from here. It uses
+        // role=status rather than role=alert deliberately: alert interrupts a
+        // screen reader mid-sentence, and a refused keybinding does not
+        // warrant that.
+        aria-hidden="true"
         className={
           "cm-toast flex items-center gap-[var(--spacingS)] rounded-[var(--cornerRound)] " +
           "bg-[var(--bgBrand)] py-[var(--spacingXxs)] pl-[var(--spacingXxs)] pr-[var(--spacingL)] " +
