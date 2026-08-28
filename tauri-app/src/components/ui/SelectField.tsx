@@ -85,7 +85,7 @@ export function SelectFieldButton({
 }
 
 type SelectFieldTriggerProps = React.ComponentProps<typeof SelectPrimitive.Trigger> & {
-  /** The label inside the field, e.g. "Selected GPU:". */
+  /** The label inside the field, e.g. "Selected:". */
   label: string;
 };
 

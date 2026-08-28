@@ -94,7 +94,7 @@ export function GpuSection({ sensors, hardwares }: Props) {
         <>
           <div className="flex flex-col gap-[var(--spacingS)]">
             <Select value={settings.selectedGpuId} onValueChange={selectGpu}>
-              <SelectFieldTrigger label="Selected GPU:">
+              <SelectFieldTrigger label="Selected:">
                 <SelectValue />
               </SelectFieldTrigger>
               <SelectContent>

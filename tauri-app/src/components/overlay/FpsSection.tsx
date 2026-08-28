@@ -5,6 +5,21 @@ import { useFrametimeHistory } from "@/hooks/useSensorData";
 import { findSensorById } from "@/lib/utils";
 import { formatValue } from "@/lib/utils";
 
+/**
+ * Frametime graph width, in CSS pixels — the same number in both layouts
+ * (Saad, 2026-08-28).
+ *
+ * Overrides the frame, which draws two different widths and stretches the
+ * vertical one: 153 on the horizontal board (2826:10742) and a column-filling
+ * 251 on the vertical (2819:10142, layoutSizingHorizontal FILL). One fixed
+ * width instead, so the trace reads at the same scale wherever it is shown
+ * and a wider HUD does not silently re-scale the history against it.
+ *
+ * Fixed like the divider's 10px, and for the same reason: it is a measured
+ * band, not type, so it does not track the font-size settings.
+ */
+const GRAPH_WIDTH = 200;
+
 interface FpsSectionProps {
   isHorizontal: boolean;
 }
@@ -74,16 +89,17 @@ export function FpsSection({ isHorizontal }: FpsSectionProps) {
     fontFamily: "Inter",
     letterSpacing: "-0.02em",
   };
-  // Figma 2785:1409 / 2785:1414: the "1%" and "0.1%" suffixes take the same
-  // node treatment as every other unit in the HUD — label font, label weight,
-  // +4% tracking — so they follow the Label font settings while their numbers
-  // follow the Stats font, exactly like "°C", "%" and "GB".
+  // The "1%" and "0.1%" suffixes: label font, label weight, +4% tracking, and
+  // FULL white — Figma 2826:10735 / 2826:10739 (and 2819:10136 / 2819:10140 on
+  // the vertical board) carry no node opacity at all, exactly like the units
+  // next door ("°C" 2826:10761, "%", "GB"). Only the pill labels and "6.2 ms"
+  // are dimmed in the frame.
   //
-  // Colour deviates from those two nodes on purpose (Saad, 2026-08-27): they
-  // carry node opacity 0.7 in the frame, but the units they sit next to
-  // ("°C" 2785:1356, "%" 2785:1373, "GB" 2785:1380) are all full white, and
-  // only "ms" is muted. Full white keeps the lows reading as units of a
-  // reading rather than as secondary text.
+  // This was briefly muted to 0.7, on the theory that a full-white "1%" butts
+  // against its digits and "65 1%" reads as one number. The frame answers that
+  // a different way: the 24% rule below separates the average from the lows,
+  // so the suffix does not have to be dimmed to earn its edge. Separation by
+  // rule, not by fading a reading the user is meant to read.
   const suffixStyle: React.CSSProperties = {
     fontSize: labelFontSize,
     fontWeight: labelFontWeight,
@@ -92,17 +108,49 @@ export function FpsSection({ isHorizontal }: FpsSectionProps) {
     letterSpacing: "0.04em",
   };
 
-  // "6.2 ms" keeps its 0.7 (Figma 2785:1343 / 2785:1545), unchanged.
+  // "6.2 ms" is the SAME type but NOT the same colour — Figma 2826:10744 puts
+  // node opacity 0.7 on it, the one reading in the pill that is dimmed. Kept
+  // as its own object rather than aliasing suffixStyle: the two were aliased
+  // while both were muted, and flipping the suffix to full white silently
+  // took the frametime with it.
   const frametimeStyle: React.CSSProperties = {
     ...suffixStyle,
     color: "var(--overlay-text-muted)",
   };
 
+  // Figma 2826:10731 "Rectangle 2" — a 1x10 rule at radius 4, white at 24%,
+  // between the average and the first low. ONE rule, after the average only:
+  // the frame puts nothing between "1%" and "0.1%".
+  //
+  // The 10 is LOCKED at every font size (Saad, 2026-08-28) — it does not track
+  // fontSizeValue the way the readings do. It is a rule between two numbers,
+  // not a glyph: derived from the value font it would be a stroke through the
+  // whole row at 24 and an invisible speck at 8, and it has to separate a
+  // value-sized number from a label-sized suffix at every step regardless.
+  //
+  // Colour as fill + opacity rather than a baked rgba, so it tracks
+  // --overlay-text the way the frame tracks its white fill variable.
+  const divider = (
+    <div
+      style={{
+        width: 1,
+        height: 10,
+        flexShrink: 0,
+        borderRadius: 4,
+        background: "var(--overlay-text)",
+        opacity: 0.24,
+      }}
+    />
+  );
   const valueText = framerate.isEnabled && (
     <span style={valueStyle} className="tabular-nums">
       {formatValue(fpsValue)}
     </span>
   );
+  // Only ever BETWEEN things. With the average hidden it would lead the pill,
+  // and with both lows hidden it would trail it — in Figma it always has a
+  // reading on each side. Declared after valueText, which it reads.
+  const showDivider = Boolean(valueText) && (showOnePercent || showZeroPointOne);
 
   // Figma 2785:1407 / 2785:1412 (Frame 57): value and suffix are one cluster at
   // gap 4, and each cluster is a sibling of the average at the pill's own 12px
@@ -136,12 +184,13 @@ export function FpsSection({ isHorizontal }: FpsSectionProps) {
     return (
       <Pill title="FPS" isHorizontal>
         {valueText}
+        {showDivider && divider}
         {showOnePercent && lowCluster(onePercentValue, "1%")}
         {showZeroPointOne && lowCluster(zeroPointOneValue, "0.1%")}
         {showFrametime && (
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <div style={{ position: "relative", top: -2 }}>
-              <FrametimeGraph history={frametimeHistory} width={100} />
+              <FrametimeGraph history={frametimeHistory} width={GRAPH_WIDTH} />
             </div>
             {frametimeText}
           </div>
@@ -168,8 +217,12 @@ export function FpsSection({ isHorizontal }: FpsSectionProps) {
       graphRow={
         showFrametime && (
           <div style={{ display: "flex", alignItems: "center", gap: 6, height: graphRowHeight }}>
-            <div style={{ flex: 1, minWidth: 0, position: "relative", top: -2 }}>
-              <FrametimeGraph history={frametimeHistory} width="fill" />
+            {/* Not flex:1 any more. That existed so a "fill" graph could stretch
+                to the column; at a fixed width a growing wrapper would only
+                strand the graph on the left and shove "6.2 ms" to the far
+                edge, which is the one thing the horizontal pill does not do. */}
+            <div style={{ position: "relative", top: -2 }}>
+              <FrametimeGraph history={frametimeHistory} width={GRAPH_WIDTH} />
             </div>
             {frametimeText}
           </div>
@@ -177,6 +230,7 @@ export function FpsSection({ isHorizontal }: FpsSectionProps) {
       }
     >
       {valueText}
+      {showDivider && divider}
       {showOnePercent && lowCluster(onePercentValue, "1%")}
       {showZeroPointOne && lowCluster(zeroPointOneValue, "0.1%")}
     </Pill>
