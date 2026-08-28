@@ -123,6 +123,18 @@ public class PresentMonPoller(ILogger logger)
     // in ParseData for why attribution is tracked here rather than inferred
     // from the selection or the foreground.
     private string _lowsApp = "";
+    // Whether a recording run is accumulating. True at startup, which is the
+    // unbounded-from-launch behaviour this had before the hotkey existed: a
+    // user who never binds the key sees no change at all.
+    //
+    // While false the histogram is inert — ParseData does not add to it, the
+    // diagnostics loop does not recompute from it, and neither the app-change
+    // guard nor the LOWS_ABANDON_MS sweep clears it. That inertness is the
+    // point: a stopped run is a result, and alt-tabbing to look at it, or
+    // quitting the game it measured, must not wipe the number being read.
+    // Only an explicit start clears it. Guarded by _stateLock like every other
+    // field here.
+    private bool _lowsRecording = true;
 
     // FPS diagnostics. Counters live under _stateLock alongside the other
     // attribution state. Rollup task logs once per FPS_DIAG_WINDOW_MS so the
@@ -508,14 +520,17 @@ public class PresentMonPoller(ILogger logger)
             // the histogram under its warm-up so the overlay shows nothing,
             // which is the right outcome when attribution is genuinely
             // ambiguous: no reading beats a blended one.
-            if (!string.Equals(_lowsApp, rowApp, StringComparison.OrdinalIgnoreCase))
+            if (_lowsRecording)
             {
-                _lows.Clear();
-                OnePercentLow.Value = 0;
-                ZeroPointOnePercentLow.Value = 0;
-                _lowsApp = rowApp;
+                if (!string.Equals(_lowsApp, rowApp, StringComparison.OrdinalIgnoreCase))
+                {
+                    _lows.Clear();
+                    OnePercentLow.Value = 0;
+                    ZeroPointOnePercentLow.Value = 0;
+                    _lowsApp = rowApp;
+                }
+                _lows.Add(ftMs);
             }
-            _lows.Add(ftMs);
 
             // Displayed FPS uses the display-to-display interval (column
             // 17), NOT the present-to-present interval. The presented-FPS
@@ -563,6 +578,57 @@ public class PresentMonPoller(ILogger logger)
         sensor.Value = (float)(q.Count * 1000.0 / sumMs);
     }
 
+    /// <summary>
+    /// Start or stop a percentile-low recording run.
+    ///
+    /// Start clears the histogram and zeroes the published figures, so a run
+    /// always measures from zero — the same contract MSI Afterburner's "begin
+    /// recording" has. Stop computes the run's final figures and freezes both
+    /// them and the histogram; see the <c>_lowsRecording</c> field for what
+    /// else stands down while stopped.
+    ///
+    /// Idempotent: starting an already-running recording still clears, which
+    /// is what a user pressing the key twice by accident at the start line
+    /// wants. Stopping an already-stopped one recomputes the same figures off
+    /// the same frozen histogram, so it is a no-op in effect. Only the pipe
+    /// reconnect in pipe_client.rs actually does that.
+    /// </summary>
+    public void SetLowsRecording(bool recording)
+    {
+        lock (_stateLock)
+        {
+            if (recording)
+            {
+                _lows.Clear();
+                // Cleared too, so the first row of the new run re-attributes
+                // through ParseData's guard rather than continuing to count
+                // against whatever app the last run measured.
+                _lowsApp = "";
+                OnePercentLow.Value = 0;
+                ZeroPointOnePercentLow.Value = 0;
+            }
+            else
+            {
+                // Publish once more BEFORE freezing. The diagnostics loop
+                // recomputes on a FPS_DIAG_WINDOW_MS tick, so the figure
+                // standing when the key is pressed is up to a second old and
+                // the last second of the run — 1.7% of a 60s benchmark, and
+                // the part most likely to hold the frames the user was
+                // watching for — would never reach the number they stopped to
+                // read. Afterburner computes its result at end-of-recording;
+                // so does this.
+                OnePercentLow.Value = _lows.Compute(ONE_PERCENT, LOWS_MIN_TOTAL_MS);
+                ZeroPointOnePercentLow.Value =
+                    _lows.Compute(ZERO_POINT_ONE_PERCENT, LOWS_MIN_TOTAL_MS);
+            }
+            _lowsRecording = recording;
+        }
+
+        logger.LogInformation(
+            "Percentile-low recording {State}",
+            recording ? "started" : "stopped");
+    }
+
     public void SetSelectedApp(string appName)
     {
         lock (_stateLock)
@@ -581,10 +647,19 @@ public class PresentMonPoller(ILogger logger)
             // change of monitored app: the window is the whole session, so
             // without this the old game's stutters would sit in the new
             // game's reading for as long as the app stays open.
-            _lows.Clear();
-            _lowsApp = "";
-            OnePercentLow.Value = 0;
-            ZeroPointOnePercentLow.Value = 0;
+            //
+            // Unless a run is stopped, in which case the histogram is a
+            // finished result and nothing but an explicit start may clear it.
+            // Picking another app in the dropdown to read its name, with a
+            // benchmark frozen on the overlay, must not throw the benchmark
+            // away.
+            if (_lowsRecording)
+            {
+                _lows.Clear();
+                _lowsApp = "";
+                OnePercentLow.Value = 0;
+                ZeroPointOnePercentLow.Value = 0;
+            }
             // Reset the stale-fallback clock so a freshly-picked app gets a
             // full SELECTED_APP_STALE_MS grace period before we'd ever
             // fall back to foreground attribution.
@@ -778,7 +853,8 @@ public class PresentMonPoller(ILogger logger)
                     // out. It is dropped only once the game has been gone for
                     // LOWS_ABANDON_MS, so the desktop doesn't sit there
                     // showing a closed game's lows.
-                    if (_lastRowArrivalMs == 0 || wallNow - _lastRowArrivalMs > LOWS_ABANDON_MS)
+                    if (_lowsRecording
+                        && (_lastRowArrivalMs == 0 || wallNow - _lastRowArrivalMs > LOWS_ABANDON_MS))
                     {
                         _lows.Clear();
                         _lowsApp = "";
@@ -822,9 +898,16 @@ public class PresentMonPoller(ILogger logger)
                 // have merely paused, the session's frames are still there and
                 // the lows should keep reporting rather than blank out with
                 // the 1s averages.
-                OnePercentLow.Value = _lows.Compute(ONE_PERCENT, LOWS_MIN_TOTAL_MS);
-                ZeroPointOnePercentLow.Value =
-                    _lows.Compute(ZERO_POINT_ONE_PERCENT, LOWS_MIN_TOTAL_MS);
+                // Skipped entirely while stopped rather than recomputed from a
+                // frozen histogram: the two are the same number today, but
+                // leaving the write out is what makes "frozen" true of the
+                // published value and not just of its inputs.
+                if (_lowsRecording)
+                {
+                    OnePercentLow.Value = _lows.Compute(ONE_PERCENT, LOWS_MIN_TOTAL_MS);
+                    ZeroPointOnePercentLow.Value =
+                        _lows.Compute(ZERO_POINT_ONE_PERCENT, LOWS_MIN_TOTAL_MS);
+                }
                 lowsFrames = _lows.FrameCount;
             }
             var countedStr = counted.Count == 0

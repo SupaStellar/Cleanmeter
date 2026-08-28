@@ -12,7 +12,8 @@ export function useHotkey() {
       if (action === "toggle-overlay") {
         toggleOverlay();
       }
-      // toggle-recording handled separately
+      // The recording keys never come through here: shortcuts.rs handles
+      // them itself, because they have to work with every window closed.
     }).then((u) => {
       unlisten = u;
     });

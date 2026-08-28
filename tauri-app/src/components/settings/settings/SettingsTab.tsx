@@ -26,6 +26,8 @@ import {
   ThemePreviewLight,
   ThemePreviewSystem,
 } from "./icons";
+import { ShortcutField } from "@/components/ui/ShortcutField";
+import { OVERLAY_SHORTCUT_DEFAULT, RECORDING_SHORTCUT_DEFAULT } from "@/lib/types";
 
 function SectionCard({
   title,
@@ -124,6 +126,58 @@ function GeneralSection() {
 // border+dot style. Outer 19.2×19.2. Unchecked: #CECFD2 outer with 15.6×15.6
 // white centered (gives a 1.8px gray ring). Checked: #0C111D outer with
 // 9.6×9.6 white centered (dark filled with a small white dot).
+/**
+ * Figma 2819:8960 — every global binding the app has, in one card.
+ *
+ * The overlay toggle used to be a hardcoded accelerator advertised by a
+ * banner at the top of the Stats tab; that banner is gone (2790:1636) and
+ * this card is where its information went, editable now rather than stated.
+ *
+ * The recording binding joined it here (2819:8979, "Start/stop FPS lows
+ * recording"). It briefly lived under each low in Stats, one copy per row,
+ * because 1% low and 0.1% low are two queries against ONE frametime
+ * histogram and therefore share a single run. Two mirrored copies of one
+ * field is the wrong shape for that; one row in the one place bindings live
+ * is the right one.
+ *
+ * Rows stack at 12 (2819:8962) inside the card's own 20 (2819:8960), and the
+ * label-to-field gap is 20 (2819:8963) rather than the Stats sub-card's 16.
+ * No grey panel: the rows sit directly on the card.
+ */
+function ShortcutsSection() {
+  const settings = useSettingsStore((s) => s.settings);
+  const updateSettings = useSettingsStore((s) => s.updateSettings);
+  const unavailableShortcuts = useSettingsStore((s) => s.unavailableShortcuts);
+
+  const overlayAccelerator = settings.overlayShortcut ?? OVERLAY_SHORTCUT_DEFAULT;
+  const recordingAccelerator = settings.recordingShortcut ?? RECORDING_SHORTCUT_DEFAULT;
+
+  return (
+    <SectionCard title="Shortcuts">
+      <div className="flex flex-col gap-[var(--spacingS)]">
+        <ShortcutField
+          label="Show/hide overlay"
+          accelerator={overlayAccelerator}
+          defaultAccelerator={OVERLAY_SHORTCUT_DEFAULT}
+          onChange={(overlayShortcut) => updateSettings({ overlayShortcut })}
+          conflictsWith={{ "Start/stop FPS lows recording": recordingAccelerator }}
+          unavailable={unavailableShortcuts.overlayShortcut !== undefined}
+          className="gap-[var(--spacingL)]"
+        />
+        <ShortcutField
+          label="Start/stop FPS lows recording"
+          accelerator={recordingAccelerator}
+          defaultAccelerator={RECORDING_SHORTCUT_DEFAULT}
+          onChange={(recordingShortcut) => updateSettings({ recordingShortcut })}
+          conflictsWith={{ "Show/hide overlay": overlayAccelerator }}
+          unavailable={unavailableShortcuts.recordingShortcut !== undefined}
+          className="gap-[var(--spacingL)]"
+        />
+      </div>
+    </SectionCard>
+  );
+}
+
 function FigmaRadio({ value }: { value: string }) {
   return (
     <RadioGroupPrimitive.Item
@@ -405,6 +459,7 @@ export function SettingsTab() {
     <div className="flex h-full w-full flex-col gap-[var(--spacingL)]">
       <div className="flex w-full flex-col gap-[var(--spacingM)]">
         <GeneralSection />
+        <ShortcutsSection />
         <TemperatureUnitsSection />
         <PollingRateSection />
         <AppearanceSection />

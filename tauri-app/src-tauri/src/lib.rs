@@ -1,5 +1,6 @@
 mod commands;
 mod pipe_client;
+mod shortcuts;
 mod settings;
 mod tray;
 mod types;
@@ -353,6 +354,9 @@ pub fn run() {
             // Set up pipe client communication channel
             let (cmd_tx, cmd_rx) = mpsc::channel::<pipe_client::PipeCommand>(32);
             app.manage(PipeCommandSender(cmd_tx));
+            // Managed before the shortcut below is applied: apply_shortcut
+            // reads this state to know what to unregister.
+            app.manage(shortcuts::ShortcutRegistry::new());
 
             // Start the pipe client in a background task
             let app_handle = app.handle().clone();
@@ -538,24 +542,15 @@ pub fn run() {
                 });
             }
 
-            // Register global shortcuts. Filter on Pressed — the callback fires
-            // on BOTH key-down and key-up by default, which caused the UI to
-            // toggle twice per physical press (visible hide-then-show flicker).
-            use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
-            let app_handle = app.handle().clone();
-
-            app.global_shortcut().on_shortcut("Ctrl+Alt+F10", move |_app, _shortcut, event| {
-                if event.state() == ShortcutState::Pressed {
-                    let _ = app_handle.emit("hotkey", "toggle-overlay");
-                }
-            })?;
-
-            let app_handle2 = app.handle().clone();
-            app.global_shortcut().on_shortcut("Alt+F11", move |_app, _shortcut, event| {
-                if event.state() == ShortcutState::Pressed {
-                    let _ = app_handle2.emit("hotkey", "toggle-recording");
-                }
-            })?;
+            // Register the global shortcuts from settings. Both accelerators
+            // are configurable now (Settings → Shortcuts for the overlay
+            // toggle, Stats → 1% Low for recording), so neither is registered
+            // inline here: shortcuts::apply_all is also what save_settings
+            // calls, which keeps one place knowing what is bound to what.
+            {
+                let stored = app.state::<SettingsManager>().get_settings();
+                shortcuts::apply_all(&app.handle().clone(), &stored);
+            }
 
             // Periodically reassert overlay always-on-top so games can't push it behind.
             // Only reasserts when overlay is currently visible (user hasn't hidden it).
@@ -654,6 +649,7 @@ pub fn run() {
             commands::get_settings,
             commands::save_settings,
             commands::clear_settings,
+            commands::set_shortcut_capturing,
             commands::get_sidecar_status,
             commands::get_preferences,
             commands::save_preferences,

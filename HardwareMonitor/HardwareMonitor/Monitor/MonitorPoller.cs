@@ -300,14 +300,37 @@ public class MonitorPoller(
             case MonitorPacketCommand.SelectPollingRate:
                 SelectPollingRate(data);
                 break;
+            case MonitorPacketCommand.SetLowsRecording:
+                SetLowsRecording(data);
+                break;
 
             // server -> client cases 
             case MonitorPacketCommand.Data:
             case MonitorPacketCommand.PresentMonApps:
                 break;
             default:
-                throw new ArgumentOutOfRangeException();
+                // Logged and dropped, never thrown. This runs on the pipe read
+                // loop, so an exception here takes the pipe down with it and
+                // the client sees "pipe is being closed" — observed for real
+                // when a newer client sent SetLowsRecording (5) to a sidecar
+                // built before that command existed. The two ship together, so
+                // that pairing should not happen, but a partial update or a
+                // failed file replacement is enough to produce it, and losing
+                // every reading over one unrecognised packet is a bad trade
+                // against ignoring it.
+                logger.LogWarning(
+                    "Ignoring unknown command {Command} from client; "
+                    + "the client is probably newer than this sidecar",
+                    (short)cmd);
+                break;
         }
+    }
+
+    private void SetLowsRecording(byte[] data)
+    {
+        // start at 2 because the first 2 were the command
+        var recording = BitConverter.ToInt16(data, 2) != 0;
+        _presentMonPoller.SetLowsRecording(recording);
     }
 
     private void SelectPollingRate(byte[] data)

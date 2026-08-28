@@ -232,6 +232,12 @@ interface SettingsStore {
   preferences: AppPreferences;
   sensorData: HardwareMonitorData | null;
   presentMonApps: string[];
+  /**
+   * Shortcuts the OS refused, keyed by the settings field holding them
+   * ({ overlayShortcut: "Alt+F10" }). Whole state, replaced on every
+   * registration pass — see onShortcutStatus.
+   */
+  unavailableShortcuts: Record<string, string>;
   pipeStatus: PipeStatus;
   sidecarStatus: SidecarStatus;
   overlayVisible: boolean;
@@ -272,6 +278,7 @@ interface SettingsStore {
   // Sensor data
   setSensorData: (data: HardwareMonitorData) => void;
   setPresentMonApps: (apps: string[]) => void;
+  setUnavailableShortcuts: (unavailable: Record<string, string>) => void;
   setPipeStatus: (status: PipeStatus) => void;
   setSidecarStatus: (status: SidecarStatus) => void;
   loadSidecarStatus: () => Promise<void>;
@@ -297,6 +304,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   preferences: { adminConsent: false, startMinimized: false },
   sensorData: null,
   presentMonApps: [],
+  unavailableShortcuts: {},
   pipeStatus: { connected: false },
   // Nothing has gone wrong until the supervisor says so, so a launch reads as
   // "still starting" rather than as a failure.
@@ -539,6 +547,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     }
   },
   setPresentMonApps: (apps) => set({ presentMonApps: apps }),
+  setUnavailableShortcuts: (unavailable) => set({ unavailableShortcuts: unavailable }),
   setSidecarStatus: (status) => {
     sawSidecarEvent = true;
     set({ sidecarStatus: status });

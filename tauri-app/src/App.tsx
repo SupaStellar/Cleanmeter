@@ -10,9 +10,10 @@ import { useHotkey } from "@/hooks/useHotkey";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useUpdaterStore } from "@/stores/updater-store";
 import { UpdateBanner } from "@/components/settings/UpdateBanner";
-import { checkDotnetRuntime, onSettingsChanged } from "@/lib/tauri";
+import { checkDotnetRuntime, onSettingsChanged, onShortcutStatus } from "@/lib/tauri";
 import { STARTUP_GRACE_MS, monitoringVerdict } from "@/lib/monitoring";
 import { SplashScreen } from "@/components/SplashScreen";
+import { Toast } from "@/components/ui/Toast";
 
 function MonitoringBanner() {
   const sensorData = useSettingsStore((s) => s.sensorData);
@@ -131,6 +132,28 @@ export default function App() {
     };
   }, []);
 
+  // Which global shortcuts the OS refused. Emitted on every registration
+  // pass, so this both raises and clears the warning on a shortcut field —
+  // nothing here has to reason about which of the two it is looking at.
+  useEffect(() => {
+    let active = true;
+    let unlisten: (() => void) | undefined;
+    onShortcutStatus((unavailable) => {
+      useSettingsStore.setState({ unavailableShortcuts: unavailable });
+    })
+      .then((u) => {
+        if (active) unlisten = u;
+        else u();
+      })
+      .catch((err) => {
+        console.error("Failed to subscribe to shortcut status:", err);
+      });
+    return () => {
+      active = false;
+      unlisten?.();
+    };
+  }, []);
+
   // Keep <html data-theme> in sync and mirror the resolved theme into
   // localStorage so the pre-hydration script in index.html can paint the
   // correct theme on the next launch before settings load — no startup flash.
@@ -150,6 +173,11 @@ export default function App() {
   return (
     <div className="relative mx-auto flex h-screen w-full max-w-[651px] flex-col overflow-hidden rounded-[12px] outline outline-1 -outline-offset-1 outline-foreground/10 bg-background text-foreground shadow-sm">
       {showSplash && <SplashScreen onDone={handleSplashDone} />}
+      {/* Against the window frame, not inside a tab: Figma 2819:9753 centres
+          it over the whole window at y 76, which puts it across the TopBar
+          and the tab strip. It also has to outlive a tab switch, and the tabs
+          unmount nothing but they do scroll. */}
+      <Toast />
       <TopBar />
       <MonitoringBanner />
       <UpdateBanner />

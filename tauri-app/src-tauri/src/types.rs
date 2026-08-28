@@ -337,8 +337,6 @@ pub struct OverlaySettings {
     pub position_index: u8,
     #[serde(rename = "selectedDisplayIndex")]
     pub selected_display_index: u8,
-    #[serde(rename = "netGraph")]
-    pub net_graph: bool,
     #[serde(rename = "progressType")]
     pub progress_type: ProgressType,
     #[serde(rename = "graphType", default = "default_graph_type")]
@@ -379,7 +377,34 @@ pub struct OverlaySettings {
     // drops it on save (see the struct comment above).
     #[serde(rename = "selectedGpuId", default)]
     pub selected_gpu_id: String,
+    // Global shortcut that starts/stops a percentile-low recording, as a
+    // `global-hotkey` accelerator. Empty = unbound, nothing registered.
+    //
+    // `default` here is NOT `String::new()`: a settings.json written before
+    // this field existed comes from a build where Alt+F11 was hardcoded, so
+    // defaulting to empty would silently unbind a working shortcut on
+    // upgrade. It defaults to the same combo that build registered. Must
+    // live here or serde drops it on save (see the struct comment above).
+    #[serde(rename = "recordingShortcut", default = "default_recording_shortcut")]
+    pub recording_shortcut: String,
+    // Global shortcut that shows/hides the overlay. Same reasoning as
+    // recording_shortcut for why the default is the previously-hardcoded
+    // combo rather than empty.
+    #[serde(rename = "overlayShortcut", default = "default_overlay_shortcut")]
+    pub overlay_shortcut: String,
     pub sensors: SensorsConfig,
+}
+
+/// The recording shortcut this app shipped with, before it was configurable.
+/// Mirrors RECORDING_SHORTCUT_DEFAULT in types.ts.
+pub fn default_recording_shortcut() -> String {
+    "Alt+F11".to_string()
+}
+
+/// The show/hide-overlay shortcut this app shipped with, before it was
+/// configurable. Mirrors OVERLAY_SHORTCUT_DEFAULT in types.ts.
+pub fn default_overlay_shortcut() -> String {
+    "Ctrl+Alt+F10".to_string()
 }
 
 impl Default for OverlaySettings {
@@ -393,7 +418,6 @@ impl Default for OverlaySettings {
             use_custom_position: true,
             position_index: 0,
             selected_display_index: 0,
-            net_graph: false,
             progress_type: ProgressType::Circular,
             graph_type: "ring".to_string(),
             position_x: 0,
@@ -410,6 +434,8 @@ impl Default for OverlaySettings {
             is_logging_enabled: false,
             pixel_shift: false,
             selected_gpu_id: String::new(),
+            recording_shortcut: default_recording_shortcut(),
+            overlay_shortcut: default_overlay_shortcut(),
             sensors: SensorsConfig::default(),
         }
     }

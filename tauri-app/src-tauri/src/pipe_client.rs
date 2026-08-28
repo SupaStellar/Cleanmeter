@@ -4,7 +4,7 @@ use std::io::{self, Cursor, Read, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use tokio::sync::mpsc;
 
 use crate::types::*;
@@ -44,6 +44,10 @@ pub enum PipeCommand {
     RefreshPresentMonApps,
     SelectPresentMonApp(String),
     SelectPollingRate(u16),
+    /// Start (true) or stop (false) accumulating frametimes into the
+    /// percentile-low histogram. Start clears what is there; stop computes a
+    /// final figure and freezes it. See MonitorPacketCommand.SetLowsRecording.
+    SetLowsRecording(bool),
 }
 
 /// Parse a Data packet (command 0) from raw bytes
@@ -222,6 +226,13 @@ fn build_command(cmd: &PipeCommand) -> Vec<u8> {
             buf.write_u16::<LittleEndian>(4).unwrap();
             buf.write_u16::<LittleEndian>(*rate).unwrap();
         }
+        // u16 payload rather than a byte: every other command in this
+        // protocol is u16-aligned, and the C# reader indexes fixed offsets
+        // (BitConverter.ToInt16(data, 2)) rather than reading a stream.
+        PipeCommand::SetLowsRecording(recording) => {
+            buf.write_u16::<LittleEndian>(5).unwrap();
+            buf.write_u16::<LittleEndian>(u16::from(*recording)).unwrap();
+        }
     }
     buf
 }
@@ -310,6 +321,24 @@ pub async fn run_pipe_client(
                         continue;
                     }
                 };
+                // Re-assert the recording state on every connect.
+                //
+                // A sidecar that crashes is respawned by the supervisor in
+                // lib.rs within ~1s, and it comes back with its histogram
+                // recording (that is its startup default). Without this, a
+                // stopped run — a benchmark result somebody is reading —
+                // would quietly start moving again the moment the sidecar
+                // bounced, and nothing on screen would say why. Only sent
+                // when stopped: the fresh sidecar already agrees otherwise.
+                if let Some(state) = app.try_state::<crate::shortcuts::ShortcutRegistry>() {
+                    if !state.is_recording() {
+                        let bytes = build_command(&PipeCommand::SetLowsRecording(false));
+                        if let Err(e) = writer.write_all(&bytes) {
+                            warn!("Could not re-assert the stopped recording state: {}", e);
+                        }
+                    }
+                }
+
                 let mut reader = pipe_file;
                 let app_for_read = app.clone();
                 let running_for_read = running.clone();

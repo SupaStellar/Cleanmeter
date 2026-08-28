@@ -114,6 +114,15 @@ export const refreshPresentMonApps = () =>
 export const setPollingRate = (intervalMs: number) =>
   safeInvoke("set_polling_rate", { intervalMs });
 
+/**
+ * Release the app's own global shortcuts while a shortcut field is listening.
+ * Without this a combo Cleanmeter already holds is the one thing the field
+ * cannot capture: Windows routes a registered hotkey to the registering
+ * process and never to the focused window.
+ */
+export const setShortcutCapturing = (capturing: boolean) =>
+  safeInvoke("set_shortcut_capturing", { capturing });
+
 // ─── System Commands ────────────────────────────────────────────
 
 export const checkDotnetRuntime = () => safeInvoke<boolean>("check_dotnet_runtime");
@@ -208,6 +217,19 @@ export const onSettingsChanged = (
   callback: (settings: OverlaySettings) => void
 ): Promise<UnlistenFn> =>
   safeListen<OverlaySettings>("settings-changed", (event) =>
+    callback(event.payload)
+  );
+
+/**
+ * Which shortcuts the OS refused, keyed by the settings field that holds them
+ * ({ overlayShortcut: "Alt+F10" }). Emitted on every registration pass, empty
+ * object included, so it is the whole current state rather than a one-off
+ * notification — see shortcuts::apply_all.
+ */
+export const onShortcutStatus = (
+  callback: (unavailable: Record<string, string>) => void
+): Promise<UnlistenFn> =>
+  safeListen<Record<string, string>>("shortcut-status", (event) =>
     callback(event.payload)
   );
 
