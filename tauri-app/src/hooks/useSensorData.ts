@@ -6,7 +6,6 @@ import {
   onSidecarStatus,
 } from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
-import { SensorType } from "@/lib/types";
 import type { HardwareMonitorData } from "@/lib/types";
 
 export function useSensorData() {
@@ -79,43 +78,3 @@ export function useFrametimeHistory(maxPoints = 30) {
   return history;
 }
 
-/** Hook for overlay — keeps a rolling buffer of network rates */
-export function useNetworkHistory(maxPoints = 30) {
-  const sensorData = useSettingsStore((s) => s.sensorData);
-  const downRef = useRef<number[]>([]);
-  const upRef = useRef<number[]>([]);
-  const prevData = useRef<HardwareMonitorData | null>(null);
-  const [histories, setHistories] = useState<{ downHistory: number[]; upHistory: number[] }>({ downHistory: [], upHistory: [] });
-
-  // Same render-phase rolling-buffer pattern as useFrametimeHistory above —
-  // see that hook for why the react-hooks/refs reads are intentional.
-  /* eslint-disable react-hooks/refs */
-  if (sensorData && sensorData !== prevData.current) {
-    prevData.current = sensorData;
-
-    const down = sensorData.sensors.find(
-      (s) => s.sensorType === SensorType.Throughput && s.name.toLowerCase().includes("download")
-    );
-    const up = sensorData.sensors.find(
-      (s) => s.sensorType === SensorType.Throughput && s.name.toLowerCase().includes("upload")
-    );
-
-    let changed = false;
-    if (down?.value != null) {
-      downRef.current.push(down.value);
-      if (downRef.current.length > maxPoints) downRef.current.shift();
-      changed = true;
-    }
-    if (up?.value != null) {
-      upRef.current.push(up.value);
-      if (upRef.current.length > maxPoints) upRef.current.shift();
-      changed = true;
-    }
-    if (changed) {
-      setHistories({ downHistory: [...downRef.current], upHistory: [...upRef.current] });
-    }
-  }
-  /* eslint-enable react-hooks/refs */
-
-  return histories;
-}
