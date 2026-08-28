@@ -20,14 +20,6 @@ import { formatValue } from "@/lib/utils";
  */
 const GRAPH_WIDTH = 200;
 
-/**
- * Stand-in for a percentile low that has no reading yet.
- *
- * An en dash, not a hyphen and not "0" — it has to be visibly not-a-number so
- * a warming-up run cannot be misread as a measured result.
- */
-const NO_READING = "–";
-
 interface FpsSectionProps {
   isHorizontal: boolean;
 }
@@ -83,7 +75,7 @@ export function FpsSection({ isHorizontal }: FpsSectionProps) {
   const zeroPointOneValue = Math.round(zeroPointOneLowSensor?.value ?? 0);
   const lastFrametime = frametimeHistory.length > 0 ? frametimeHistory[frametimeHistory.length - 1] : 0;
   const showFrametime = frametime.isEnabled && frametimeHistory.length > 2;
-  // A low with no reading yet shows a dash, and the cluster STAYS on screen.
+  // A low with no reading yet reads 0, and the cluster STAYS on screen.
   //
   // The sidecar reports 0 while it warms up — LOWS_MIN_TOTAL_MS is 5s, and
   // the clock restarts every time a recording run begins, the monitored app
@@ -92,14 +84,20 @@ export function FpsSection({ isHorizontal }: FpsSectionProps) {
   // "start recording" cleared the histogram, both lows vanished for a full
   // five seconds, and the pill shrank and then grew again when they came
   // back. Geometry moving on its own is bad on a HUD pinned over a game, and
-  // it read as though the hotkey had switched the readings off.
+  // it read as though the hotkey had switched the readings off. Afterburner
+  // does not drop the row when a benchmark begins either.
   //
-  // Afterburner does not drop the row when a benchmark begins — the row
-  // stays and the value is what changes. This matches that.
+  // 0, not a dash. A dash was tried and it is unusable for a reason specific
+  // to these two readings: their suffix STARTS WITH A DIGIT, so "- 1%" at
+  // gap 4 renders as "-1%" and reads as NEGATIVE one percent (Saad,
+  // 2026-08-28). No placeholder glyph survives sitting next to "1%".
   //
-  // A dash rather than "0": the original reason for hiding still stands, in
-  // that "0 1%" reads as "your worst frames were 0 fps". "-" says "no reading
-  // yet" and cannot be mistaken for one.
+  // 0 is also what the rest of this pill already does with no data — the
+  // average reads "0" and the frametime "0.0 ms" on an idle desktop, so a low
+  // reading 0 alongside them is the whole pill speaking one language. The
+  // earlier worry that "0 1%" reads as "your worst frames were 0 fps" bites
+  // only while the average shows a live number, and it is the lesser evil
+  // against a value that looks negative.
   const showOnePercent = onePercentLow.isEnabled;
   const showZeroPointOne = zeroPointOnePercentLow.isEnabled;
 
@@ -179,7 +177,7 @@ export function FpsSection({ isHorizontal }: FpsSectionProps) {
   const lowCluster = (value: number, suffix: string) => (
     <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
       <span style={valueStyle} className="tabular-nums">
-        {value > 0 ? formatValue(value) : NO_READING}
+        {formatValue(value)}
       </span>
       <span style={suffixStyle} className="tabular-nums">
         {suffix}
