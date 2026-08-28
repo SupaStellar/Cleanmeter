@@ -93,7 +93,6 @@ export interface OverlaySettings {
   useCustomPosition: boolean;
   positionIndex: number;
   selectedDisplayIndex: number;
-  netGraph: boolean;
   progressType: ProgressType;
   graphType: GraphType;
   positionX: number;
@@ -121,8 +120,45 @@ export interface OverlaySettings {
    * that changes it.
    */
   selectedGpuId: string;
+  /**
+   * Global shortcut that starts and stops a percentile-low recording, as a
+   * `global-hotkey` accelerator ("Alt+F11", "Ctrl+Shift+KeyR"). Empty means
+   * unbound — nothing is registered and the field shows "Add shortcut".
+   *
+   * ONE key for both lows, not one each: they are two queries against one
+   * frametime histogram, so there is a single run to start and stop. That is
+   * why Figma 2819:8960 binds it once in Settings rather than under each low
+   * in Stats — see shortcuts.rs for the whole contract.
+   *
+   * Defaults to the combo the app already had hardcoded, so an upgrade binds
+   * exactly what was bound before rather than silently dropping it. See
+   * RECORDING_SHORTCUT_DEFAULT.
+   */
+  recordingShortcut: string;
+  /**
+   * Global shortcut that shows and hides the overlay. Same accelerator format
+   * and same empty-means-unbound rule as recordingShortcut.
+   *
+   * Configurable as of the Settings "Shortcuts" card (Figma 2792:5811). Before
+   * that it was hardcoded in lib.rs and the Stats tab carried a banner saying
+   * what it was; the banner is gone and this card replaced it.
+   */
+  overlayShortcut: string;
   sensors: SensorsConfig;
 }
+
+/**
+ * The shipped recording shortcut, and what the field's restore button puts
+ * back. Alt+F11 because that is what lib.rs registered for the recording
+ * toggle before the shortcut was configurable.
+ */
+export const RECORDING_SHORTCUT_DEFAULT = "Alt+F11";
+
+/**
+ * The shipped show/hide-overlay shortcut. Ctrl+Alt+F10 because that is what
+ * lib.rs registered, and what the removed Stats banner advertised.
+ */
+export const OVERLAY_SHORTCUT_DEFAULT = "Ctrl+Alt+F10";
 
 export interface Hardware {
   name: string;
@@ -191,7 +227,6 @@ export const DEFAULT_SETTINGS: OverlaySettings = {
   useCustomPosition: true,
   positionIndex: 4,
   selectedDisplayIndex: 0,
-  netGraph: false,
   progressType: "circular",
   graphType: "ring",
   positionX: 0,
@@ -212,6 +247,8 @@ export const DEFAULT_SETTINGS: OverlaySettings = {
   isLoggingEnabled: false,
   pixelShift: false,
   selectedGpuId: "",
+  recordingShortcut: RECORDING_SHORTCUT_DEFAULT,
+  overlayShortcut: OVERLAY_SHORTCUT_DEFAULT,
   sensors: {
     framerate: { isEnabled: true, customReadingId: "", targetAppName: "" },
     frametime: { isEnabled: true, customReadingId: "" },

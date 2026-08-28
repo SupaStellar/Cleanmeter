@@ -38,6 +38,26 @@ export const TwoKeys: Story = {
   },
 };
 
+/**
+ * The cap inside the shortcut field (Figma 2792:4118). Shorter, outlined
+ * rather than moulded, no "+" between caps, and it takes its text colour from
+ * the row — which is how the Blue/600 capture board is drawn.
+ */
+export const Light: Story = {
+  args: {
+    variant: "light",
+    keys: ["Ctrl", "Shift", "R"],
+  },
+};
+
+export const LightCapturing: Story = {
+  args: {
+    variant: "light",
+    keys: ["Shift", "F9"],
+    className: "text-[#155dfc]",
+  },
+};
+
 export const AllVariants: Story = {
   render: () => (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>

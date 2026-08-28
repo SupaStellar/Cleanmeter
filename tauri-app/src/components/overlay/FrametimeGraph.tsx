@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect } from "react";
 
 // Figma 2202:3533 (horizontal) / 2218:3721 (vertical): the wave is a 7px-tall
 // band in both layouts — the line rests on the bottom of the band and rises in
@@ -17,28 +17,15 @@ const RANGE_FLOOR_RATIO = 0.3;
 
 interface FrametimeGraphProps {
   history: number[];
-  /** CSS pixel width, or "fill" to track the parent's width (vertical layout). */
-  width: number | "fill";
+  /** CSS pixel width. Both layouts use the same fixed width — see
+   *  GRAPH_WIDTH in FpsSection. */
+  width: number;
 }
 
 export function FrametimeGraph({ history, width }: FrametimeGraphProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const wrapperRef = useRef<HTMLDivElement>(null);
   const sizeRef = useRef({ w: 0, h: 0 });
-  const [measuredWidth, setMeasuredWidth] = useState(0);
-
-  useEffect(() => {
-    if (width !== "fill") return;
-    const wrapper = wrapperRef.current;
-    if (!wrapper) return;
-    const observer = new ResizeObserver((entries) => {
-      setMeasuredWidth(entries[0].contentRect.width);
-    });
-    observer.observe(wrapper);
-    return () => observer.disconnect();
-  }, [width]);
-
-  const drawWidth = width === "fill" ? measuredWidth : width;
+  const drawWidth = width;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -102,24 +89,6 @@ export function FrametimeGraph({ history, width }: FrametimeGraphProps) {
     });
     ctx.stroke();
   }, [history, drawWidth]);
-
-  if (width === "fill") {
-    // A canvas's intrinsic width (its backing-store attribute — 300 by
-    // default before the first draw) participates in the pill's
-    // shrink-to-fit sizing, so an in-flow canvas at width:100% inflates the
-    // pill far past the value row. Absolutely positioning it removes it from
-    // intrinsic sizing; the wrapper stretches to the column width set by the
-    // value row and the ResizeObserver tracks that.
-    return (
-      <div ref={wrapperRef} style={{ position: "relative", height: BAND_HEIGHT }}>
-        <canvas
-          ref={canvasRef}
-          aria-hidden="true"
-          style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
-        />
-      </div>
-    );
-  }
 
   return (
     <canvas

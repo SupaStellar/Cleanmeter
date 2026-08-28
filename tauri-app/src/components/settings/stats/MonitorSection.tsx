@@ -3,9 +3,9 @@ import {
   Select,
   SelectContent,
   SelectItem,
-  SelectTrigger,
   SelectValue,
 } from "@/components/shadcn/select";
+import { SelectFieldTrigger } from "@/components/ui/SelectField";
 import { useSettingsStore } from "@/stores/settings-store";
 import { getMonitors } from "@/lib/tauri";
 import type { MonitorInfo } from "@/lib/types";
@@ -28,11 +28,14 @@ export function MonitorSection() {
         value={String(settings.selectedDisplayIndex)}
         onValueChange={(v) => updateSettings({ selectedDisplayIndex: parseInt(v, 10) })}
       >
-        <SelectTrigger className="h-10 rounded-[8px] text-[14px]">
+        {/* Figma 2804:6116: the same labelled "Input" the other pickers use,
+            so the monitor name reads as the value of "Selected:" rather than
+            as a bare string in a box. */}
+        <SelectFieldTrigger label="Selected:">
           <SelectValue
             placeholder={monitors[settings.selectedDisplayIndex]?.name ?? "Select monitor"}
           />
-        </SelectTrigger>
+        </SelectFieldTrigger>
         <SelectContent>
           {monitors.map((m, i) => (
             <SelectItem key={i} value={String(i)}>

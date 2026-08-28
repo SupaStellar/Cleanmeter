@@ -255,4 +255,236 @@ body {
       animation: none;
     }
   }
+
+  /* The hotkey-conflict toast, Figma 2819:9753. Beats are in Toast.tsx.
+
+     Transitions rather than @keyframes: the toast can be re-raised while it
+     is still animating (press an already-bound combo twice), and a
+     transition carries on from wherever the element currently is, where a
+     keyframe restarts at its first frame and reads as a jump back to
+     hidden mid-exit.
+
+     ## The entrance curve
+
+     This started on the collapsible's cubic-bezier(0.165, 0.84, 0.44, 1) —
+     easeOutQuart — and read as abrupt, which is what that curve is FOR:
+     it is 13% through its travel in the first 3% of its time, so an element
+     arriving from nothing appears to snap into place and then creep. Fine
+     for a panel that is already on screen changing height. Wrong for
+     something materialising.
+
+     The replacement is a real critically-damped spring, sampled to
+     linear(): omega*T = 9.2334 (the value where a bounce-0 spring is within
+     0.1% of target at t = duration), x(t) = 1 - (1 + omega*t)e^(-omega*t),
+     21 stops. Monotonic with zero overshoot by construction — the damping
+     ratio is exactly 1 — so nothing wobbles; it just eases out of nothing
+     and settles. 8% of travel in the first 5% of time, against easeOutQuart's
+     20%.
+
+     ## The travel
+
+     It used to be parked at `calc(-100% - 52px)` — entirely above the title
+     bar's lower edge — and slide 104px out from under it, with the opaque bar
+     acting as the mask. That is wrong, and the video shows exactly how
+     (Saad, 2026-08-28):
+
+       frame 66   pill's top half sheared flat by the bar, already dark
+       frame 67   top edge flush on the bar's edge at ~0.84 opacity
+       frame 70   fully out, opaque, still 5px of travel left
+
+     An opaque mask does not soften anything — it CUTS. The pill spent its
+     whole opacity ramp hidden behind the bar, then arrived at the edge
+     already 84% opaque with a hard flat top where the chrome had clipped it.
+     Adding a fade to that (the first attempt) changed nothing visible,
+     because the fade was finishing in the part nobody could see. A mask is
+     not a transition.
+
+     So it no longer goes near the bar. It parks 16px above where it lands and
+     fades in over that, which puts the whole animation in open space:
+
+       resting top      76        (the positioner, Figma 2819:9753)
+       bar lower edge   52
+       headroom         24        76 - 52
+       park             -16px     8px of clearance, never intersects the bar
+
+     16 rather than the full 24 so the shadow clears too. `--shadow-large` is
+     `0 4px 24px`, which reaches about 8px above the pill's top edge once the
+     4px downward offset is taken off the blur — at the park that puts its
+     outer edge right on the bar's, and opacity is 0 there anyway.
+
+     ## The fade
+
+     Undelayed now, and it is the substance of the entrance rather than a
+     coat on top of one. Nothing is hidden any more, so there is nothing to
+     wait for — the pill is on screen from the first frame and every bit of
+     the ramp is visible. The 50ms delay the previous attempt used existed
+     only to skip the stretch behind the bar; with the bar out of the path it
+     would just be dead air.
+
+     Durations came down with the distance. 420ms was paced for 104px of
+     travel; over 16px it crawls, so the move is 300ms and the fade 260ms,
+     landing just before the spring settles onto its mark. The exit reverses
+     it at 220/180, faster than the arrival because an exit nobody is waiting
+     on should leave rather than be admired.
+
+     The fade's curve is a plain ease-out, NOT the sharply front-loaded
+     cubic-bezier(0.22, 1, 0.36, 1) the travel-based version used. That curve
+     is 32% opaque within one frame, which at 16px of travel reads as the pill
+     popping on and then sliding — the fade is over before the movement has
+     started. Measured: 0.32 / 0.56 / 0.73 / 0.84 on the first four frames,
+     essentially done in 67ms of a 220ms ramp. A curve that steep is right for
+     covering distance, wrong for carrying an arrival on its own. ease-out is
+     ~0.12 after one frame and tracks the slide the rest of the way down.
+
+     The z-order below the title bar stays as it is. It is no longer load-
+     bearing — nothing overlaps the bar now — but it is the right relationship
+     if a longer message ever wraps to two lines and grows upward.
+
+     prefers-reduced-motion keeps its own pair below: with the travel
+     suppressed the fade carries the whole arrival on its own. */
+  .cm-toast {
+    transition:
+      transform 300ms linear(
+      0, 0.0788, 0.2361, 0.403, 0.5509, 0.6711, 0.7638, 0.8329, 0.8832,
+      0.9191, 0.9445, 0.9621, 0.9743, 0.9827, 0.9884, 0.9922, 0.9948,
+      0.9965, 0.9977, 0.9985, 1
+    ),
+      opacity 260ms cubic-bezier(0, 0, 0.58, 1);
+  }
+  .cm-toast[data-state="open"] {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  /* Also the mount state, so there is a closed frame to transition out of.
+
+     The exit is one curve on both properties — faster than the arrival,
+     because an exit nobody is waiting on should leave rather than be admired,
+     and cubic-bezier(0.32, 0.72, 0, 1) rather than the spring because a
+     spring's long settle is exactly wrong for going away: it would hold the
+     toast creeping through its last few pixels instead of getting back under
+     the bar.
+
+     Opacity runs shorter than the transform (180 against 220) so the pill is
+     gone before the move finishes, rather than sliding away solid and
+     vanishing on unmount. Both stay at or under EXIT_MS in Toast.tsx, which
+     is what holds the element mounted for the whole way out. */
+  .cm-toast[data-state="closed"] {
+    opacity: 0;
+    transform: translateY(-16px);
+    transition:
+      transform 220ms cubic-bezier(0.32, 0.72, 0, 1),
+      opacity 180ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  /* Gentler, not off. With the travel suppressed the fade is all that is
+     left, so it runs a touch longer than the motion path's to keep the
+     arrival from reading as a pop. */
+  @media (prefers-reduced-motion: reduce) {
+    .cm-toast {
+      transition: opacity 240ms cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    .cm-toast[data-state="open"] {
+      opacity: 1;
+      transform: none;
+    }
+    .cm-toast[data-state="closed"] {
+      opacity: 0;
+      transform: none;
+      transition: opacity 200ms cubic-bezier(0.32, 0.72, 0, 1);
+    }
+  }
+}
+
+/* ============================================================
+   Shortcut field — the revolving gradient stroke
+   (Figma 2819:9531)
+
+   The frame puts TWO strokes on this field, both 1px, INSIDE,
+   radius 8, and keeps them stacked rather than swapping one
+   for the other:
+
+     1. SOLID  Border/Bold #CECFD2 at opacity 0.5
+        (= --borderBold, which already bakes in that alpha)
+     2. GRADIENT_LINEAR in Blue/600 #155DFC:
+             stop 0        alpha 0
+             stop 0.5018   alpha 1
+             stop 1        alpha 0
+
+   So the band is SYMMETRIC — transparent, up to solid at the
+   halfway point, back to transparent. Not a bright head with a
+   trailing fade.
+
+   This was previously built as a convoy of 40 <rect> dashes,
+   each a flat stroke-opacity, sampling that ramp. It was a
+   hand-drawn imitation of a paint the frame already specifies,
+   and it read exactly like what it was: flat bands with steps
+   between them, and hard cut-offs at both ends of the convoy
+   where the frame has none. The gradient is the design; this
+   now uses it.
+
+   Drawn as a masked conic-gradient rather than an SVG stroke.
+   `padding: 1px` plus the two mask layers composited with
+   `exclude` punches out everything but a 1px ring, which is
+   how you get a gradient onto a border at all — `border-color`
+   takes a colour, never a paint. `inset: -1px` puts the
+   pseudo-element's box back on the field's BORDER box (inset:0
+   would land it inside the border, on the padding box), so the
+   ring sits exactly on the 1px the frame strokes.
+
+   The gradient's angular span is the frame's: 0.4turn lit,
+   ramping up over the first half of that and back down over
+   the second, which is the 119/296 of the perimeter the
+   original gradient covers.
+
+   Rotating it needs @property. A bare custom property is a
+   string as far as the animation engine is concerned, so it
+   would step from 0deg to 360deg at the halfway mark instead
+   of sweeping; registering it as an <angle> is what makes it
+   interpolate. Chromium has had this since 85 and the app runs
+   on WebView2, so there is no fallback path to keep — and if
+   there were, an unregistered property degrades to the frame's
+   own still gradient, which is not a broken state.
+   ============================================================ */
+@property --cm-ring-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes cm-shortcut-spin {
+  to {
+    --cm-ring-angle: 360deg;
+  }
+}
+@layer utilities {
+  .cm-shortcut-listening {
+    --cm-shortcut-blue: #155dfc;
+    position: relative;
+  }
+  .cm-shortcut-listening::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: var(--cornerL);
+    padding: 1px;
+    background: conic-gradient(
+      from var(--cm-ring-angle),
+      transparent 0turn,
+      var(--cm-shortcut-blue) 0.2turn,
+      transparent 0.4turn,
+      transparent 1turn
+    );
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    animation: cm-shortcut-spin 4s linear infinite;
+    pointer-events: none;
+  }
+  /* Reduced motion keeps the line — it is the thing that says
+     "this field is listening" — and only stops it moving, which
+     leaves the frame's own still gradient on screen. */
+  @media (prefers-reduced-motion: reduce) {
+    .cm-shortcut-listening::after {
+      animation: none;
+    }
+  }
 }

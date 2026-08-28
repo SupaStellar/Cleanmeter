@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useSettingsStore } from "@/stores/settings-store";
-import { HotkeyBar } from "./HotkeyBar";
 import { FpsSection } from "./FpsSection";
 import { GpuSection } from "./GpuSection";
 import { CpuSection } from "./CpuSection";
@@ -32,8 +31,11 @@ export function StatsTab() {
   }, [updateStatus]);
 
   return (
+    // Figma 2790:1654 runs Tabs straight into the cards: the "Hot key for
+    // showing/hiding the overlay" banner that used to sit here is gone, per
+    // the change note on 2790:1636. What it used to state is now editable —
+    // Settings -> Shortcuts owns both bindings (see shortcuts.rs).
     <div className="flex h-full w-full flex-col gap-[var(--spacingM)]">
-      <HotkeyBar />
       <FpsSection />
       <GpuSection sensors={sensors} hardwares={hardwares} />
       <CpuSection sensors={sensors} hardwares={hardwares} />

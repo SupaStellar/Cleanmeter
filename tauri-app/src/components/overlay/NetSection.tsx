@@ -1,7 +1,5 @@
 import { Pill } from "./Pill";
-import { NetGraph } from "./NetGraph";
 import { useSettingsStore } from "@/stores/settings-store";
-import { useNetworkHistory } from "@/hooks/useSensorData";
 import { findSensorById, formatNetworkRateParts } from "@/lib/utils";
 
 interface NetSectionProps {
@@ -11,7 +9,6 @@ interface NetSectionProps {
 export function NetSection({ isHorizontal }: NetSectionProps) {
   const settings = useSettingsStore((s) => s.settings);
   const sensorData = useSettingsStore((s) => s.sensorData);
-  const { downHistory, upHistory } = useNetworkHistory();
   const sensors = sensorData?.sensors ?? [];
 
   const valueFontSize = settings.fontSizeValue ?? 12;
@@ -19,9 +16,8 @@ export function NetSection({ isHorizontal }: NetSectionProps) {
   const labelFontSize = settings.fontSizeLabel ?? 12;
   const labelFontWeight = settings.labelFontWeight ?? 500;
   const { downRate, upRate } = settings.sensors;
-  const showNetGraph = settings.netGraph;
 
-  const anyEnabled = downRate.isEnabled || upRate.isEnabled || showNetGraph;
+  const anyEnabled = downRate.isEnabled || upRate.isEnabled;
   if (!anyEnabled) return null;
 
   const down = formatNetworkRateParts(findSensorById(sensors, downRate.customReadingId)?.value ?? 0);
@@ -79,14 +75,6 @@ export function NetSection({ isHorizontal }: NetSectionProps) {
           <span style={labelStyle}>{up.unit}</span>
           <span style={arrowStyle}>↑</span>
         </div>
-      )}
-      {showNetGraph && (
-        <NetGraph
-          downHistory={downHistory}
-          upHistory={upHistory}
-          width={isHorizontal ? 60 : 80}
-          height={isHorizontal ? 20 : 24}
-        />
       )}
     </Pill>
   );

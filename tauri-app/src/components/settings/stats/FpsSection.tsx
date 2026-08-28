@@ -68,21 +68,27 @@ export function FpsSection() {
             checked={framerate.isEnabled}
             onCheckedChange={(v) => updateSensor("framerate", { isEnabled: v === true })}
           />
-          <span className="text-[14px] font-medium text-foreground">Frame count</span>
+          <span className="text-[14px] font-medium text-foreground">Frame Count</span>
         </label>
         <label className="flex cursor-pointer items-center gap-2">
           <Checkbox
             checked={frametime.isEnabled}
             onCheckedChange={(v) => updateSensor("frametime", { isEnabled: v === true })}
           />
-          <span className="text-[14px] font-medium text-foreground">Frame time graph</span>
+          <span className="text-[14px] font-medium text-foreground">Frame Time Graph</span>
         </label>
+        {/* Flat rows, no expander. These briefly carried the recording
+            binder, one copy under each low, because the run they scope is the
+            same for both. Figma 2819:8960 moved that binding to the Settings
+            Shortcuts card instead, which is the better place for exactly that
+            reason: one key, bound once, rather than the same field mirrored
+            into two rows that had to stay in sync. */}
         <label className="flex cursor-pointer items-center gap-2">
           <Checkbox
             checked={onePercentLow.isEnabled}
             onCheckedChange={(v) => updateSensor("onePercentLow", { isEnabled: v === true })}
           />
-          <span className="text-[14px] font-medium text-foreground">1% Lows</span>
+          <span className="text-[14px] font-medium text-foreground">1% Low</span>
         </label>
         <label className="flex cursor-pointer items-center gap-2">
           <Checkbox
@@ -91,7 +97,7 @@ export function FpsSection() {
               updateSensor("zeroPointOnePercentLow", { isEnabled: v === true })
             }
           />
-          <span className="text-[14px] font-medium text-foreground">0.1% Lows</span>
+          <span className="text-[14px] font-medium text-foreground">0.1% Low</span>
         </label>
       </div>
 
@@ -107,7 +113,7 @@ export function FpsSection() {
             updateSensor("framerate", { targetAppName: v === AUTO_OPTION ? "" : v })
           }
         >
-          <SelectFieldTrigger label="Monitor app:">
+          <SelectFieldTrigger label="Selected:">
             <SelectValue placeholder="Auto" />
           </SelectFieldTrigger>
           <SelectContent>

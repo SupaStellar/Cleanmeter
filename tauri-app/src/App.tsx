@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { TopBar } from "@/components/settings/TopBar";
 import { TabNav, type SettingsTab as TabKey } from "@/components/settings/TabNav";
 import { StatsTab } from "@/components/settings/stats/StatsTab";
@@ -10,9 +10,12 @@ import { useHotkey } from "@/hooks/useHotkey";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useUpdaterStore } from "@/stores/updater-store";
 import { UpdateBanner } from "@/components/settings/UpdateBanner";
-import { checkDotnetRuntime, onSettingsChanged } from "@/lib/tauri";
+import { checkDotnetRuntime, onSettingsChanged, onShortcutStatus } from "@/lib/tauri";
 import { STARTUP_GRACE_MS, monitoringVerdict } from "@/lib/monitoring";
 import { SplashScreen } from "@/components/SplashScreen";
+import { Toast } from "@/components/ui/Toast";
+import { useToastStore } from "@/stores/toast-store";
+import { HOTKEY_IN_USE_MESSAGE } from "@/lib/shortcuts";
 
 function MonitoringBanner() {
   const sensorData = useSettingsStore((s) => s.sensorData);
@@ -131,6 +134,60 @@ export default function App() {
     };
   }, []);
 
+  // Which global shortcuts the OS refused, which exists for exactly one
+  // purpose: raising the refusal toast, the same message an in-app clash
+  // raises from ShortcutField. From the user's side "the other row has it"
+  // and "another app has it" are one fact, so they get one message and the
+  // field itself is left completely unmarked (Saad, 2026-08-28).
+  //
+  // Raised here rather than in the field because this is where the status
+  // lands, and the failure is only known after the save round-trips through
+  // Rust: the field has already committed and stopped listening by then.
+  //
+  // Held in a ref rather than the store. Nothing renders it now, and a store
+  // field no component reads is state that looks live and is not.
+  const previousRefusals = useRef<Record<string, string>>({});
+  useEffect(() => {
+    let active = true;
+    let unlisten: (() => void) | undefined;
+    // The first pass is startup's, and it reports what could not be bound from
+    // stored settings. Toasting there would fire on every launch for a combo
+    // some other application permanently owns, which is not news — the field's
+    // stroke already says it. Only a change from this point on is an event.
+    let seenFirstStatus = false;
+    onShortcutStatus((unavailable) => {
+      // Compared by VALUE, not by key presence. Keyed on presence alone, a
+      // field that was already refused could be re-bound to a second combo
+      // the OS also owns and say nothing at all: the key was still in the
+      // map, so the refusal read as the same one already reported. The field
+      // is left unmarked by design, so the toast is the whole report, and
+      // swallowing it left a rejected binding with no feedback anywhere.
+      //
+      // An identical re-emission stays silent, which is what matters for the
+      // other path: apply_all fires on every save, empty object included, so
+      // an unchanged entry must not toast on unrelated settings changes.
+      const newlyRefused = Object.entries(unavailable).some(
+        ([k, accelerator]) => previousRefusals.current[k] !== accelerator,
+      );
+      previousRefusals.current = unavailable;
+      if (seenFirstStatus && newlyRefused) {
+        useToastStore.getState().showToast(HOTKEY_IN_USE_MESSAGE);
+      }
+      seenFirstStatus = true;
+    })
+      .then((u) => {
+        if (active) unlisten = u;
+        else u();
+      })
+      .catch((err) => {
+        console.error("Failed to subscribe to shortcut status:", err);
+      });
+    return () => {
+      active = false;
+      unlisten?.();
+    };
+  }, []);
+
   // Keep <html data-theme> in sync and mirror the resolved theme into
   // localStorage so the pre-hydration script in index.html can paint the
   // correct theme on the next launch before settings load — no startup flash.
@@ -150,6 +207,11 @@ export default function App() {
   return (
     <div className="relative mx-auto flex h-screen w-full max-w-[651px] flex-col overflow-hidden rounded-[12px] outline outline-1 -outline-offset-1 outline-foreground/10 bg-background text-foreground shadow-sm">
       {showSplash && <SplashScreen onDone={handleSplashDone} />}
+      {/* Against the window frame, not inside a tab: Figma 2819:9753 centres
+          it over the whole window at y 76, which puts it across the TopBar
+          and the tab strip. It also has to outlive a tab switch, and the tabs
+          unmount nothing but they do scroll. */}
+      <Toast />
       <TopBar />
       <MonitoringBanner />
       <UpdateBanner />

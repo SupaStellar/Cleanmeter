@@ -154,7 +154,14 @@ export function TopBar() {
     <div
       onMouseDown={onMouseDown}
       onDoubleClick={onDoubleClick}
-      className="flex h-[52px] shrink-0 cursor-grab items-center justify-between border-b border-border bg-background px-6 active:cursor-grabbing"
+      // relative z-30 so the bar paints OVER the toast (z-20), which in turn
+      // has to clear the tab buttons (z-10). The toast is an absolutely-
+      // positioned sibling, and a positioned element outranks a static one
+      // whatever the DOM order, so without a stacking context here the toast
+      // could paint across the title bar. It no longer travels far enough up
+      // to reach it, so this is a guard rather than the mask it once was —
+      // it still matters if a long message ever wraps and grows upward.
+      className="relative z-30 flex h-[52px] shrink-0 cursor-grab items-center justify-between border-b border-border bg-background px-6 active:cursor-grabbing"
     >
       <div
         className="flex items-center gap-2.5"

@@ -102,6 +102,14 @@ pub fn save_settings(
     app: AppHandle,
 ) {
     settings_mgr.save_settings(settings.clone());
+    // Re-register the global shortcuts from whatever was just saved.
+    //
+    // Driven off the save rather than commands of their own so the OS
+    // bindings and settings.json cannot disagree: every path that changes one
+    // — a shortcut field, a restore, clear_settings — goes through here.
+    // apply() early-returns when an accelerator has not moved, so the common
+    // save (a checkbox, a drag) costs two string compares.
+    crate::shortcuts::apply_all(&app, &settings);
     // Broadcast to every window, not just the overlay. The settings window
     // holds its own store copy; emitting only to the overlay left it with a
     // stale positionX/Y, so toggling a stat re-saved the old position and
@@ -113,7 +121,20 @@ pub fn save_settings(
 pub fn clear_settings(settings_mgr: State<'_, SettingsManager>, app: AppHandle) {
     settings_mgr.clear_settings();
     let defaults = settings_mgr.get_settings();
+    crate::shortcuts::apply_all(&app, &defaults);
     let _ = app.emit("settings-changed", &defaults);
+}
+
+/// Release the app's own global shortcuts while a shortcut field is
+/// listening, and take them back when it stops. See shortcuts::set_capturing
+/// for why an already-registered combo is otherwise uncapturable.
+#[tauri::command]
+pub fn set_shortcut_capturing(
+    capturing: bool,
+    settings_mgr: State<'_, SettingsManager>,
+    app: AppHandle,
+) {
+    crate::shortcuts::set_capturing(&app, capturing, &settings_mgr.get_settings());
 }
 
 #[tauri::command]

@@ -300,28 +300,93 @@ public class MonitorPoller(
             case MonitorPacketCommand.SelectPollingRate:
                 SelectPollingRate(data);
                 break;
+            case MonitorPacketCommand.SetLowsRecording:
+                SetLowsRecording(data);
+                break;
 
             // server -> client cases 
             case MonitorPacketCommand.Data:
             case MonitorPacketCommand.PresentMonApps:
                 break;
             default:
-                throw new ArgumentOutOfRangeException();
+                // Logged and dropped, never thrown. This runs on the pipe read
+                // loop, so an exception here takes the pipe down with it and
+                // the client sees "pipe is being closed" — observed for real
+                // when a newer client sent SetLowsRecording (5) to a sidecar
+                // built before that command existed. The two ship together, so
+                // that pairing should not happen, but a partial update or a
+                // failed file replacement is enough to produce it, and losing
+                // every reading over one unrecognised packet is a bad trade
+                // against ignoring it.
+                logger.LogWarning(
+                    "Ignoring unknown command {Command} from client; "
+                    + "the client is probably newer than this sidecar",
+                    (short)cmd);
+                break;
         }
+    }
+
+    /// <summary>
+    /// The u16 payload of a fixed-layout command, or null when the packet is
+    /// too short to hold one.
+    ///
+    /// Every command here indexes offset 2 directly. BitConverter throws on a
+    /// truncated buffer, and this runs on the pipe read loop, so the throw
+    /// closes the client's pipe and that client stops receiving readings —
+    /// the same failure mode an unrecognised command used to cause.
+    /// </summary>
+    private short? ReadPayload(byte[] data, MonitorPacketCommand cmd)
+    {
+        // start at 2 because the first 2 were the command
+        if (data.Length < 4)
+        {
+            logger.LogWarning(
+                "Dropping truncated {Command} packet: {Length} bytes, need 4",
+                cmd, data.Length);
+            return null;
+        }
+        return BitConverter.ToInt16(data, 2);
+    }
+
+    private void SetLowsRecording(byte[] data)
+    {
+        if (ReadPayload(data, MonitorPacketCommand.SetLowsRecording) is not { } payload) return;
+        // The protocol defines exactly 1 and 0, so anything else is a
+        // malformed packet rather than a truthy one. Treated as `!= 0`, a
+        // garbled payload of 2 would start a recording run and clear the
+        // histogram, throwing away a finished result the user was reading.
+        // Dropping it costs nothing: the only writer sends 1 or 0.
+        if (payload is not (0 or 1))
+        {
+            logger.LogWarning(
+                "Dropping SetLowsRecording with payload {Payload}; expected 0 or 1",
+                payload);
+            return;
+        }
+        _presentMonPoller.SetLowsRecording(payload == 1);
     }
 
     private void SelectPollingRate(byte[] data)
     {
-        // start at 2 because the first 2 were the command
-        var pollingRate = BitConverter.ToInt16(data, 2);
+        if (ReadPayload(data, MonitorPacketCommand.SelectPollingRate) is not { } pollingRate) return;
         _pollingRate = Math.Max(pollingRate, MinimalPollingRate);
         logger.LogInformation("Selected polling rate of {PollingRate}", _pollingRate);
     }
 
     private void SelectPresentMonApp(byte[] data)
     {
-        // start at 2 because the first 2 were the command
-        var size = BitConverter.ToInt16(data, 2);
+        if (ReadPayload(data, MonitorPacketCommand.SelectPresentMonApp) is not { } size) return;
+        // The length prefix is attacker-adjacent in the sense that matters
+        // here: it comes off a pipe, and GetString throws on a range the
+        // buffer cannot satisfy. A negative size throws too, which is why
+        // this is not just an upper bound.
+        if (size < 0 || 4 + size > data.Length)
+        {
+            logger.LogWarning(
+                "Dropping SelectPresentMonApp: declared {Size} name bytes, {Available} available",
+                size, Math.Max(data.Length - 4, 0));
+            return;
+        }
         var appName = Encoding.UTF8.GetString(data, 4, size);
         _presentMonPoller.SetSelectedApp(appName);
     }
