@@ -147,7 +147,6 @@ function GeneralSection() {
 function ShortcutsSection() {
   const settings = useSettingsStore((s) => s.settings);
   const updateSettings = useSettingsStore((s) => s.updateSettings);
-  const unavailableShortcuts = useSettingsStore((s) => s.unavailableShortcuts);
 
   const overlayAccelerator = settings.overlayShortcut ?? OVERLAY_SHORTCUT_DEFAULT;
   const recordingAccelerator = settings.recordingShortcut ?? RECORDING_SHORTCUT_DEFAULT;
@@ -161,7 +160,6 @@ function ShortcutsSection() {
           defaultAccelerator={OVERLAY_SHORTCUT_DEFAULT}
           onChange={(overlayShortcut) => updateSettings({ overlayShortcut })}
           conflictsWith={{ "Start/stop FPS lows recording": recordingAccelerator }}
-          unavailable={unavailableShortcuts.overlayShortcut !== undefined}
           className="gap-[var(--spacingL)]"
         />
         <ShortcutField
@@ -170,7 +168,6 @@ function ShortcutsSection() {
           defaultAccelerator={RECORDING_SHORTCUT_DEFAULT}
           onChange={(recordingShortcut) => updateSettings({ recordingShortcut })}
           conflictsWith={{ "Show/hide overlay": overlayAccelerator }}
-          unavailable={unavailableShortcuts.recordingShortcut !== undefined}
           className="gap-[var(--spacingL)]"
         />
       </div>

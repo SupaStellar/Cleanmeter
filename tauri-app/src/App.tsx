@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { TopBar } from "@/components/settings/TopBar";
 import { TabNav, type SettingsTab as TabKey } from "@/components/settings/TabNav";
 import { StatsTab } from "@/components/settings/stats/StatsTab";
@@ -134,18 +134,19 @@ export default function App() {
     };
   }, []);
 
-  // Which global shortcuts the OS refused. Emitted on every registration
-  // pass, so this both raises and clears the marker on a shortcut field —
-  // nothing here has to reason about which of the two it is looking at.
-  //
-  // A shortcut that has just BECOME unavailable also raises the refusal toast,
-  // the same one an in-app clash raises from ShortcutField: from the user's
-  // side "the other row has it" and "another app has it" are one fact, so they
-  // get one message (Saad, 2026-08-28).
+  // Which global shortcuts the OS refused, which exists for exactly one
+  // purpose: raising the refusal toast, the same message an in-app clash
+  // raises from ShortcutField. From the user's side "the other row has it"
+  // and "another app has it" are one fact, so they get one message and the
+  // field itself is left completely unmarked (Saad, 2026-08-28).
   //
   // Raised here rather than in the field because this is where the status
   // lands, and the failure is only known after the save round-trips through
-  // Rust — the field has already committed and stopped listening by then.
+  // Rust: the field has already committed and stopped listening by then.
+  //
+  // Held in a ref rather than the store. Nothing renders it now, and a store
+  // field no component reads is state that looks live and is not.
+  const previousRefusals = useRef<Record<string, string>>({});
   useEffect(() => {
     let active = true;
     let unlisten: (() => void) | undefined;
@@ -155,9 +156,10 @@ export default function App() {
     // stroke already says it. Only a change from this point on is an event.
     let seenFirstStatus = false;
     onShortcutStatus((unavailable) => {
-      const previous = useSettingsStore.getState().unavailableShortcuts;
-      useSettingsStore.setState({ unavailableShortcuts: unavailable });
-      const newlyRefused = Object.keys(unavailable).some((k) => previous[k] === undefined);
+      const newlyRefused = Object.keys(unavailable).some(
+        (k) => previousRefusals.current[k] === undefined,
+      );
+      previousRefusals.current = unavailable;
       if (seenFirstStatus && newlyRefused) {
         useToastStore.getState().showToast(HOTKEY_IN_USE_MESSAGE);
       }

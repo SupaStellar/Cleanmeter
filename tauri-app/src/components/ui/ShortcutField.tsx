@@ -43,7 +43,6 @@ export function ShortcutField({
   defaultAccelerator,
   onChange,
   conflictsWith,
-  unavailable = false,
   className,
 }: {
   label: string;
@@ -58,11 +57,6 @@ export function ShortcutField({
    * findShortcutConflict for why two actions cannot share an accelerator.
    */
   conflictsWith?: Record<string, string>;
-  /**
-   * True when the OS refused to register the bound accelerator, because some
-   * other application already owns it. Comes from the `shortcut-status` event.
-   */
-  unavailable?: boolean;
   /** Row spacing. Figma uses gap 16 inside the Stats sub-card (2792:4025)
    *  and gap 20 in the Settings Shortcuts card (2792:5854). */
   className?: string;
@@ -199,14 +193,15 @@ export function ShortcutField({
   const showsKeycaps = keysOnShow !== null;
 
   return (
-    // Not in Figma: the frame draws no board for a combo another application
-    // owns. It is carried by the field's own stroke alone — the message for it
-    // is the toast, the same one an in-app clash raises. An inline note used to
-    // sit here as well and it made one outcome look like two problems.
-    <div className="flex flex-col gap-[var(--spacingS)]">
-      {/* Figma 2792:4025: radius 8, 16 all round, Bg/Surface Sunken Subtler,
-          space-between, centred, gap 16. */}
-      <div className={cn("flex items-center justify-between gap-[var(--spacingM)]", className)}>
+    // A combo another application owns leaves NO mark on this field (Saad,
+    // 2026-08-28) - not a note, not a stroke. The refusal is announced once,
+    // by the toast App.tsx raises, and then the field is just a field showing
+    // what it is bound to. An inline note and a yellow stroke were both tried,
+    // and each made one outcome look like a second, different problem.
+    // Figma 2792:4025: radius 8, 16 all round, Bg/Surface Sunken Subtler,
+    // space-between, centred, gap 16. The row IS the component now: the
+    // flex-col that used to wrap it only existed to stack the note underneath.
+    <div className={cn("flex items-center justify-between gap-[var(--spacingM)]", className)}>
       <span className="text-[14px] font-medium leading-[16px] text-[var(--textHeading)]">
         {label}
       </span>
@@ -286,25 +281,15 @@ export function ShortcutField({
                 // strokes). .cm-shortcut-listening lays the revolving Blue/600
                 // gradient over it.
                 "cm-shortcut-listening border border-[var(--borderBold)]"
-              : unavailable
-                ? // Cleanmeter's logo yellow (--yellow300, #FEC84B) over
-                  // Bg/Warning Subtler. NOT --borderWarning (#DC6803): that is
-                  // the token set's semantic warning border, and it is a dark
-                  // orange that reads as an error next to these keycaps rather
-                  // than as "this one is not available". Figma draws no board
-                  // for this state, so neither choice is spec — if the
-                  // semantic token is wanted here, it is a visible change and
-                  // a deliberate one.
-                  "border border-[var(--yellow300)] bg-[var(--bgWarningSubtler)]"
-                : isBound
-                  ? "border border-[var(--borderSubtle)]"
-                  : // 2792:4303 is dashPattern [4,4]. CSS `border-style:
-                    // dashed` cannot express that — the browser picks its own
-                    // dash length off the border width — so the stroke is
-                    // drawn as an SVG rect below and the border here only
-                    // holds the 1px of inset geometry that Figma's INSIDE
-                    // stroke align takes.
-                    "relative border border-transparent",
+              : isBound
+                ? "border border-[var(--borderSubtle)]"
+                : // 2792:4303 is dashPattern [4,4]. CSS `border-style:
+                  // dashed` cannot express that, the browser picks its own
+                  // dash length off the border width, so the stroke is drawn
+                  // as an SVG rect below and the border here only holds the
+                  // 1px of inset geometry that Figma's INSIDE stroke align
+                  // takes.
+                  "relative border border-transparent",
           )}
           aria-label={
             isBound
@@ -312,7 +297,7 @@ export function ShortcutField({
               : `${label}: no shortcut. Press to bind one.`
           }
         >
-          {!isBound && !listening && !unavailable && <DashedRing />}
+          {!isBound && !listening && <DashedRing />}
           {keysOnShow ? (
             // Keys, in one of three situations: bound and idle (2792:4118),
             // bound and listening — where they simply stay put — and mid
@@ -340,7 +325,6 @@ export function ShortcutField({
             </span>
           )}
         </FieldBox>
-        </div>
       </div>
     </div>
   );

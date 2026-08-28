@@ -232,12 +232,6 @@ interface SettingsStore {
   preferences: AppPreferences;
   sensorData: HardwareMonitorData | null;
   presentMonApps: string[];
-  /**
-   * Shortcuts the OS refused, keyed by the settings field holding them
-   * ({ overlayShortcut: "Alt+F10" }). Whole state, replaced on every
-   * registration pass — see onShortcutStatus.
-   */
-  unavailableShortcuts: Record<string, string>;
   pipeStatus: PipeStatus;
   sidecarStatus: SidecarStatus;
   overlayVisible: boolean;
@@ -303,7 +297,6 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   preferences: { adminConsent: false, startMinimized: false },
   sensorData: null,
   presentMonApps: [],
-  unavailableShortcuts: {},
   pipeStatus: { connected: false },
   // Nothing has gone wrong until the supervisor says so, so a launch reads as
   // "still starting" rather than as a failure.
