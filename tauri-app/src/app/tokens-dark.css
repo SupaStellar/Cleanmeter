@@ -4,6 +4,7 @@
   --textSubHeading: #61646c;
   --textParagraph1: #85888e;
   --textParagraph2: #61646c;
+  --textLink: #51a2ff;
   --textDisabled: #61646c;
   --textInverse: #0c111d;
   --textInverseSubtler: #f5f5f6;
@@ -30,6 +31,7 @@
   --bgBrandActive: #ececed;
   --bgSurfaceSunkenSubtler: #161b2680;
   --bgWarning: #b54708;
+  --bgWarningBold: #fedf89;
   --bgWarningSubtler: #fffaeb;
   --bgWarningHover: #fec84b;
   --bgWarningActive: #fdb022;
@@ -46,6 +48,7 @@
   --iconSuccess: #17b26a;
   --iconDanger: #f04438;
   --iconWarning: #fec84b;
+  --iconWarningBold: #4e1d09;
   --iconBolderHover: #85888e;
   --iconBolderActive: #85888e;
   --iconBoldHover: #85888e;

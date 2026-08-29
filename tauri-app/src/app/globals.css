@@ -100,6 +100,18 @@
   --color-purple-900: var(--purple900);
   --color-purple-950: var(--purple950);
 
+  --color-blue-50: var(--blue50);
+  --color-blue-100: var(--blue100);
+  --color-blue-200: var(--blue200);
+  --color-blue-300: var(--blue300);
+  --color-blue-400: var(--blue400);
+  --color-blue-500: var(--blue500);
+  --color-blue-600: var(--blue600);
+  --color-blue-700: var(--blue700);
+  --color-blue-800: var(--blue800);
+  --color-blue-900: var(--blue900);
+  --color-blue-950: var(--blue950);
+
   --color-white: var(--plainWhite);
 
   /* --- Semantic text colors --- */
@@ -107,6 +119,7 @@
   --color-text-sub-heading: var(--textSubHeading);
   --color-text-paragraph-1: var(--textParagraph1);
   --color-text-paragraph-2: var(--textParagraph2);
+  --color-text-link: var(--textLink);
   --color-text-disabled: var(--textDisabled);
   --color-text-disabled-lighter: var(--textDisabledLighter);
   --color-text-inverse: var(--textInverse);
@@ -136,6 +149,7 @@
   --color-bg-danger-active: var(--bgDangerActive);
   --color-bg-danger-subtler: var(--bgDangerSubtler);
   --color-bg-warning: var(--bgWarning);
+  --color-bg-warning-bold: var(--bgWarningBold);
   --color-bg-warning-hover: var(--bgWarningHover);
   --color-bg-warning-active: var(--bgWarningActive);
   --color-bg-warning-subtler: var(--bgWarningSubtler);
@@ -161,6 +175,7 @@
   --color-icon-success: var(--iconSuccess);
   --color-icon-danger: var(--iconDanger);
   --color-icon-warning: var(--iconWarning);
+  --color-icon-warning-bold: var(--iconWarningBold);
 
   /* --- Semantic border colors --- */
   --color-border-subtler: var(--borderSubtler);
