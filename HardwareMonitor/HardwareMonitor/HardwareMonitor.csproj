@@ -14,6 +14,13 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <!-- Lets HardwareMonitor.Tests drive PresentMonPoller.ParseData with
+             synthetic PresentMon CSV rows, so the percentile-low wiring is
+             covered and not just the arithmetic classes it calls. -->
+        <InternalsVisibleTo Include="HardwareMonitor.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
         <!-- PawnIO-based build. WinRing0 was removed upstream (LHM PR #1857) and
              replaced by the PawnIO driver, which Defender does not flag. The
              driver is installed at first launch by the elevated Cleanmeter

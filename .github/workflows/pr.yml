@@ -65,6 +65,14 @@ jobs:
         working-directory: HardwareMonitor/HardwareMonitor
         run: dotnet build -c Release
 
+      # Covers the percentile-low maths (FrameLows / FrameLowsWindow), which is
+      # pure arithmetic over synthetic frametimes and needs no hardware. The
+      # 1%-low reading shipped once already with a window that could not report
+      # a framerate recovery; these tests are what would have caught it.
+      - name: Test sidecar
+        working-directory: HardwareMonitor/HardwareMonitor.Tests
+        run: dotnet test -c Release
+
   rust:
     name: Rust (clippy, tests)
     runs-on: windows-latest

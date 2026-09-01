@@ -471,8 +471,15 @@ body {
 }
 @layer utilities {
   .cm-shortcut-listening {
-    --cm-shortcut-blue: #155dfc;
+    --cm-shortcut-blue: var(--blue600);
     position: relative;
+  }
+  /* Blue/600 is the frame's value and stays on light. It only scores 3.60
+     against the dark surface, where Blue/400 scores 7.15 — and Blue/400 is the
+     step the design system already picked for dark in --textLink, so this is
+     the system's dark blue rather than a second opinion about it. */
+  [data-theme="dark"] .cm-shortcut-listening {
+    --cm-shortcut-blue: var(--blue400);
   }
   .cm-shortcut-listening::after {
     content: "";
