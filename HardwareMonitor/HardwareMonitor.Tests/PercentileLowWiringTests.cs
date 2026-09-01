@@ -131,6 +131,47 @@ public class PercentileLowWiringTests
     }
 
     /// <summary>
+    /// Freezing out of Live freezes the LIVE reading, not the run accumulator.
+    ///
+    /// SetLowsMode publishes off the OUTGOING mode's source for this case: in
+    /// Live the session histogram holds nothing at all, so a freeze that read it
+    /// unconditionally would publish 0 and blank the overlay at the moment the
+    /// user asked to hold the number they were looking at.
+    ///
+    /// Reachable without ever pressing the key twice: pipe_client re-asserts the
+    /// stored mode on every reconnect, and a respawned sidecar starts in Live.
+    /// The other frozen tests all enter from Recording, where the outgoing
+    /// source and the histogram are the same thing, so this is the only test
+    /// that can tell the two apart.
+    /// </summary>
+    [Fact]
+    public void FreezingOutOfLive_HoldsTheLiveReadingNotAnEmptyRun()
+    {
+        var poller = NewPoller();
+        var nowMs = 0.0;
+
+        // Never enters Recording, so _lows is empty for the whole test.
+        Feed(poller, ref nowMs, 240, 30);
+
+        // Publication normally happens on the diagnostics tick, which nothing
+        // starts here, so this is what forces the live window on screen. Live
+        // -> Live only republishes; it clears nothing.
+        poller.SetLowsMode(LowsMode.Live);
+        var live = poller.OnePercentLow.Value!.Value;
+        Assert.Equal(240f, live, 0);
+
+        poller.SetLowsMode(LowsMode.Frozen);
+
+        // The frozen figure is the live one, not 0 off the untouched histogram.
+        Assert.Equal(live, poller.OnePercentLow.Value!.Value);
+        Assert.True(poller.OnePercentLow.Value!.Value > 0);
+
+        // And it stays put while the game keeps running slower.
+        Feed(poller, ref nowMs, 60, 30);
+        Assert.Equal(live, poller.OnePercentLow.Value!.Value);
+    }
+
+    /// <summary>
     /// Leaving a frozen run returns to a live reading of the CURRENT framerate,
     /// not the run's. Without this the hotkey would have no way back to a
     /// number that tracks the game.
