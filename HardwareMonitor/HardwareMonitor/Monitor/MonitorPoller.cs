@@ -300,8 +300,8 @@ public class MonitorPoller(
             case MonitorPacketCommand.SelectPollingRate:
                 SelectPollingRate(data);
                 break;
-            case MonitorPacketCommand.SetLowsRecording:
-                SetLowsRecording(data);
+            case MonitorPacketCommand.SetLowsMode:
+                SetLowsMode(data);
                 break;
 
             // server -> client cases 
@@ -312,7 +312,7 @@ public class MonitorPoller(
                 // Logged and dropped, never thrown. This runs on the pipe read
                 // loop, so an exception here takes the pipe down with it and
                 // the client sees "pipe is being closed" — observed for real
-                // when a newer client sent SetLowsRecording (5) to a sidecar
+                // when a newer client sent SetLowsMode (5) to a sidecar
                 // built before that command existed. The two ship together, so
                 // that pairing should not happen, but a partial update or a
                 // failed file replacement is enough to produce it, and losing
@@ -348,22 +348,23 @@ public class MonitorPoller(
         return BitConverter.ToInt16(data, 2);
     }
 
-    private void SetLowsRecording(byte[] data)
+    private void SetLowsMode(byte[] data)
     {
-        if (ReadPayload(data, MonitorPacketCommand.SetLowsRecording) is not { } payload) return;
-        // The protocol defines exactly 1 and 0, so anything else is a
-        // malformed packet rather than a truthy one. Treated as `!= 0`, a
-        // garbled payload of 2 would start a recording run and clear the
-        // histogram, throwing away a finished result the user was reading.
-        // Dropping it costs nothing: the only writer sends 1 or 0.
-        if (payload is not (0 or 1))
+        if (ReadPayload(data, MonitorPacketCommand.SetLowsMode) is not { } payload) return;
+        // The protocol defines exactly 0, 1 and 2, so anything else is a
+        // malformed packet rather than a value to coerce. Cast blindly to the
+        // enum, an out-of-range payload would land on a LowsMode no switch arm
+        // handles, which reads as Frozen at every call site and would silently
+        // stop the readings updating. Dropping it costs nothing: the only
+        // writer sends 0, 1 or 2.
+        if (payload is not (0 or 1 or 2))
         {
             logger.LogWarning(
-                "Dropping SetLowsRecording with payload {Payload}; expected 0 or 1",
+                "Dropping SetLowsMode with payload {Payload}; expected 0, 1 or 2",
                 payload);
             return;
         }
-        _presentMonPoller.SetLowsRecording(payload == 1);
+        _presentMonPoller.SetLowsMode((LowsMode)payload);
     }
 
     private void SelectPollingRate(byte[] data)

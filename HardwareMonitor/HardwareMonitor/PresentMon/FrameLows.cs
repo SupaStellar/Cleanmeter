@@ -24,18 +24,31 @@
 /// 8ms plus a single 200ms hitch, (3) reads 36.8 fps while (2) reads 5.0 fps,
 /// because one catastrophic frame alone covers the whole 1% time budget.
 ///
-/// Held as a histogram of frametimes rather than a list of them. The window is
-/// the whole session (RTSS's "unlimited" default), and a four-hour session at
-/// 300fps is 4.3M frames, which is not something to keep in a list and re-sort
-/// once a second. Bucketed counts make both memory and compute constant no
-/// matter how long the session runs, and because every frame in a bucket
-/// shares one quantised frametime, walking the histogram from the slow end
-/// gives exactly the answer walking the sorted frames would.
+/// <b>This is the accumulator for an explicitly started recording run, not for
+/// the live overlay reading.</b> Its window is the whole run (RTSS's
+/// "unlimited" default), which is right for a benchmark — every frame between
+/// the two keypresses counts — and unusable as a live figure, because banked
+/// slow frames keep the entire 1% time budget until the fast run is 99x
+/// longer. <see cref="FrameLowsWindow"/> is the live one and carries that
+/// arithmetic. Both compute the same statistic over different spans.
 ///
-/// RTSS bounds the same problem by keeping only the 1024 slowest frames, which
-/// saturates in a long session once those 1024 no longer cover 1% of elapsed
-/// time. The histogram has no such ceiling, so it tracks the definition RTSS
-/// documents rather than reproducing that truncation.
+/// Held as a histogram of frametimes rather than a list of them, because the
+/// span is unbounded: a four-hour session at 300fps is 4.3M frames, which is
+/// not something to keep in a list and re-sort once a second. Bucketed counts
+/// make both memory and compute constant no matter how long the run lasts, and
+/// because every frame in a bucket shares one quantised frametime, walking the
+/// histogram from the slow end gives exactly the answer walking the sorted
+/// frames would.
+///
+/// RTSS bounds the same problem by keeping only the 1024 slowest frames while
+/// still taking the budget from total session time, so the two populations
+/// drift apart and the buffer eventually cannot cover 1% of the session. Its
+/// walk then finds no crossing, and since it only assigns the published figure
+/// when it found one, the reading freezes permanently. (Read off
+/// CFrametimeStats::AppendData in the RTSS SDK, which is the reference
+/// implementation its release notes point at.) The histogram has no such
+/// ceiling — samples and budget are the same population — so it tracks the
+/// definition RTSS documents rather than reproducing that truncation.
 ///
 /// <b>Not thread-safe. Callers must serialize access.</b> Every member mutates
 /// or reads unsynchronised state, and the two callers live on different

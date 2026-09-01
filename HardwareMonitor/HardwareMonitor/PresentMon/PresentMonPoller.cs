@@ -100,15 +100,24 @@ public class PresentMonPoller(ILogger logger)
     private double _latestStartTimeMs;
     private long _lastRowArrivalMs;
 
-    // Percentile lows (1% / 0.1%) accumulate over the whole session rather
-    // than the 1s window above, which holds ~120 frames at 120fps and so has
-    // no meaningful "worst 1%" at all. Session-length is also what RTSS / MSI
-    // Afterburner use by default ("unlimited"), and matching the overlay most
-    // of our users already run matters more than any window we could pick:
-    // the common way someone sanity-checks this number is to run both at once.
+    // Percentile lows (1% / 0.1%) need a longer window than the 1s one above,
+    // which holds ~120 frames at 120fps and so has no meaningful "worst 1%" at
+    // all. There are two of them because MSI Afterburner has two, for the two
+    // different questions being asked (see LowsMode):
     //
-    // See FrameLows for why this is a histogram and not a list of frametimes,
-    // and for which of the three competing "1% low" definitions it implements.
+    //   _lowsLive   rolling ~10s window, the always-on overlay reading
+    //   _lows       session-cumulative, an explicitly started benchmark run
+    //
+    // The live one is not a nicety. A session-cumulative figure cannot report
+    // a recovery: banked slow frames keep the whole 1% time budget until the
+    // fast run is 99x longer, so 30s capped at 60fps pins the 1% low at 60 for
+    // the next 49 minutes of 240fps play. FrameLowsWindow has the arithmetic
+    // and the RTSS documentation that says to use a ring for a permanently-on
+    // reading.
+    //
+    // See FrameLows for why the session one is a histogram and not a list of
+    // frametimes, and for which of the three competing "1% low" definitions
+    // both implement.
     private const double ONE_PERCENT = 0.01;
     private const double ZERO_POINT_ONE_PERCENT = 0.001;
     private const double LOWS_MIN_TOTAL_MS = 5_000;
@@ -119,22 +128,28 @@ public class PresentMonPoller(ILogger logger)
     // leaving a dead game's lows on screen at the desktop.
     private const int LOWS_ABANDON_MS = 30_000;
     private readonly FrameLows _lows = new();
+    private readonly FrameLowsWindow _lowsLive = new();
     // The app whose frames are currently in the histogram. See the reset guard
     // in ParseData for why attribution is tracked here rather than inferred
     // from the selection or the foreground.
     private string _lowsApp = "";
-    // Whether a recording run is accumulating. True at startup, which is the
-    // unbounded-from-launch behaviour this had before the hotkey existed: a
-    // user who never binds the key sees no change at all.
+    // What the published figures are measuring. Live at startup: the overlay
+    // pill is on from launch, and RTSS's own guidance for a permanently-on
+    // reading is a rolling window rather than an unbounded one.
     //
-    // While false the histogram is inert — ParseData does not add to it, the
-    // diagnostics loop does not recompute from it, and neither the app-change
-    // guard nor the LOWS_ABANDON_MS sweep clears it. That inertness is the
-    // point: a stopped run is a result, and alt-tabbing to look at it, or
-    // quitting the game it measured, must not wipe the number being read.
-    // Only an explicit start clears it. Guarded by _stateLock like every other
-    // field here.
-    private bool _lowsRecording = true;
+    // While Frozen both accumulators are inert — ParseData does not add to
+    // them, the diagnostics loop does not recompute from them, and neither the
+    // app-change guard nor the LOWS_ABANDON_MS sweep clears them. That
+    // inertness is the point: a stopped run is a result, and alt-tabbing to
+    // look at it, or quitting the game it measured, must not wipe the number
+    // being read. Only an explicit mode change moves off it.
+    //
+    // While Recording the live window keeps filling even though nothing reads
+    // it, so returning to Live shows a current number immediately instead of
+    // blanking for the warm-up. It costs one enqueue per frame.
+    //
+    // Guarded by _stateLock like every other field here.
+    private LowsMode _lowsMode = LowsMode.Live;
 
     // FPS diagnostics. Counters live under _stateLock alongside the other
     // attribution state. Rollup task logs once per FPS_DIAG_WINDOW_MS so the
@@ -184,22 +199,31 @@ public class PresentMonPoller(ILogger logger)
     // absent text file became a permanent once-a-second crash loop rather than a
     // degraded feature. The existing guard inside RunPresentMonAsync only ever
     // covered the work after this point.
+    // Split out of Start so the sensors and the CSV number format can be set up
+    // without spawning PresentMon, which is what HardwareMonitor.Tests needs to
+    // drive ParseData directly. Start's behaviour is unchanged: this is the
+    // first thing it does.
+    internal void InitializeSensors()
+    {
+        _cultureInfo.NumberFormat.NumberDecimalSeparator = ".";
+
+        Displayed = new PresentMonSensor(_hardware, "displayed", 0, "Displayed Frames");
+        Presented = new PresentMonSensor(_hardware, "presented", 1, "Presented Frames");
+        Frametime = new PresentMonSensor(_hardware, "frametime", 2, "Frametime");
+        // Spelled out rather than "1% Low": MonitorPoller.RemoveSpecialCharacters
+        // rewrites anything outside [a-zA-Z0-9_ .] to an underscore before the
+        // name goes on the wire, so "1% Low" would reach the sensor picker as
+        // "1_ Low". The overlay resolves these by identifier, but the picker
+        // shows the name.
+        OnePercentLow = new PresentMonSensor(_hardware, "onepercentlow", 3, "1 Percent Low");
+        ZeroPointOnePercentLow = new PresentMonSensor(_hardware, "zeropointonepercentlow", 4, "0.1 Percent Low");
+    }
+
     public async Task Start(CancellationToken stoppingToken)
     {
         try
         {
-            _cultureInfo.NumberFormat.NumberDecimalSeparator = ".";
-
-            Displayed = new PresentMonSensor(_hardware, "displayed", 0, "Displayed Frames");
-            Presented = new PresentMonSensor(_hardware, "presented", 1, "Presented Frames");
-            Frametime = new PresentMonSensor(_hardware, "frametime", 2, "Frametime");
-            // Spelled out rather than "1% Low": MonitorPoller.RemoveSpecialCharacters
-            // rewrites anything outside [a-zA-Z0-9_ .] to an underscore before the
-            // name goes on the wire, so "1% Low" would reach the sensor picker as
-            // "1_ Low". The overlay resolves these by identifier, but the picker
-            // shows the name.
-            OnePercentLow = new PresentMonSensor(_hardware, "onepercentlow", 3, "1 Percent Low");
-            ZeroPointOnePercentLow = new PresentMonSensor(_hardware, "zeropointonepercentlow", 4, "0.1 Percent Low");
+            InitializeSensors();
 
             // Resolve the foreground app once, synchronously, before PresentMon
             // starts emitting rows. Without this, the first ~500ms of CSV output
@@ -398,7 +422,12 @@ public class PresentMonPoller(ILogger logger)
         }
     }
 
-    private void ParseData(string? argsData)
+    // internal, not private, so HardwareMonitor.Tests can drive the real row
+    // path with synthetic PresentMon CSV rows. The percentile-low wiring —
+    // which accumulator a row feeds, the app-change guard, what each mode
+    // publishes — only exists here, and a unit test of the accumulators alone
+    // cannot see any of it.
+    internal void ParseData(string? argsData)
     {
         if (argsData == null) return;
         var parts = argsData.Split(",");
@@ -520,16 +549,22 @@ public class PresentMonPoller(ILogger logger)
             // the histogram under its warm-up so the overlay shows nothing,
             // which is the right outcome when attribution is genuinely
             // ambiguous: no reading beats a blended one.
-            if (_lowsRecording)
+            if (_lowsMode != LowsMode.Frozen)
             {
                 if (!string.Equals(_lowsApp, rowApp, StringComparison.OrdinalIgnoreCase))
                 {
                     _lows.Clear();
+                    _lowsLive.Clear();
                     OnePercentLow.Value = 0;
                     ZeroPointOnePercentLow.Value = 0;
                     _lowsApp = rowApp;
                 }
-                _lows.Add(ftMs);
+                // Both are fed whenever frames are being counted, even though
+                // only one of them is read (see _lowsMode). The session
+                // histogram is only meaningful for a run that was explicitly
+                // started, so it is the one gated on the mode.
+                _lowsLive.Add(startMs, ftMs);
+                if (_lowsMode == LowsMode.Recording) _lows.Add(ftMs);
             }
 
             // Displayed FPS uses the display-to-display interval (column
@@ -579,54 +614,110 @@ public class PresentMonPoller(ILogger logger)
     }
 
     /// <summary>
-    /// Start or stop a percentile-low recording run.
+    /// Switch what the percentile lows are measuring. See <see cref="LowsMode"/>.
     ///
-    /// Start clears the histogram and zeroes the published figures, so a run
-    /// always measures from zero — the same contract MSI Afterburner's "begin
-    /// recording" has. Stop computes the run's final figures and freezes both
-    /// them and the histogram; see the <c>_lowsRecording</c> field for what
-    /// else stands down while stopped.
+    /// <c>Recording</c> clears the histogram and zeroes the published figures,
+    /// so a run always measures from zero — the same contract MSI Afterburner's
+    /// "begin recording" has. <c>Frozen</c> computes the final figures off
+    /// whatever the outgoing mode was reading and freezes them. <c>Live</c>
+    /// publishes the rolling window straight away rather than leaving a
+    /// finished run's figures on screen until the next diagnostics tick.
     ///
-    /// Idempotent: starting an already-running recording still clears, which
-    /// is what a user pressing the key twice by accident at the start line
-    /// wants. Stopping an already-stopped one recomputes the same figures off
-    /// the same frozen histogram, so it is a no-op in effect. Only the pipe
-    /// reconnect in pipe_client.rs actually does that.
+    /// Idempotent in the ways that matter: starting an already-running
+    /// recording still clears, which is what a user pressing the key twice by
+    /// accident at the start line wants, and re-freezing an already-frozen run
+    /// recomputes the same figures off the same frozen histogram. Only the pipe
+    /// reconnect in pipe_client.rs actually does the latter.
     /// </summary>
-    public void SetLowsRecording(bool recording)
+    public void SetLowsMode(LowsMode mode)
     {
         lock (_stateLock)
         {
-            if (recording)
+            switch (mode)
             {
-                _lows.Clear();
-                // Cleared too, so the first row of the new run re-attributes
-                // through ParseData's guard rather than continuing to count
-                // against whatever app the last run measured.
-                _lowsApp = "";
-                OnePercentLow.Value = 0;
-                ZeroPointOnePercentLow.Value = 0;
+                case LowsMode.Recording:
+                    _lows.Clear();
+                    // Cleared too, so the first row of the new run re-attributes
+                    // through ParseData's guard rather than continuing to count
+                    // against whatever app the last run measured. That guard
+                    // also drops the live window, which is the right trade: it
+                    // refills inside its own window and nothing reads it during
+                    // a run anyway.
+                    _lowsApp = "";
+                    OnePercentLow.Value = 0;
+                    ZeroPointOnePercentLow.Value = 0;
+                    break;
+
+                case LowsMode.Frozen:
+                    // Publish once more BEFORE freezing. The diagnostics loop
+                    // recomputes on a FPS_DIAG_WINDOW_MS tick, so the figure
+                    // standing when the key is pressed is up to a second old and
+                    // the last second of the run — 1.7% of a 60s benchmark, and
+                    // the part most likely to hold the frames the user was
+                    // watching for — would never reach the number they stopped to
+                    // read. Afterburner computes its result at end-of-recording;
+                    // so does this.
+                    //
+                    // Off the OUTGOING mode's source, not unconditionally off the
+                    // histogram: freezing from Live has to freeze the number the
+                    // user was actually looking at, and the histogram holds
+                    // nothing at all in that case.
+                    PublishLows(_lowsMode);
+                    break;
+
+                case LowsMode.Live:
+                    // Straight away, so leaving a finished run does not leave
+                    // its figures standing for up to a second while the live
+                    // reading is already available — the window kept filling
+                    // throughout the run.
+                    //
+                    // Not cleared first, even though a long freeze leaves stale
+                    // frames in it. FrameLowsWindow is indexed on PresentMon's
+                    // CPUStartTime and evicts on every Add, so the first frame
+                    // after unfreezing carries a timestamp far enough ahead to
+                    // drop the whole stale window in one pass — microseconds
+                    // later, at any framerate. Clearing here would instead
+                    // blank the reading for the warm-up in the common case,
+                    // which is a user unfreezing WHILE still playing, where the
+                    // window is seconds old and perfectly good. If the game is
+                    // gone there are no new frames either way, and the
+                    // LOWS_ABANDON_MS sweep — live again the moment this stops
+                    // being Frozen — clears it within 30s.
+                    PublishLows(LowsMode.Live);
+                    break;
             }
-            else
-            {
-                // Publish once more BEFORE freezing. The diagnostics loop
-                // recomputes on a FPS_DIAG_WINDOW_MS tick, so the figure
-                // standing when the key is pressed is up to a second old and
-                // the last second of the run — 1.7% of a 60s benchmark, and
-                // the part most likely to hold the frames the user was
-                // watching for — would never reach the number they stopped to
-                // read. Afterburner computes its result at end-of-recording;
-                // so does this.
+
+            _lowsMode = mode;
+        }
+
+        logger.LogInformation("Percentile-low mode {Mode}", mode);
+    }
+
+    /// <summary>
+    /// Recompute and publish the two low figures from whichever accumulator
+    /// <paramref name="source"/> names. No-op for <see cref="LowsMode.Frozen"/>,
+    /// which is what makes "frozen" true of the published values and not just
+    /// of their inputs.
+    ///
+    /// Caller must hold <c>_stateLock</c>: it writes
+    /// <c>PresentMonSensor.Value</c> (a <c>float?</c>, so a torn read is
+    /// possible) on the same lock the pipe serializer takes.
+    /// </summary>
+    private void PublishLows(LowsMode source)
+    {
+        switch (source)
+        {
+            case LowsMode.Live:
+                OnePercentLow.Value = _lowsLive.Compute(ONE_PERCENT, LOWS_MIN_TOTAL_MS);
+                ZeroPointOnePercentLow.Value =
+                    _lowsLive.Compute(ZERO_POINT_ONE_PERCENT, LOWS_MIN_TOTAL_MS);
+                break;
+            case LowsMode.Recording:
                 OnePercentLow.Value = _lows.Compute(ONE_PERCENT, LOWS_MIN_TOTAL_MS);
                 ZeroPointOnePercentLow.Value =
                     _lows.Compute(ZERO_POINT_ONE_PERCENT, LOWS_MIN_TOTAL_MS);
-            }
-            _lowsRecording = recording;
+                break;
         }
-
-        logger.LogInformation(
-            "Percentile-low recording {State}",
-            recording ? "started" : "stopped");
     }
 
     public void SetSelectedApp(string appName)
@@ -653,9 +744,10 @@ public class PresentMonPoller(ILogger logger)
             // Picking another app in the dropdown to read its name, with a
             // benchmark frozen on the overlay, must not throw the benchmark
             // away.
-            if (_lowsRecording)
+            if (_lowsMode != LowsMode.Frozen)
             {
                 _lows.Clear();
+                _lowsLive.Clear();
                 _lowsApp = "";
                 OnePercentLow.Value = 0;
                 ZeroPointOnePercentLow.Value = 0;
@@ -853,10 +945,11 @@ public class PresentMonPoller(ILogger logger)
                     // out. It is dropped only once the game has been gone for
                     // LOWS_ABANDON_MS, so the desktop doesn't sit there
                     // showing a closed game's lows.
-                    if (_lowsRecording
+                    if (_lowsMode != LowsMode.Frozen
                         && (_lastRowArrivalMs == 0 || wallNow - _lastRowArrivalMs > LOWS_ABANDON_MS))
                     {
                         _lows.Clear();
+                        _lowsLive.Clear();
                         _lowsApp = "";
                         OnePercentLow.Value = 0;
                         ZeroPointOnePercentLow.Value = 0;
@@ -886,29 +979,26 @@ public class PresentMonPoller(ILogger logger)
                 fps = Presented.Value ?? 0f;
                 ft = Frametime.Value ?? 0f;
                 // Computed under the lock rather than on a snapshot taken out
-                // of it. The walk starts at the slowest frame recorded and
-                // stops at the 1% crossing, so it reads a few thousand bucket
-                // counts and takes microseconds — nothing like sorting a
-                // session's frametimes, which the histogram means never
-                // happens. Publishing here also keeps the write to
-                // PresentMonSensor.Value (a float?, so a torn read is
+                // of it. In Recording the walk starts at the slowest frame
+                // recorded and stops at the 1% crossing, so it reads a few
+                // thousand bucket counts and takes microseconds — nothing like
+                // sorting a session's frametimes, which the histogram means
+                // never happens. In Live it sorts the window, which is a few
+                // thousand floats once per tick. Publishing here also keeps the
+                // write to PresentMonSensor.Value (a float?, so a torn read is
                 // possible) on the same lock the pipe serializer takes.
                 //
                 // Deliberately outside the stale/else split above: when rows
-                // have merely paused, the session's frames are still there and
-                // the lows should keep reporting rather than blank out with
-                // the 1s averages.
-                // Skipped entirely while stopped rather than recomputed from a
-                // frozen histogram: the two are the same number today, but
+                // have merely paused, the frames already measured are still
+                // there and the lows should keep reporting rather than blank
+                // out with the 1s averages.
+                //
+                // Skipped entirely while Frozen rather than recomputed from a
+                // frozen accumulator: the two are the same number today, but
                 // leaving the write out is what makes "frozen" true of the
                 // published value and not just of its inputs.
-                if (_lowsRecording)
-                {
-                    OnePercentLow.Value = _lows.Compute(ONE_PERCENT, LOWS_MIN_TOTAL_MS);
-                    ZeroPointOnePercentLow.Value =
-                        _lows.Compute(ZERO_POINT_ONE_PERCENT, LOWS_MIN_TOTAL_MS);
-                }
-                lowsFrames = _lows.FrameCount;
+                PublishLows(_lowsMode);
+                lowsFrames = _lowsMode == LowsMode.Live ? _lowsLive.FrameCount : _lows.FrameCount;
             }
             var countedStr = counted.Count == 0
                 ? "-"

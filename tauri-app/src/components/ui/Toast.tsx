@@ -9,8 +9,13 @@ import { ErrorIcon } from "./shortcut-icons";
  * and 6/6 vertical against 20 on the right (the badge supplies the optical
  * inset on its side, so the text is the end that needs the room), gap 12. The
  * Bg/Brand fill inverts with the theme for free — #0C111D in light, #FAFAFA
- * in dark — with Text/Inverse tracking it the other way. The 40x40 Yellow/950
- * badge holds the 20px `error` glyph in Bg/Warning Active.
+ * in dark — with Text/Inverse tracking it the other way. The 40x40 badge is
+ * Bg/Warning Bold holding the 20px `error` glyph in Icon/Warning Bold. Both
+ * invert with the theme, so the chip reads as a tint of the pill in either one
+ * (1.35:1 against it on light, 1.25:1 on dark). It was Yellow/950 with
+ * Bg/Warning Active, whose light values these match exactly — but Yellow/950
+ * is a primitive with no dark mode, so on dark the chip stayed a hard dark
+ * disc (13.4:1) punched into the near-white pill.
  *
  * Position is the frame's too: x 175 in a 651-wide window is dead centre, at
  * y 76 down from the window's top edge.
@@ -141,8 +146,8 @@ function ToastPill({ message, open }: { message: string; open: boolean }) {
           "max-w-[calc(651px-var(--spacingXl)*2)] shadow-large"
         }
       >
-        <span className="flex size-[40px] shrink-0 items-center justify-center rounded-[var(--cornerRound)] bg-[var(--yellow950)]">
-          <ErrorIcon className="size-[20px] text-[var(--bgWarningActive)]" />
+        <span className="flex size-[40px] shrink-0 items-center justify-center rounded-[var(--cornerRound)] bg-[var(--bgWarningBold)]">
+          <ErrorIcon className="size-[20px] text-[var(--iconWarningBold)]" />
         </span>
         {/* leading-[17px] is Figma's AUTO line height for Inter 14 — the text
             node measures 17 high on one line (2819:9759). */}

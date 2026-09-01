@@ -44,10 +44,11 @@ pub enum PipeCommand {
     RefreshPresentMonApps,
     SelectPresentMonApp(String),
     SelectPollingRate(u16),
-    /// Start (true) or stop (false) accumulating frametimes into the
-    /// percentile-low histogram. Start clears what is there; stop computes a
-    /// final figure and freezes it. See MonitorPacketCommand.SetLowsRecording.
-    SetLowsRecording(bool),
+    /// Set what the percentile lows measure: 0 freezes a finished run, 1
+    /// starts a session-cumulative recording run, 2 returns to the rolling
+    /// live window. See MonitorPacketCommand.SetLowsMode and the C# LowsMode,
+    /// whose values these are, and shortcuts::LowsMode for this side's copy.
+    SetLowsMode(u8),
 }
 
 /// Parse a Data packet (command 0) from raw bytes
@@ -229,9 +230,9 @@ fn build_command(cmd: &PipeCommand) -> Vec<u8> {
         // u16 payload rather than a byte: every other command in this
         // protocol is u16-aligned, and the C# reader indexes fixed offsets
         // (BitConverter.ToInt16(data, 2)) rather than reading a stream.
-        PipeCommand::SetLowsRecording(recording) => {
+        PipeCommand::SetLowsMode(mode) => {
             buf.write_u16::<LittleEndian>(5).unwrap();
-            buf.write_u16::<LittleEndian>(u16::from(*recording)).unwrap();
+            buf.write_u16::<LittleEndian>(u16::from(*mode)).unwrap();
         }
     }
     buf
@@ -321,20 +322,24 @@ pub async fn run_pipe_client(
                         continue;
                     }
                 };
-                // Re-assert the recording state on every connect.
+                // Re-assert the lows mode on every connect.
                 //
                 // A sidecar that crashes is respawned by the supervisor in
-                // lib.rs within ~1s, and it comes back with its histogram
-                // recording (that is its startup default). Without this, a
-                // stopped run — a benchmark result somebody is reading —
-                // would quietly start moving again the moment the sidecar
-                // bounced, and nothing on screen would say why. Only sent
-                // when stopped: the fresh sidecar already agrees otherwise.
+                // lib.rs within ~1s, and it comes back on the rolling live
+                // window (that is its startup default). Without this, a
+                // frozen run — a benchmark result somebody is reading — would
+                // quietly start moving again the moment the sidecar bounced,
+                // and a run still in progress would silently become a live
+                // reading mid-benchmark. Neither says anything on screen.
+                //
+                // Skipped for Live: the fresh sidecar already agrees, so
+                // there is nothing to correct.
                 if let Some(state) = app.try_state::<crate::shortcuts::ShortcutRegistry>() {
-                    if !state.is_recording() {
-                        let bytes = build_command(&PipeCommand::SetLowsRecording(false));
+                    let mode = state.lows_mode();
+                    if mode != crate::shortcuts::LowsMode::Live {
+                        let bytes = build_command(&PipeCommand::SetLowsMode(mode.wire()));
                         if let Err(e) = writer.write_all(&bytes) {
-                            warn!("Could not re-assert the stopped recording state: {}", e);
+                            warn!("Could not re-assert the {:?} lows mode: {}", mode, e);
                         }
                     }
                 }
@@ -488,6 +493,7 @@ fn read_u32<R: Read>(reader: &mut R) -> io::Result<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::shortcuts::LowsMode;
 
     /// The measured shape of the bug. Sidecar startup, from process start to the
     /// pipe existing, ran to 13.7s across 114 logged launches, with the app then
@@ -529,6 +535,33 @@ mod tests {
     #[test]
     fn the_poll_interval_bounds_the_remaining_delay() {
         assert!(FAST_POLL_INTERVAL <= Duration::from_millis(300));
+    }
+
+    /// The lows-mode payload is the whole protocol for the recording hotkey, and
+    /// the sidecar drops anything outside 0..=2 rather than coercing it, so a
+    /// wrong byte here is a key that silently does nothing. Command id 5 and a
+    /// u16 little-endian payload, matching MonitorPacketCommand.SetLowsMode.
+    #[test]
+    fn the_lows_mode_command_is_id_five_and_a_u16_payload() {
+        for mode in [LowsMode::Frozen, LowsMode::Recording, LowsMode::Live] {
+            let bytes = build_command(&PipeCommand::SetLowsMode(mode.wire()));
+            assert_eq!(
+                bytes,
+                vec![5, 0, mode.wire(), 0],
+                "wire bytes for {:?}",
+                mode
+            );
+        }
+    }
+
+    /// Shared with the sidecar's LowsMode enum. 0 and 1 keep the meanings the
+    /// earlier boolean payload had, so a client and sidecar one version apart
+    /// still agree about stop and start.
+    #[test]
+    fn the_lows_mode_wire_values_are_fixed() {
+        assert_eq!(LowsMode::Frozen.wire(), 0);
+        assert_eq!(LowsMode::Recording.wire(), 1);
+        assert_eq!(LowsMode::Live.wire(), 2);
     }
 
     /// Builds a Data payload the way MonitorPoller writes one: both counts, then
