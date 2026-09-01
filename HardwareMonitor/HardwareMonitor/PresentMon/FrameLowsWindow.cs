@@ -165,7 +165,16 @@ public sealed class FrameLowsWindow
     /// <returns>Frames per second, or 0 when the window is too short yet.</returns>
     public float Compute(double fraction, double minTotalMs)
     {
-        if (_frames.Count == 0 || _sumMs < minTotalMs) return 0f;
+        if (_frames.Count == 0) return 0f;
+        // A full buffer counts as warmed up even when it holds less than
+        // minTotalMs. MaxFrames caps the window at 16,384 frames, which is
+        // 4,096ms at 4,000fps — under the poller's 5,000ms threshold — so above
+        // ~3,277fps the sum can never reach it and the reading would stay 0
+        // forever. An uncapped menu is exactly that fast, and it is the case
+        // the MaxFrames comment above cites. A full buffer is all the data this
+        // window will ever hold, so refusing to report from it reports nothing
+        // at all rather than reporting from a shorter span.
+        if (_sumMs < minTotalMs && _frames.Count < MaxFrames) return 0f;
         if (fraction <= 0 || fraction > 1) return 0f;
 
         var budgetMs = _sumMs * fraction;

@@ -248,6 +248,38 @@ public class FrameLowsTests
         Assert.Equal(4000.0f, window.Compute(OnePercent, 0), 0);
     }
 
+    /// <summary>
+    /// Above ~3,277fps the frame cap binds before the warm-up threshold does:
+    /// MaxFrames is 16,384 frames, which is only 4,096ms at 4,000fps, so the
+    /// window's total can never reach a 5,000ms threshold no matter how long the
+    /// game runs. Without a full buffer counting as warmed up, the live lows
+    /// would read 0 forever at exactly the uncapped-menu framerate the
+    /// MaxFrames comment cites.
+    /// </summary>
+    [Fact]
+    public void WindowedLows_ReportFromAFullBufferEvenBelowTheWarmUpThreshold()
+    {
+        var window = new FrameLowsWindow();
+        const double fps = 4000;
+        const float frametimeMs = (float)(1000.0 / fps);
+        var nowMs = 0.0;
+
+        // Fill the cap and then some, so eviction is by MaxFrames, not by time.
+        for (var i = 0; i < FrameLowsWindow.MaxFrames * 2; i++)
+        {
+            window.Add(nowMs, frametimeMs);
+            nowMs += frametimeMs;
+        }
+
+        Assert.Equal(FrameLowsWindow.MaxFrames, window.FrameCount);
+        // The whole point: the buffer is full but holds less than the threshold.
+        Assert.True(window.TotalMs < 5_000, $"expected a capped span, got {window.TotalMs}ms");
+
+        Assert.True(window.Compute(OnePercent, 5_000) > 0, "1% low blanked on a full buffer");
+        Assert.True(window.Compute(PointOnePercent, 5_000) > 0, "0.1% low blanked on a full buffer");
+        Assert.Equal(fps, window.Compute(OnePercent, 5_000), 0);
+    }
+
     [Fact]
     public void WindowedLows_ReportNothingBeforeTheWarmUpThreshold()
     {
