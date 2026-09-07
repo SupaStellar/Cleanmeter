@@ -1,3 +1,4 @@
+import { MetricValue } from "./MetricValue";
 import { Pill } from "./Pill";
 import { useSettingsStore } from "@/stores/settings-store";
 import { findSensorById, formatNetworkRateParts } from "@/lib/utils";
@@ -64,15 +65,15 @@ export function NetSection({ isHorizontal }: NetSectionProps) {
         // rate unit (KB/s, MB/s) is a label — same styling as %, W, GB — not
         // part of the value. Arrow is a white ↓ text glyph at label size.
         <div className="flex items-center gap-1">
-          <span style={valueStyle} className="tabular-nums">{down.value}</span>
-          <span style={labelStyle}>{down.unit}</span>
+          <MetricValue style={valueStyle} className="tabular-nums">{down.value}</MetricValue>
+          <span data-metric-unit style={labelStyle}>{down.unit}</span>
           <span style={arrowStyle}>↓</span>
         </div>
       )}
       {upRate.isEnabled && (
         <div className="flex items-center gap-1">
-          <span style={valueStyle} className="tabular-nums">{up.value}</span>
-          <span style={labelStyle}>{up.unit}</span>
+          <MetricValue style={valueStyle} className="tabular-nums">{up.value}</MetricValue>
+          <span data-metric-unit style={labelStyle}>{up.unit}</span>
           <span style={arrowStyle}>↑</span>
         </div>
       )}

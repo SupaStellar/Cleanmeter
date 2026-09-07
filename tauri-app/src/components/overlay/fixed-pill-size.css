@@ -1,0 +1,32 @@
+/* Fixed per-reading slots preserve each pill's size in both orientations.
+   Fonts, enabled readings and graph settings may still resize the layout. */
+[data-fixed-pills] .tabular-nums:not([data-metric-suffix]) {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 5ch;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Frametime includes its unit inside the same span. */
+[data-fixed-pills] [data-metric-value][data-frametime] {
+  width: 9ch;
+}
+
+/* % ↔ GB and KB/s ↔ MB/s must not resize the pill either. */
+[data-fixed-pills] [data-metric-unit] {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 2.5ch;
+}
+
+[data-fixed-pills] [data-pill="NET"] [data-metric-unit] {
+  width: 4.5ch;
+}
+
+/* Network rates can reach 1023.9 before changing units. */
+[data-fixed-pills] [data-pill="NET"] [data-metric-value] {
+  width: 6ch;
+}

@@ -1,3 +1,4 @@
+import { MetricValue } from "./MetricValue";
 import { Pill } from "./Pill";
 import { FrametimeGraph } from "./FrametimeGraph";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -74,7 +75,8 @@ export function FpsSection({ isHorizontal }: FpsSectionProps) {
   const onePercentValue = Math.round(onePercentLowSensor?.value ?? 0);
   const zeroPointOneValue = Math.round(zeroPointOneLowSensor?.value ?? 0);
   const lastFrametime = frametimeHistory.length > 0 ? frametimeHistory[frametimeHistory.length - 1] : 0;
-  const showFrametime = frametime.isEnabled && frametimeHistory.length > 2;
+  // Fixed sizing reserves the graph slot while frametime history warms up.
+  const showFrametime = frametime.isEnabled && (settings.fixedPillSize || frametimeHistory.length > 2);
   // A low with no reading yet reads 0, and the cluster STAYS on screen.
   //
   // The sidecar reports 0 while it warms up — LOWS_MIN_TOTAL_MS is 5s, and
@@ -162,9 +164,9 @@ export function FpsSection({ isHorizontal }: FpsSectionProps) {
     />
   );
   const valueText = framerate.isEnabled && (
-    <span style={valueStyle} className="tabular-nums">
+    <MetricValue style={valueStyle} className="tabular-nums">
       {formatValue(fpsValue)}
-    </span>
+    </MetricValue>
   );
   // Only ever BETWEEN things. With the average hidden it would lead the pill,
   // and with both lows hidden it would trail it — in Figma it always has a
@@ -176,19 +178,19 @@ export function FpsSection({ isHorizontal }: FpsSectionProps) {
   // spacing — the lows are full-size readings, not decorations on the average.
   const lowCluster = (value: number, suffix: string) => (
     <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-      <span style={valueStyle} className="tabular-nums">
+      <MetricValue style={valueStyle} className="tabular-nums">
         {formatValue(value)}
-      </span>
-      <span style={suffixStyle} className="tabular-nums">
+      </MetricValue>
+      <span data-metric-suffix style={suffixStyle} className="tabular-nums">
         {suffix}
       </span>
     </div>
   );
 
   const frametimeText = showFrametime && (
-    <span className="tabular-nums" style={frametimeStyle}>
+    <MetricValue data-frametime className="tabular-nums" style={frametimeStyle}>
       {formatValue(lastFrametime, 1)} ms
-    </span>
+    </MetricValue>
   );
 
   if (isHorizontal) {

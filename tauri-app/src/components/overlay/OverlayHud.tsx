@@ -1,3 +1,4 @@
+import "./fixed-pill-size.css";
 import { useSettingsStore } from "@/stores/settings-store";
 import { FpsSection } from "./FpsSection";
 import { GpuSection } from "./GpuSection";
@@ -15,7 +16,7 @@ export function OverlayHud() {
   const border = dark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.08)";
 
   return (
-    <div
+    <div data-fixed-pills={settings.fixedPillSize || undefined}
       style={{
         display: "flex",
         // Figma horizontal (2106:2313) and vertical (2169:286) both use
