@@ -181,7 +181,7 @@ export function FpsSection({ isHorizontal }: FpsSectionProps) {
       <MetricValue style={valueStyle} className="tabular-nums">
         {formatValue(value)}
       </MetricValue>
-      <span style={suffixStyle} className="tabular-nums">
+      <span data-metric-suffix style={suffixStyle} className="tabular-nums">
         {suffix}
       </span>
     </div>

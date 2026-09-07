@@ -29,7 +29,7 @@ try {
       const { useSettingsStore: store } = await import("/src/stores/settings-store.ts");
       const data = store.getState().sensorData;
       store.getState().setSensorData({ ...data, sensors: data.sensors.map(s => ({ ...s, value:
-        s.sensorType === 14 ? (large ? 1_500_000 : 1000) :
+        s.sensorType === 14 ? (large === 2 ? 1_048_473 : large ? 1_500_000 : 1000) :
         s.sensorType === 12 ? (large ? 10 : 9) :
         s.sensorType === 13 ? (large ? 10240 : 9216) :
         large ? 100 : 99,
@@ -48,6 +48,9 @@ try {
     }, { fixedPillSize: true, isHorizontal, progressType, fontSizeValue });
     const before = await sample(false);
     const after = await sample(true);
+    assert.deepEqual(await sample(2), before, "Network unit boundary must not resize pills");
+    const clipped = await page.locator("[data-metric-value], [data-metric-unit]").evaluateAll(nodes => nodes.filter(n => n.scrollWidth > n.clientWidth + 1).map(n => n.textContent));
+    assert.deepEqual(clipped, [], "Ordinary readings and units must fit their slots");
     assert.equal(before.length, 5, `${JSON.stringify({isHorizontal,progressType,fontSizeValue})}: ${await page.locator("#root").innerHTML()}`);
     assert.deepEqual(after, before, `Pills moved: ${JSON.stringify({ isHorizontal, progressType, fontSizeValue })}`);
   }
