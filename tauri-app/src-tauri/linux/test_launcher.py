@@ -17,7 +17,7 @@ class LauncherTests(unittest.TestCase):
         fake.write_text("""#!/usr/bin/env python3
 import json, os, pathlib, sys
 if sys.argv[1:] == ['--version']:
-    print(os.environ.get('TEST_VERSION', '0.7.2'))
+    print(os.environ.get('TEST_VERSION', 'v0.7.2'))
     sys.exit(0)
 config = pathlib.Path(os.environ['MANGOHUD_CONFIGFILE'])
 pathlib.Path(os.environ['TEST_RESULT']).write_text(json.dumps({
@@ -48,12 +48,17 @@ sys.exit(17)
         self.assertEqual(list((Path(self.env["XDG_CACHE_HOME"]) / "cleanmeter/fps").iterdir()), [])
 
     def test_rejects_old_or_unknown_mangohud_without_starting_game(self):
-        for version in ["0.6.5", "unknown", ""]:
+        for version in ["0.6.5", "v0.6.9", "unknown", ""]:
             self.env["TEST_VERSION"] = version
             result = self.run_launcher("game")
             self.assertEqual(result.returncode, 1)
             self.assertIn("0.7.0 or newer", result.stderr)
         self.assertFalse((self.root / "result.json").exists())
+
+    def test_accepts_upstream_and_distro_version_formats(self):
+        for version in ["v0.7.2", "0.7.0", "v1.0.0"]:
+            self.env["TEST_VERSION"] = version
+            self.assertEqual(self.run_launcher("game").returncode, 17)
 
     def test_usage_without_game(self):
         self.assertEqual(self.run_launcher().returncode, 2)

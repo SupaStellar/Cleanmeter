@@ -12,7 +12,7 @@ if ! command -v mangohud >/dev/null 2>&1; then
 fi
 # 0.6.x only saves CSV files when logging stops; live reads need 0.7+.
 version=$(mangohud --version 2>/dev/null || true)
-if ! printf '%s\n' "$version" | awk -F. '/^[0-9]+\.[0-9]+/ { if ($1 > 0 || $2 >= 7) ok=1 } END { exit !ok }'; then
+if ! printf '%s\n' "$version" | awk -F. '/^v?[0-9]+\.[0-9]+/ { major=$1; sub(/^v/, "", major); if (major+0 > 0 || $2+0 >= 7) ok=1 } END { exit !ok }'; then
     echo "Cleanmeter FPS requires MangoHud 0.7.0 or newer (found: $version)." >&2
     exit 1
 fi
