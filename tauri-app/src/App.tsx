@@ -95,6 +95,7 @@ function MonitoringBanner() {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>("stats");
+  const [styleVisited, setStyleVisited] = useState(false);
   // Startup splash: shown on every launch from first paint, covering the UI
   // (and the light→dark theme flash while saved settings load) until the
   // logo's ring sweep completes, then fades out and unmounts. Stable callback
@@ -230,7 +231,7 @@ export default function App() {
       {/* Figma's window: 651 wide, 24 of padding around a 603 content column,
           20 between the tabs and the content. */}
       <div className="flex min-h-0 flex-1 flex-col gap-[var(--spacingL)] p-[var(--spacingXl)]">
-        <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
+        <TabNav activeTab={activeTab} onTabChange={tab => { setActiveTab(tab); if (tab === "style") setStyleVisited(true); }} />
         <div className="min-h-0 flex-1 overflow-y-auto">
           {/* Tabs stay mounted and hide via CSS so local UI state (expanded
               collapsibles, dropdowns, scroll targets) survives tab switches —
@@ -239,7 +240,7 @@ export default function App() {
             <StatsTab />
           </div>
           <div className={activeTab === "style" ? "h-full" : "hidden"}>
-            <StyleTab />
+            {styleVisited && <StyleTab />}
           </div>
           <div className={activeTab === "settings" ? "h-full" : "hidden"}>
             <SettingsTab />

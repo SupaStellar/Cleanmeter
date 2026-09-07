@@ -1,0 +1,21 @@
+.customization-preview {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--borderSubtle);
+  border-radius: var(--cornerL);
+  background: radial-gradient(ellipse at 15% 20%, #3b4962, transparent 65%), linear-gradient(120deg, #18212f, #273244);
+}
+.customization-controls { padding: 12px; border: 1px solid var(--borderSubtle); border-radius: var(--cornerL); }
+.customization-group { margin-top: 16px; border-top: 1px solid var(--borderSubtle); padding-top: 12px; }
+.customization-group > summary { cursor: pointer; font-weight: 600; margin-bottom: 12px; }
+.customization-editor button[aria-pressed="true"] { border-color: var(--borderBrand); box-shadow: inset 0 0 0 1px var(--borderBrand); }
+.customization-controls :is(button, input, select, [tabindex]):focus-visible {
+  box-shadow: var(--shadow-focus-default);
+  outline: 2px solid var(--borderBrand);
+  outline-offset: 2px;
+}
+/* Keep DialKit controls offline and consistent with the installed app fonts. */
+.customization-controls { font-family: Inter, sans-serif; --overlay-track: var(--borderBold); }
+.customization-controls * { --dial-font-mono: Consolas, monospace; }
+
+.customization-controls :is(.dialkit-slider-wrapper, .dialkit-select-row, .dialkit-color-control, .dialkit-toggle) { margin-block: 4px; }

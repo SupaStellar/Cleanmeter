@@ -93,10 +93,10 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
           />
         ) : (
           <div className="flex items-center gap-1">
-            <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
+            <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "var(--overlay-font, Inter)", letterSpacing: "-0.02em" }} className="tabular-nums">
               {temp.label}
             </span>
-            <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{temp.symbol}</span>
+            <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-unit, var(--overlay-text))", fontFamily: "var(--overlay-font, Inter)", letterSpacing: "0.04em" }}>{temp.symbol}</span>
           </div>
         )
       )}
@@ -111,10 +111,10 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
           />
         ) : (
           <div className="flex items-center gap-1">
-            <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
+            <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "var(--overlay-font, Inter)", letterSpacing: "-0.02em" }} className="tabular-nums">
               {formatValue(gpuUsageVal)}
             </span>
-            <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>%</span>
+            <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-unit, var(--overlay-text))", fontFamily: "var(--overlay-font, Inter)", letterSpacing: "0.04em" }}>%</span>
           </div>
         )
       )}
@@ -133,10 +133,10 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
           />
         ) : (
           <div className="flex items-center gap-1">
-            <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
+            <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "var(--overlay-font, Inter)", letterSpacing: "-0.02em" }} className="tabular-nums">
               {vramUsedVal > 0 ? formatValue(vramUsedVal, 1) : formatValue(vramUsageVal, 0)}
             </span>
-            <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{vramUsedVal > 0 ? "GB" : "%"}</span>
+            <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-unit, var(--overlay-text))", fontFamily: "var(--overlay-font, Inter)", letterSpacing: "0.04em" }}>{vramUsedVal > 0 ? "GB" : "%"}</span>
           </div>
         )
       )}
@@ -144,10 +144,10 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
           always a plain value + unit (matches v2.2.x early build). */}
       {gpuConsumption.isEnabled && (
         <div className="flex items-center gap-1">
-          <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
+          <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "var(--overlay-font, Inter)", letterSpacing: "-0.02em" }} className="tabular-nums">
             {formatValue(gpuPowerVal)}
           </span>
-          <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>W</span>
+          <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-unit, var(--overlay-text))", fontFamily: "var(--overlay-font, Inter)", letterSpacing: "0.04em" }}>W</span>
         </div>
       )}
     </Pill>

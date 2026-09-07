@@ -1,3 +1,5 @@
+import { SurfaceBackground } from "./SurfaceBackground";
+import { useAppearance } from "@/hooks/useAppearance";
 import { useSettingsStore } from "@/stores/settings-store";
 import { gaugeSize } from "./gauge-metrics";
 
@@ -16,6 +18,12 @@ interface PillProps {
 export function Pill({ title, isHorizontal, children, tooltip, graphRow }: PillProps) {
   // The Opacity slider drives the PILL background alpha only (max = solid
   // black/white pills); the outer HUD background and text are unaffected.
+  const appearance = useAppearance();
+  const customStyle: React.CSSProperties = appearance.enabled ? {
+    position: "relative", isolation: "isolate", background: "transparent",
+    borderRadius: appearance.inner.radius,
+    padding: `${appearance.inner.paddingY}px ${appearance.inner.paddingX}px`,
+  } : {};
   const pillAlpha = useSettingsStore((s) => s.settings.opacity ?? 0.3);
   const labelSize = useSettingsStore((s) => s.settings.fontSizeLabel ?? 12);
   const labelFontWeight = useSettingsStore((s) => s.settings.labelFontWeight ?? 500);
@@ -33,7 +41,7 @@ export function Pill({ title, isHorizontal, children, tooltip, graphRow }: PillP
   // Figma sweep (24/37 horizontal, 32/45 vertical). Shares the ring/bar size
   // step via gaugeSize; text taller than the floor still grows the pill
   // naturally (minHeight, not height).
-  const minHeight = gaugeSize(valueFontSize) + (isHorizontal ? 8 : 16);
+  const minHeight = gaugeSize(valueFontSize) + (appearance.enabled ? appearance.inner.paddingY * 2 : isHorizontal ? 8 : 16);
   // Figma vertical (2169:286) pins every 3-char label to a uniform width so
   // values align across stacked sub-pills: exactly 28px @ fontSizeLabel 12
   // (2202:3255 annotates label→value as a 12px gap measured from that slot
@@ -49,7 +57,7 @@ export function Pill({ title, isHorizontal, children, tooltip, graphRow }: PillP
     fontSize: labelSize,
     fontWeight: labelFontWeight,
     color: labelColor,
-    fontFamily: "Inter",
+    fontFamily: "var(--overlay-font, Inter)",
     letterSpacing: "0.04em",
     display: "inline-block",
     width: labelWidth,
@@ -66,6 +74,7 @@ export function Pill({ title, isHorizontal, children, tooltip, graphRow }: PillP
     return (
       <div
         title={tooltip}
+        data-pill={title}
         style={{
           display: "flex",
           alignItems: "center",
@@ -76,8 +85,10 @@ export function Pill({ title, isHorizontal, children, tooltip, graphRow }: PillP
           flexShrink: 0,
           whiteSpace: "nowrap",
           minHeight,
+          ...customStyle,
         }}
       >
+        {appearance.enabled && <SurfaceBackground surface={appearance.inner} />}
         <span style={labelStyle}>{title}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>{children}</div>
       </div>
@@ -93,6 +104,7 @@ export function Pill({ title, isHorizontal, children, tooltip, graphRow }: PillP
   return (
     <div
       title={tooltip}
+        data-pill={title}
       style={{
         display: "flex",
         flexDirection: "column",
@@ -104,8 +116,10 @@ export function Pill({ title, isHorizontal, children, tooltip, graphRow }: PillP
         flexShrink: 0,
         whiteSpace: "nowrap",
         minHeight,
+        ...customStyle,
       }}
     >
+      {appearance.enabled && <SurfaceBackground surface={appearance.inner} />}
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <span style={labelStyle}>{title}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>{children}</div>
