@@ -163,7 +163,7 @@ pub fn save_preferences(prefs: AppPreferences, settings_mgr: State<'_, SettingsM
 /// empty flag diff.
 pub fn apply_overlay_interactive(app: &AppHandle, interactive: bool) {
     if let Some(overlay) = app.get_webview_window("overlay") {
-        let _ = overlay.set_ignore_cursor_events(!interactive);
+        let _ = overlay.set_ignore_cursor_events(!interactive && !crate::platform::native_wayland());
     }
 }
 
@@ -178,7 +178,7 @@ pub fn apply_overlay_interactive(app: &AppHandle, interactive: bool) {
 /// the interaction destroyed its own precondition. Asking "is any window of ours in
 /// front" covers both the settings window and the overlay, so a drag completes.
 #[cfg(windows)]
-fn foreground_is_ours() -> bool {
+fn foreground_is_ours(_app: &AppHandle) -> bool {
     use windows::Win32::System::Threading::GetCurrentProcessId;
     use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId};
     unsafe {
@@ -192,15 +192,9 @@ fn foreground_is_ours() -> bool {
     }
 }
 
-/// Non-Windows stub. Returning `false` leaves the overlay permanently click-through
-/// off Windows, which is the honest answer: there is no foreground check implemented
-/// there, and the app is Windows-only in every load-bearing part (requireAdministrator
-/// manifest, the PawnIO driver, PresentMon, the HardwareMonitor sidecar). CI builds a
-/// single `windows-latest` matrix entry, so a second real implementation here could
-/// never be compiled or tested and would only rot.
 #[cfg(not(windows))]
-fn foreground_is_ours() -> bool {
-    false
+fn foreground_is_ours(app: &AppHandle) -> bool {
+    app.webview_windows().values().any(|w| w.is_focused().unwrap_or(false))
 }
 
 /// Bring a window to the front without letting tao fabricate a keystroke.
@@ -299,7 +293,7 @@ pub fn sync_overlay_interactive(app: &AppHandle) {
         .get_webview_window("settings")
         .map(|w| w.is_visible().unwrap_or(false))
         .unwrap_or(false);
-    apply_overlay_interactive(app, settings_shown && foreground_is_ours());
+    apply_overlay_interactive(app, settings_shown && foreground_is_ours(app));
 }
 
 #[tauri::command]
@@ -320,6 +314,7 @@ pub fn set_overlay_visible(visible: bool, app: AppHandle) {
 
 #[tauri::command]
 pub fn set_overlay_position(x: i32, y: i32, app: AppHandle) {
+    if crate::platform::native_wayland() { return; }
     if let Some(overlay) = app.get_webview_window("overlay") {
         let _ = overlay.set_position(tauri::Position::Physical(tauri::PhysicalPosition::new(x, y)));
     }
@@ -389,6 +384,12 @@ const AUTOSTART_TASK: &str = "CleanMeter";
 
 #[tauri::command]
 pub fn set_auto_start(enabled: bool) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    {
+        let config=dirs::config_dir().ok_or("Configuration directory unavailable")?;
+        let exe=std::env::var_os("APPIMAGE").map(std::path::PathBuf::from).unwrap_or(std::env::current_exe().map_err(|e|e.to_string())?);
+        return crate::linux_autostart::set(&config,&exe,enabled);
+    }
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -450,6 +451,8 @@ pub fn set_auto_start(enabled: bool) -> Result<(), String> {
 
 #[tauri::command]
 pub fn get_auto_start() -> bool {
+    #[cfg(target_os = "linux")]
+    return dirs::config_dir().map(|p|crate::linux_autostart::enabled(&p)).unwrap_or(false);
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;

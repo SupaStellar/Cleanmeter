@@ -1,0 +1,32 @@
+{
+  "bundle": {
+    "targets": [
+      "deb",
+      "rpm",
+      "appimage"
+    ],
+    "createUpdaterArtifacts": false,
+    "linux": {
+      "deb": {
+        "depends": [
+          "libwebkit2gtk-4.1-0",
+          "libgtk-3-0",
+          "libayatana-appindicator3-1"
+        ],
+        "files": {
+          "/usr/bin/cleanmeter-run": "linux/cleanmeter-run"
+        }
+      },
+      "rpm": {
+        "files": {
+          "/usr/bin/cleanmeter-run": "linux/cleanmeter-run"
+        }
+      },
+      "appimage": {
+        "files": {
+          "/usr/bin/cleanmeter-run": "linux/cleanmeter-run"
+        }
+      }
+    }
+  }
+}

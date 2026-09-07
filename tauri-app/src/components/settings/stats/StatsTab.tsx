@@ -1,3 +1,4 @@
+import { LinuxSupport } from "../LinuxSupport";
 import { useEffect, useState } from "react";
 import { useSettingsStore } from "@/stores/settings-store";
 import { FpsSection } from "./FpsSection";
@@ -36,6 +37,7 @@ export function StatsTab() {
     // the change note on 2790:1636. What it used to state is now editable —
     // Settings -> Shortcuts owns both bindings (see shortcuts.rs).
     <div className="flex h-full w-full flex-col gap-[var(--spacingM)]">
+      <LinuxSupport />
       <FpsSection />
       <GpuSection sensors={sensors} hardwares={hardwares} />
       <CpuSection sensors={sensors} hardwares={hardwares} />

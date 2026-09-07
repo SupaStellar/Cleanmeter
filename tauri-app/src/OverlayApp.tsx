@@ -1,3 +1,4 @@
+import { usePlatformStore } from "@/stores/platform-store";
 import { useEffect, useRef, useState } from "react";
 import { OverlayHud } from "@/components/overlay/OverlayHud";
 import { useSensorData } from "@/hooks/useSensorData";
@@ -55,6 +56,9 @@ function clampToMonitor(
 }
 
 export default function OverlayApp() {
+  const loadPlatform = usePlatformStore((s) => s.load);
+  const canPosition = usePlatformStore((s) => s.platform.canPositionOverlay);
+  useEffect(() => { void loadPlatform(); }, [loadPlatform]);
   const loadSettings = useSettingsStore((s) => s.loadSettings);
   const updateSettings = useSettingsStore((s) => s.updateSettings);
   const settings = useSettingsStore((s) => s.settings);
@@ -225,7 +229,7 @@ export default function OverlayApp() {
   // monitors + settings (instead of an async Tauri round-trip) so mousemove
   // events that fire on the same tick as mousedown aren't dropped.
   const onMouseDown = (e: React.MouseEvent) => {
-    if (!settings.useCustomPosition) return;
+    if (!canPosition || !settings.useCustomPosition) return;
     if (e.button !== 0) return;
     if (monitors.length === 0) return;
     e.preventDefault();

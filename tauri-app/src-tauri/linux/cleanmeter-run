@@ -1,0 +1,39 @@
+#!/bin/sh
+# Launch a native or Proton game with sampled FPS telemetry for Cleanmeter.
+set -eu
+if [ "$#" -eq 0 ]; then
+    echo 'Usage: cleanmeter-run <game> [args...]' >&2
+    echo 'Steam launch options: cleanmeter-run %command%' >&2
+    exit 2
+fi
+if ! command -v mangohud >/dev/null 2>&1; then
+    echo 'Install MangoHud first (Ubuntu/Debian: sudo apt install mangohud).' >&2
+    exit 1
+fi
+case "${XDG_CACHE_HOME:-}" in
+    /*) cache=$XDG_CACHE_HOME ;;
+    *) cache=$HOME/.cache ;;
+esac
+umask 077
+mkdir -p "$cache/cleanmeter/fps"
+session=$(mktemp -d "$cache/cleanmeter/fps/session.XXXXXX")
+case "$session" in
+    *,*) echo 'MangoHud requires a cache path without commas.' >&2; rmdir "$session"; exit 1 ;;
+esac
+child=
+cleanup() { rm -rf -- "$session"; }
+trap cleanup EXIT
+trap 'if [ -n "$child" ]; then kill -TERM "$child" 2>/dev/null || true; fi' INT TERM
+# A private config file avoids altering the user's MangoHud configuration.
+# Uploads are not enabled. Files are removed when the launched process exits.
+cat > "$session/MangoHud.conf" <<CONF
+no_display
+autostart_log=1
+log_interval=100
+output_folder=$session
+CONF
+MANGOHUD_CONFIGFILE="$session/MangoHud.conf" MANGOHUD_CONFIG="no_display,autostart_log=1,log_interval=100,output_folder=$session" mangohud "$@" &
+child=$!
+code=0
+wait "$child" || code=$?
+exit "$code"

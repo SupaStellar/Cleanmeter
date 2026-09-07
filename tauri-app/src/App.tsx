@@ -1,3 +1,4 @@
+import { usePlatformStore } from "@/stores/platform-store";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { TopBar } from "@/components/settings/TopBar";
 import { TabNav, type SettingsTab as TabKey } from "@/components/settings/TabNav";
@@ -18,6 +19,7 @@ import { useToastStore } from "@/stores/toast-store";
 import { HOTKEY_IN_USE_MESSAGE } from "@/lib/shortcuts";
 
 function MonitoringBanner() {
+  const linux = usePlatformStore((s) => s.platform.os === "linux");
   const sensorData = useSettingsStore((s) => s.sensorData);
   const pipeStatus = useSettingsStore((s) => s.pipeStatus);
   const sidecarStatus = useSettingsStore((s) => s.sidecarStatus);
@@ -45,20 +47,20 @@ function MonitoringBanner() {
   // Only a failing verdict is worth telling the user about, and only then is it
   // worth paying for the .NET probe.
   useEffect(() => {
-    if (verdict !== "failed") return;
+    if (verdict !== "failed" || linux) return;
     checkDotnetRuntime()
       .then((ok) => {
         if (!ok) setDotnetMissing(true);
       })
       .catch(() => {});
-  }, [verdict]);
+  }, [verdict, linux]);
 
   if (verdict !== "failed") return null;
 
   return (
     <div className="border-b border-yellow-400 bg-yellow-50 px-4 py-2.5 text-[13px] leading-snug text-yellow-900 dark:border-yellow-700 dark:bg-yellow-950 dark:text-yellow-200">
       <strong>Monitoring not connected.</strong>
-      {dotnetMissing ? (
+      {linux ? <span> {sidecarStatus.spawnError ?? "Linux sensor readings are unavailable. Try restarting Cleanmeter."}</span> : dotnetMissing ? (
         <span>
           {" "}.NET 8 Desktop Runtime is required but not installed.{" "}
           <a
@@ -82,6 +84,8 @@ function MonitoringBanner() {
 }
 
 export default function App() {
+  const loadPlatform = usePlatformStore((s) => s.load);
+  useEffect(() => { void loadPlatform(); }, [loadPlatform]);
   const [activeTab, setActiveTab] = useState<TabKey>("stats");
   // Startup splash: shown on every launch from first paint, covering the UI
   // (and the light→dark theme flash while saved settings load) until the

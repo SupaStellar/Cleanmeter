@@ -156,6 +156,7 @@ export const checkForUpdate = async (): Promise<AppUpdate | null> => {
   // The preview reports an update so the download banner has a state to be in.
   if (usePreviewFixture) return previewUpdate();
   if (isBrowser) return null;
+  if ((await getPlatformInfo()).os === "linux") return null;
   const { check } = await import("@tauri-apps/plugin-updater");
   return check();
 };
@@ -273,4 +274,19 @@ export const pickImageAttachment = async (): Promise<
   if (typeof selected !== "string") return null;
   const name = selected.split(/[/\\]/).pop() ?? "attachment";
   return { path: selected, name };
+};
+
+export interface PlatformInfo {
+  os: string;
+  displayBackend: string;
+  canPositionOverlay: boolean;
+  globalShortcuts: boolean;
+  percentileLows: boolean;
+}
+export const getPlatformInfo = () => {
+  if (isBrowser) {
+    const linux = navigator.platform.toLowerCase().includes("linux") || (import.meta.env.DEV && new URLSearchParams(location.search).get("platform") === "linux");
+    return Promise.resolve<PlatformInfo>({ os: linux ? "linux" : "windows", displayBackend: linux ? "x11" : "native", canPositionOverlay: true, globalShortcuts: true, percentileLows: !linux });
+  }
+  return safeInvoke<PlatformInfo>("get_platform_info");
 };

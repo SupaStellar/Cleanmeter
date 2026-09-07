@@ -1,3 +1,4 @@
+import { usePlatformStore } from "@/stores/platform-store";
 import { Pill } from "./Pill";
 import { FrametimeGraph } from "./FrametimeGraph";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -25,6 +26,7 @@ interface FpsSectionProps {
 }
 
 export function FpsSection({ isHorizontal }: FpsSectionProps) {
+  const lowsSupported = usePlatformStore((s) => s.platform.percentileLows);
   const settings = useSettingsStore((s) => s.settings);
   const sensorData = useSettingsStore((s) => s.sensorData);
   const frametimeHistory = useFrametimeHistory();
@@ -38,8 +40,8 @@ export function FpsSection({ isHorizontal }: FpsSectionProps) {
   if (
     !framerate.isEnabled &&
     !frametime.isEnabled &&
-    !onePercentLow.isEnabled &&
-    !zeroPointOnePercentLow.isEnabled
+    !(lowsSupported && onePercentLow.isEnabled) &&
+    !(lowsSupported && zeroPointOnePercentLow.isEnabled)
   )
     return null;
 
@@ -98,8 +100,8 @@ export function FpsSection({ isHorizontal }: FpsSectionProps) {
   // earlier worry that "0 1%" reads as "your worst frames were 0 fps" bites
   // only while the average shows a live number, and it is the lesser evil
   // against a value that looks negative.
-  const showOnePercent = onePercentLow.isEnabled;
-  const showZeroPointOne = zeroPointOnePercentLow.isEnabled;
+  const showOnePercent = lowsSupported && onePercentLow.isEnabled;
+  const showZeroPointOne = lowsSupported && zeroPointOnePercentLow.isEnabled;
 
   const valueStyle: React.CSSProperties = {
     fontSize: valueFontSize,

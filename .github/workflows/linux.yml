@@ -1,0 +1,62 @@
+name: Linux preview
+
+on:
+  push:
+    branches: [feat/linux-support]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: tauri-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tauri-app/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tauri-app/src-tauri
+      - name: Install Linux build and smoke-test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf rpm xvfb dbus-x11
+      - run: npm ci
+      - run: npm run lint && npm test && npm run build
+      - name: Test native backend
+        run: cargo test --locked --manifest-path src-tauri/Cargo.toml --lib
+      - name: Build Linux packages
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: '1'
+        run: npm run tauri -- build --bundles deb,rpm,appimage
+      - name: Smoke test GUI and native monitoring
+        run: |
+          set +e
+          RUST_LOG=info WEBKIT_DISABLE_COMPOSITING_MODE=1 timeout 15s dbus-run-session -- xvfb-run -a src-tauri/target/release/cleanmeter > linux-smoke.log 2>&1
+          result=$?
+          set -e
+          cat linux-smoke.log
+          test "$result" -eq 124
+          grep -q 'Linux monitoring connected' linux-smoke.log
+          test -x src-tauri/linux/cleanmeter-run
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cleanmeter-linux-x86_64
+          if-no-files-found: error
+          path: |
+            tauri-app/src-tauri/target/release/bundle/deb/*.deb
+            tauri-app/src-tauri/target/release/bundle/rpm/*.rpm
+            tauri-app/src-tauri/target/release/bundle/appimage/*.AppImage
+            tauri-app/linux-smoke.log
