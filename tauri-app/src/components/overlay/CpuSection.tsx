@@ -47,10 +47,10 @@ export function CpuSection({ isHorizontal }: CpuSectionProps) {
           />
         ) : (
           <div className="flex items-center gap-1">
-            <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
+            <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "var(--overlay-font, Inter)", letterSpacing: "-0.02em" }} className="tabular-nums">
               {temp.label}
             </span>
-            <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{temp.symbol}</span>
+            <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-unit, var(--overlay-text))", fontFamily: "var(--overlay-font, Inter)", letterSpacing: "0.04em" }}>{temp.symbol}</span>
           </div>
         )
       )}
@@ -65,10 +65,10 @@ export function CpuSection({ isHorizontal }: CpuSectionProps) {
           />
         ) : (
           <div className="flex items-center gap-1">
-            <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
+            <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "var(--overlay-font, Inter)", letterSpacing: "-0.02em" }} className="tabular-nums">
               {formatValue(cpuUsageVal)}
             </span>
-            <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>%</span>
+            <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-unit, var(--overlay-text))", fontFamily: "var(--overlay-font, Inter)", letterSpacing: "0.04em" }}>%</span>
           </div>
         )
       )}
@@ -76,10 +76,10 @@ export function CpuSection({ isHorizontal }: CpuSectionProps) {
           always a plain value + unit (matches v2.2.x early build). */}
       {cpuConsumption.isEnabled && (
         <div className="flex items-center gap-1">
-          <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
+          <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "var(--overlay-font, Inter)", letterSpacing: "-0.02em" }} className="tabular-nums">
             {formatValue(cpuPowerVal)}
           </span>
-          <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>W</span>
+          <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-unit, var(--overlay-text))", fontFamily: "var(--overlay-font, Inter)", letterSpacing: "0.04em" }}>W</span>
         </div>
       )}
     </Pill>

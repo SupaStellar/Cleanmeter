@@ -1,3 +1,4 @@
+import { normalizeAppearance } from "@/lib/customization/schema";
 import { create } from "zustand";
 import type {
   OverlaySettings,
@@ -330,6 +331,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
             ...DEFAULT_SETTINGS,
             ...saved,
             sensors: mergedSensors,
+            appearance: normalizeAppearance(saved.appearance),
           }
         : { ...DEFAULT_SETTINGS };
       // The previously-rendered SettingsTab only wrote isDarkTheme, never
@@ -435,7 +437,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     });
   },
   updateSettings: (patch) => {
-    const newSettings = { ...get().settings, ...patch };
+    const newSettings = { ...get().settings, ...patch, ...(patch.appearance ? { appearance: normalizeAppearance(patch.appearance) } : {}) };
     set({ settings: newSettings });
     debouncedSave(newSettings);
 

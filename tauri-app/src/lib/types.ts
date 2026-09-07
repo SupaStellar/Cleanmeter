@@ -1,3 +1,5 @@
+import type { Appearance } from "./customization/schema";
+import { DEFAULT_APPEARANCE } from "./customization/schema";
 export enum HardwareType {
   Motherboard = 0,
   SuperIO = 1,
@@ -85,6 +87,7 @@ export type ThemeMode = "light" | "dark" | "system";
 export type GraphType = "ring" | "bar";
 
 export interface OverlaySettings {
+  appearance: Appearance;
   isDarkTheme: boolean;
   isMeterLight: boolean;
   themeMode: ThemeMode;
@@ -219,6 +222,7 @@ export type SensorKey = keyof SensorsConfig;
 export const POLLING_RATES = [100, 250, 500, 1000] as const;
 
 export const DEFAULT_SETTINGS: OverlaySettings = {
+  appearance: DEFAULT_APPEARANCE,
   isDarkTheme: false,
   isMeterLight: false,
   themeMode: "light",

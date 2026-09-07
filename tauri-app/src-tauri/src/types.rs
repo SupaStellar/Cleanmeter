@@ -323,6 +323,9 @@ fn default_use_custom_position() -> bool { true }
 // which breaks F/C, custom-position drag, theme mode, etc.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OverlaySettings {
+    // Versioned appearance data is validated by the frontend before rendering/import.
+    #[serde(default)]
+    pub appearance: serde_json::Value,
     #[serde(rename = "isDarkTheme")]
     pub is_dark_theme: bool,
     #[serde(rename = "isMeterLight", default)]
@@ -412,6 +415,7 @@ pub fn default_overlay_shortcut() -> String {
 impl Default for OverlaySettings {
     fn default() -> Self {
         OverlaySettings {
+            appearance: serde_json::Value::Null,
             is_dark_theme: false,
             is_meter_light: false,
             theme_mode: "light".to_string(),
@@ -475,6 +479,22 @@ pub enum UpdateState {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PipeStatus {
     pub connected: bool,
+}
+
+#[cfg(test)]
+mod appearance_tests {
+    use super::OverlaySettings;
+    #[test]
+    fn appearance_survives_round_trip_and_old_files_still_load() {
+        let mut value = serde_json::to_value(OverlaySettings::default()).unwrap();
+        value.as_object_mut().unwrap().remove("appearance");
+        let old: OverlaySettings = serde_json::from_value(value).unwrap();
+        assert!(old.appearance.is_null());
+        let mut custom = old;
+        custom.appearance = serde_json::json!({"enabled":true,"font":"Consolas","inner":{"image":"data:image/png;base64,AAAA"},"order":["GPU","CPU","FPS","NET","RAM"]});
+        let loaded: OverlaySettings = serde_json::from_str(&serde_json::to_string(&custom).unwrap()).unwrap();
+        assert_eq!(loaded.appearance, custom.appearance);
+    }
 }
 
 /// What the supervisor has observed about the HardwareMonitor child process.

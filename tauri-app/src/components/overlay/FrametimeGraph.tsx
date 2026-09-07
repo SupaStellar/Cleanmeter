@@ -1,3 +1,4 @@
+import { useAppearance } from "@/hooks/useAppearance";
 import { useRef, useEffect } from "react";
 
 // Figma 2202:3533 (horizontal) / 2218:3721 (vertical): the wave is a 7px-tall
@@ -23,6 +24,9 @@ interface FrametimeGraphProps {
 }
 
 export function FrametimeGraph({ history, width }: FrametimeGraphProps) {
+  const a = useAppearance();
+  const trace = a.enabled ? a.trace : "line";
+  const color = a.enabled ? a.graphColor : "#ffffff";
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sizeRef = useRef({ w: 0, h: 0 });
   const drawWidth = width;
@@ -56,7 +60,8 @@ export function FrametimeGraph({ history, width }: FrametimeGraphProps) {
     grad.addColorStop(0.23, "rgba(255,255,255,1)");
     grad.addColorStop(0.79, "rgba(255,255,255,1)");
     grad.addColorStop(1, "rgba(255,255,255,0)");
-    ctx.strokeStyle = grad;
+    ctx.strokeStyle = a.enabled ? color : grad;
+    ctx.fillStyle = color;
     ctx.lineWidth = STROKE_WIDTH;
     // Figma vector: strokeCap ROUND (the two line ends) but default MITER
     // joins — miter extends each spike vertex into a sharp needle tip, while
@@ -81,14 +86,26 @@ export function FrametimeGraph({ history, width }: FrametimeGraphProps) {
     // outlines). Round joins take the 1px-scale edge off the vertices,
     // exactly like the reference.
     ctx.beginPath();
+    let previousY = baselineY;
     history.forEach((val, i) => {
       const x = i * stepX;
       const y = baselineY - ((val - min) / range) * (BAND_HEIGHT - STROKE_WIDTH);
       if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+      else {
+        if (trace === "steps") ctx.lineTo(x, previousY);
+        ctx.lineTo(x, y);
+      }
+      previousY = y;
+      if (trace === "bars") ctx.fillRect(x, y, Math.max(1, stepX - 1), baselineY - y + .5);
+      if (trace === "dots") ctx.fillRect(x, y, 1.5, 1.5);
+      if (trace === "stems") ctx.fillRect(x, y, 1, baselineY - y + .5);
     });
-    ctx.stroke();
-  }, [history, drawWidth]);
+    if (["line", "steps", "area"].includes(trace)) ctx.stroke();
+    if (trace === "area") {
+      ctx.lineTo(drawWidth, baselineY); ctx.lineTo(0, baselineY); ctx.closePath();
+      ctx.globalAlpha = .35; ctx.fill(); ctx.globalAlpha = 1;
+    }
+  }, [history, drawWidth, trace, color, a.enabled]);
 
   return (
     <canvas

@@ -105,7 +105,7 @@ export function FpsSection({ isHorizontal }: FpsSectionProps) {
     fontSize: valueFontSize,
     fontWeight: valueFontWeight,
     color: "var(--overlay-text)",
-    fontFamily: "Inter",
+    fontFamily: "var(--overlay-font, Inter)",
     letterSpacing: "-0.02em",
   };
   // The "1%" and "0.1%" suffixes: label font, label weight, +4% tracking, and
@@ -122,8 +122,8 @@ export function FpsSection({ isHorizontal }: FpsSectionProps) {
   const suffixStyle: React.CSSProperties = {
     fontSize: labelFontSize,
     fontWeight: labelFontWeight,
-    color: "var(--overlay-text)",
-    fontFamily: "Inter",
+    color: "var(--overlay-unit, var(--overlay-text))",
+    fontFamily: "var(--overlay-font, Inter)",
     letterSpacing: "0.04em",
   };
 
