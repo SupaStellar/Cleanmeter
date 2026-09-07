@@ -96,7 +96,13 @@ jobs:
       - name: Install desktop runtime and real MangoHud
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-0 libayatana-appindicator3-1 mangohud vulkan-tools mesa-vulkan-drivers xvfb
+          sudo apt-get install -y libwebkit2gtk-4.1-0 libayatana-appindicator3-1 libxnvctrl0 vulkan-tools mesa-vulkan-drivers xvfb
+          curl -fL https://github.com/flightlessmango/MangoHud/releases/download/v0.7.2/MangoHud-0.7.2.r0.g7b80f73.tar.gz -o mangohud.tar.gz
+          echo '16b5a5d39b82825bac69ead0f2dd5c5f2bbc32b973a2f7b117a775a0b8731f58  mangohud.tar.gz' | sha256sum -c -
+          tar -xzf mangohud.tar.gz
+          cd MangoHud
+          tar -xf MangoHud-package.tar
+          sudo bash mangohud-setup.sh install
           mangohud --version
       - name: Verify real Vulkan FPS through the AppImage launcher
         run: |
@@ -105,11 +111,11 @@ jobs:
           "$image" --appimage-extract > /dev/null
           chmod +x squashfs-root/usr/bin/cleanmeter
           export XDG_CACHE_HOME="$RUNNER_TEMP/cleanmeter-live-test"
-          xvfb-run -a squashfs-root/usr/bin/cleanmeter --run vkcube > game.log 2>&1 &
+          xvfb-run -a squashfs-root/AppRun --run vkcube > game.log 2>&1 &
           game=$!
           trap 'kill "$game" 2>/dev/null || true' EXIT
           for attempt in $(seq 1 20); do
-            squashfs-root/usr/bin/cleanmeter --diagnose > diagnostics.json
+            squashfs-root/AppRun --diagnose > diagnostics.json
             if python3 -c 'import json; d=json.load(open("diagnostics.json")); assert any(g["fps"] > 0 and g["frametime"] > 0 for g in d["games"]); assert any(s["name"] == "CPU Total" for s in d["hardware"]["sensors"])'; then
               cat diagnostics.json
               exit 0

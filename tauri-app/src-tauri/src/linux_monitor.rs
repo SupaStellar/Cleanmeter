@@ -92,9 +92,10 @@ pub fn run(
         }
         let now = Instant::now();
         let elapsed = now.duration_since(previous);
-        previous = now;
         match reader.sample(Path::new("/proc"), Path::new("/sys"), elapsed) {
             Ok(mut data) => {
+                // Rates span successful snapshots, including any failed polls.
+                previous = now;
                 if now >= nv_next {
                     nv = nvidia();
                     nv_next = Instant::now() + Duration::from_secs(1);

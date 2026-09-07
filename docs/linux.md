@@ -40,7 +40,7 @@ turn Start at login off and back on to update its path.
 
 Install **MangoHud 0.7.0 or newer** through your distribution or the
 [upstream project](https://github.com/flightlessmango/MangoHud#installation).
-Check with `mangohud --version`. Older distro packages, including 0.6.x, cannot
+Check with `mangohud --version`. Older distro packages, including Ubuntu 22.04/24.04 packages based on 0.6.x, cannot
 provide the live CSV output used here. Hardware monitoring works without MangoHud.
 
 For a native game:
@@ -127,8 +127,13 @@ npm run tauri -- build --bundles deb,rpm,appimage
 
 The platform-specific Tauri configurations keep Windows sidecar resources out of
 Linux bundles. `.github/workflows/linux.yml` builds all three package formats,
-smoke-tests desktop startup, and checks live MangoHud FPS with a software-rendered
+smoke-tests X11 and native Wayland startup, and checks live MangoHud 0.7.2 FPS with a software-rendered
 Vulkan cube on Ubuntu 24.04. Physical GPU drivers, actual games, Fedora installs,
 and native Wayland compositor behavior still need device testing before release.
 Linux updates are installed manually through a downloaded package; the Windows
 in-app updater is disabled for this preview.
+
+The standalone TypeScript check (`npx tsc --noEmit -p tsconfig.app.json`) currently
+reports five pre-existing diagnostics also present on the base Windows branch.
+The Linux changes do not introduce additional diagnostics; lint, frontend unit
+tests, and the production Vite build are checked separately.
