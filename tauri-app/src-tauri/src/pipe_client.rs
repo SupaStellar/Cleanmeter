@@ -35,6 +35,7 @@ const PRESENT_MON_APP_STRIDE: usize = 128;
 /// Events parsed from the pipe read thread
 enum ParsedEvent {
     SensorData(HardwareMonitorData),
+    HardwareStatus(HardwareStatus),
     PresentMonApps(Vec<String>),
 }
 
@@ -407,6 +408,14 @@ pub async fn run_pipe_client(
                                     Err(e) => error!("Failed to parse data packet: {}", e),
                                 }
                             }
+                            Ok(Command::HardwareStatus) => {
+                                match serde_json::from_slice::<HardwareStatus>(&payload) {
+                                    Ok(status) => {
+                                        let _ = event_tx.blocking_send(ParsedEvent::HardwareStatus(status));
+                                    }
+                                    Err(e) => error!("Failed to parse hardware status: {}", e),
+                                }
+                            }
                             Ok(Command::PresentMonApps) => {
                                 match parse_present_mon_apps(&payload) {
                                     Ok(apps) => {
@@ -436,6 +445,9 @@ pub async fn run_pipe_client(
                             match event {
                                 ParsedEvent::SensorData(data) => {
                                     let _ = app_for_read.emit("sensor-data", &data);
+                                }
+                                ParsedEvent::HardwareStatus(status) => {
+                                    let _ = app_for_read.emit("hardware-status", &status);
                                 }
                                 ParsedEvent::PresentMonApps(apps) => {
                                     let _ = app_for_read.emit("present-mon-apps", &apps);

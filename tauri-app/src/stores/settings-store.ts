@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type {
   OverlaySettings,
   HardwareMonitorData,
+  HardwareStatus,
   PipeStatus,
   SidecarStatus,
   SensorKey,
@@ -234,6 +235,8 @@ interface SettingsStore {
   presentMonApps: string[];
   pipeStatus: PipeStatus;
   sidecarStatus: SidecarStatus;
+  hardwareStatus: HardwareStatus | null;
+  setHardwareStatus: (status: HardwareStatus) => void;
   overlayVisible: boolean;
   appVersion: string;
   /**
@@ -298,6 +301,8 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   sensorData: null,
   presentMonApps: [],
   pipeStatus: { connected: false },
+  hardwareStatus: null,
+  setHardwareStatus: (status) => set({ hardwareStatus: status }),
   // Nothing has gone wrong until the supervisor says so, so a launch reads as
   // "still starting" rather than as a failure.
   sidecarStatus: { exits: 0, spawnError: null },
@@ -562,7 +567,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   },
   setPipeStatus: (status) => {
     const wasConnected = get().pipeStatus.connected;
-    set({ pipeStatus: status });
+    set({ pipeStatus: status, ...(!status.connected ? { hardwareStatus: null } : {}) });
     // After a (re)connect, resync the target-app filter — the C# poller
     // restarts with `_currentSelectedApp = NONE`, so without this it would
     // count every app's frames again until the next dropdown change.

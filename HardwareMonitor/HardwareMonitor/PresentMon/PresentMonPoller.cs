@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
@@ -205,6 +205,8 @@ public class PresentMonPoller(ILogger logger)
     // first thing it does.
     internal void InitializeSensors()
     {
+        // The pipe-first host initializes these before accepting commands.
+        if (Displayed != null) return;
         _cultureInfo.NumberFormat.NumberDecimalSeparator = ".";
 
         Displayed = new PresentMonSensor(_hardware, "displayed", 0, "Displayed Frames");

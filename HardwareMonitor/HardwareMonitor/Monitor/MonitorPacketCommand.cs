@@ -1,4 +1,4 @@
-﻿namespace HardwareMonitor.Monitor;
+namespace HardwareMonitor.Monitor;
 
 public enum MonitorPacketCommand : short
 {
@@ -20,5 +20,8 @@ public enum MonitorPacketCommand : short
     /// start; only 2 is new, and an older sidecar rejects it and stays where it
     /// was rather than misreading it.
     /// </summary>
-    SetLowsMode = 5
+    SetLowsMode = 5,
+
+    // Server -> client JSON progress; independent of hardware data packets.
+    HardwareStatus = 6
 }

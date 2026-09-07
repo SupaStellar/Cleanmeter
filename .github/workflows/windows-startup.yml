@@ -1,0 +1,94 @@
+name: Windows startup test build
+
+on:
+  push:
+    branches: [fix/windows-monitor-startup]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-startup-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tauri-app/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tauri-app/src-tauri
+      - name: Test real Windows pipe with blocked hardware
+        run: dotnet test HardwareMonitor/HardwareMonitor.Tests -c Release --logger "trx;LogFileName=sidecar.trx" --results-directory evidence
+      - name: Prove the regression test detects hardware-first startup
+        shell: pwsh
+        run: |
+          $path = 'HardwareMonitor/HardwareMonitor/Monitor/MonitorPoller.cs'
+          $original = Get-Content $path -Raw
+          try {
+            $mutated = $original.Replace('_socketHost.StartServer();', '')
+            $mutated = $mutated.Replace('if (_hardwareOverride != null) await _hardwareOverride(stoppingToken);', 'if (_hardwareOverride != null) { await _hardwareOverride(stoppingToken); _socketHost.StartServer(); }')
+            if ($mutated -eq $original) { throw 'Mutation did not apply' }
+            Set-Content $path $mutated
+            dotnet test HardwareMonitor/HardwareMonitor.Tests -c Release --filter FullyQualifiedName~BlockedHardwareStillAllowsConnectionAndProgressThenLateReadings --logger "trx;LogFileName=ordering-mutation.trx" --results-directory evidence 2>&1 | Tee-Object evidence/ordering-mutation.txt
+            if ($LASTEXITCODE -eq 0) { throw 'Hardware-first mutation unexpectedly passed' }
+            if (-not (Select-String evidence/ordering-mutation.txt -Pattern 'TaskCanceledException|OperationCanceledException' -Quiet)) { throw 'Mutation did not fail by connection timeout' }
+          } finally {
+            Set-Content $path $original -NoNewline
+          }
+          $global:LASTEXITCODE = 0
+      - name: Publish sidecar
+        run: dotnet publish HardwareMonitor/HardwareMonitor -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
+      - name: Stage PresentMon
+        shell: pwsh
+        run: Copy-Item presentmon/* HardwareMonitor/HardwareMonitor/bin/Release/net8.0/win-x64/publish/
+      - name: Rust tests
+        working-directory: tauri-app/src-tauri
+        run: cargo test --lib --target x86_64-pc-windows-msvc
+      - name: Frontend checks
+        working-directory: tauri-app
+        run: |
+          npm ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run lint
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build test installer without publishing a release
+        working-directory: tauri-app
+        shell: pwsh
+        run: |
+          '{"version":"2.2.17-startup.1","bundle":{"createUpdaterArtifacts":false}}' | Set-Content startup-build.json
+          npm run tauri:build -- --bundles nsis --config startup-build.json
+      - name: Prepare download
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force download
+          Copy-Item tauri-app/src-tauri/target/release/bundle/nsis/*.exe download/
+          Copy-Item docs/windows-startup-test.md download/README.md
+          "Commit: $env:GITHUB_SHA" | Set-Content download/BUILD.txt
+          Get-ChildItem download/*.exe | Get-FileHash -Algorithm SHA256 | Format-List | Out-File download/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-startup-test-evidence
+          path: evidence/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cleanmeter-windows-startup-test
+          path: download/
+          if-no-files-found: error

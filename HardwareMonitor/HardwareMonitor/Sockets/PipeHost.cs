@@ -1,13 +1,13 @@
-﻿using System.IO.Pipes;
+using System.IO.Pipes;
 using Microsoft.Extensions.Logging;
 // ReSharper disable FieldCanBeMadeReadOnly.Local
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 
 namespace HardwareMonitor.Sockets;
 
-public class PipeHost(ILogger logger)
+public class PipeHost(ILogger logger, string pipeName = "HardwareMonitor_31337")
 {
-    private readonly string _pipeName = "HardwareMonitor_31337";
+    private readonly string _pipeName = pipeName;
     private List<NamedPipeServerStream> _clients = [];
     private CancellationTokenSource _cancellationTokenSource = new();
     private Task _serverTask;

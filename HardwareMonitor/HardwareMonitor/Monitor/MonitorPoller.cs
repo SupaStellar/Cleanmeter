@@ -1,8 +1,9 @@
-﻿#pragma warning disable CS8601 // Possible null
+#pragma warning disable CS8601 // Possible null
 
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Text.Json;
 using HardwareMonitor.PresentMon;
 using HardwareMonitor.SharedMemory;
 using HardwareMonitor.Sockets;
@@ -12,26 +13,35 @@ using Microsoft.Extensions.Logging;
 
 namespace HardwareMonitor.Monitor;
 
-public class MonitorPoller(
-    IHostApplicationLifetime hostApplicationLifetime,
-    ILogger<MonitorPoller> logger
-) : BackgroundService
+public class MonitorPoller : BackgroundService
 {
-    private readonly Computer _computer = new()
-    {
-        IsCpuEnabled = true,
-        IsGpuEnabled = true,
-        IsMemoryEnabled = true,
-        IsMotherboardEnabled = true,
-        IsControllerEnabled = true,
-        IsNetworkEnabled = true,
-        IsPsuEnabled = true,
-        IsBatteryEnabled = true,
-        IsStorageEnabled = true,
-    };
+    private readonly ILogger<MonitorPoller> logger;
+    private readonly Func<CancellationToken, Task>? _hardwareOverride;
+    private readonly bool _startPresentMon;
+    private readonly MonitorProgress _progress = new();
 
-    private PipeHost _socketHost = new(logger);
-    private readonly PresentMonPoller _presentMonPoller = new(logger);
+    public MonitorPoller(ILogger<MonitorPoller> logger)
+        : this(logger, new PipeHost(logger), null, true) { }
+
+    // Tests replace the hardware operation, not the transport: a real named
+    // pipe must still connect and carry status while that operation is blocked.
+    internal MonitorPoller(ILogger<MonitorPoller> logger, PipeHost pipe,
+        Func<CancellationToken, Task>? hardwareOverride, bool startPresentMon)
+    {
+        this.logger = logger;
+        _socketHost = pipe;
+        _presentMonPoller = new(logger);
+        _hardwareOverride = hardwareOverride;
+        _startPresentMon = startPresentMon;
+    }
+
+    // Open the library first, then enable the same groups one at a time.
+    // LHM 0.9.6 supports enabling groups after Open. This exposes which probe
+    // stalls, and an exception in one group no longer skips every later group.
+    private readonly Computer _computer = new();
+
+    private readonly PipeHost _socketHost;
+    private readonly PresentMonPoller _presentMonPoller;
 
     private short _pollingRate = 500;
     private const short MinimalPollingRate = 33;
@@ -64,35 +74,129 @@ public class MonitorPoller(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        logger.LogInformation("Starting monitor");
+        logger.LogInformation("Starting monitor (pipe-first startup, pid {Pid})", Environment.ProcessId);
+        _presentMonPoller.InitializeSensors();
+        _socketHost.OnClientData += OnClientData;
+        _socketHost.OnClientConnected += OnClientConnected;
+        _presentMonPoller.OnUpdateApps += SendPresentMonAppsToClients;
+        _socketHost.StartServer();
 
-        // The LibreHardwareMonitor kernel driver (WinRing0) can be quarantined
-        // or blocked — Windows Defender flags it as
-        // "VulnerableDriver:WinNT/Winring0", and HVCI / Smart App Control can
-        // refuse to load it. If Open() throws, swallow it so the sidecar keeps
-        // running: FPS (PresentMon) and any sensors that don't need ring0 stay
-        // alive instead of crashing the process into the supervisor's respawn
-        // loop. Only low-level readings (CPU temperature/power via MSRs) are
-        // lost. See SECURITY.md.
+        // Neither transport nor PresentMon depends on LibreHardwareMonitor.
+        // Start runs synchronously up to its first await, so schedule it too.
+        if (_startPresentMon)
+            _ = Task.Run(() => _presentMonPoller.Start(stoppingToken));
+
+        // The worker owns ALL Computer access, including Close in its finally.
+        // A timeout cannot cancel a native call. Never touch or dispose its
+        // Computer from this task, even during shutdown or a reported stall.
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                if (_hardwareOverride != null) await _hardwareOverride(stoppingToken);
+                else await PollHardwareAsync(stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
+            catch (Exception ex)
+            {
+                _progress.Fail();
+                logger.LogError(ex, "Hardware worker stopped at {Stage}", _progress.Read().Stage);
+            }
+        });
+
+        string? lastProblem = null;
         try
         {
-            _computer.Open();
-            _computer.Accept(new UpdateVisitor());
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                var status = _progress.Read();
+                if (status.State is "delayed" or "failed" && lastProblem != status.Stage)
+                {
+                    lastProblem = status.Stage;
+                    logger.LogWarning("Hardware {State} at {Stage} ({ElapsedMs}ms). " +
+                        "The pipe is still available; the native call has NOT been cancelled.",
+                        status.State, status.Stage, status.ElapsedMs);
+                }
+                if (status.State == "ready") lastProblem = null;
+                if (_socketHost.HasConnections())
+                {
+                    // Status is separate from sensor data. No empty/zero
+                    // snapshot is presented as successful hardware monitoring.
+                    using var stream = new MemoryStream();
+                    using var writer = new BinaryWriter(stream);
+                    writer.Write((short)MonitorPacketCommand.HardwareStatus);
+                    writer.Write(JsonSerializer.SerializeToUtf8Bytes(status,
+                        new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
+                    await _socketHost.SendToAllAsync(stream.ToArray());
+                }
+                await Task.Delay(1000, stoppingToken);
+            }
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
+        finally
         {
-            logger.LogError(ex,
-                "LibreHardwareMonitor failed to initialize — the kernel driver may be " +
-                "blocked or quarantined (Windows Defender 'VulnerableDriver:WinNT/Winring0'). " +
-                "Continuing with FPS and any sensors that initialized; low-level CPU sensors " +
-                "may be unavailable.");
+            // The host can stop promptly even if a native driver call never
+            // returns. The hardware worker alone closes hardware if it returns.
+            _socketHost.OnClientData -= OnClientData;
+            _socketHost.OnClientConnected -= OnClientConnected;
+            _presentMonPoller.OnUpdateApps -= SendPresentMonAppsToClients;
+            _socketHost.Close();
+            if (_startPresentMon) _presentMonPoller.Stop();
         }
+    }
+
+    private async Task PollHardwareAsync(CancellationToken stoppingToken)
+    {
+        try
+        {
+            await PollHardwareCoreAsync(stoppingToken);
+        }
+        finally
+        {
+            logger.LogInformation("Closing hardware on its owning worker");
+            _computer.Close();
+        }
+    }
+
+    private async Task PollHardwareCoreAsync(CancellationToken stoppingToken)
+    {
+        _progress.Begin("Opening hardware library");
+        logger.LogInformation("Hardware init: Computer.Open starting (no groups enabled yet)");
+        _computer.Open();
+        logger.LogInformation("Hardware init: Computer.Open completed");
+        stoppingToken.ThrowIfCancellationRequested();
+
+        // Keep LHM's original ordering, including CPU before GPU (Intel GPU
+        // discovery uses the CPU group). Every category previously enabled is
+        // still enabled; no board-specific blacklist or driver change.
+        HardwareDiscovery.Run(new (string, Action)[]
+        {
+            ("Discovering motherboard sensors", () => _computer.IsMotherboardEnabled = true),
+            ("Discovering CPU sensors", () => _computer.IsCpuEnabled = true),
+            ("Discovering memory sensors", () => _computer.IsMemoryEnabled = true),
+            ("Discovering graphics sensors", () => _computer.IsGpuEnabled = true),
+            ("Discovering controller sensors", () => _computer.IsControllerEnabled = true),
+            ("Discovering storage sensors", () => _computer.IsStorageEnabled = true),
+            ("Discovering network sensors", () => _computer.IsNetworkEnabled = true),
+            ("Discovering power supply sensors", () => _computer.IsPsuEnabled = true),
+            ("Discovering battery sensors", () => _computer.IsBatteryEnabled = true),
+        }, _progress, logger, stoppingToken);
+
+        // Read each device separately as well: a thrown first read on one
+        // device should not prevent initial readings from all later devices.
+        HardwareDiscovery.Run(_computer.Hardware.Select(hw =>
+            ($"First sensor read: {hw.Name}", (Action)(() => hw.Accept(new UpdateVisitor())))),
+            _progress, logger, stoppingToken);
 
         // Before anything is logged or mapped, check LibreHardwareMonitor's
         // GPU list against the device tree. Its GPU groups enumerate once, in
         // their constructors, so a vendor SDK that was not ready here would
         // otherwise leave the GPU missing for the whole session.
+        _progress.Begin("Checking graphics adapters");
+        logger.LogInformation("Hardware init: GPU reconciliation starting");
         ReconcileGpus();
+        logger.LogInformation("Hardware init: GPU reconciliation completed");
+        stoppingToken.ThrowIfCancellationRequested();
         _nextGpuReconcileAt = Environment.TickCount64 + GpuReconcileIntervalMs;
 
         // Log discovered hardware and sensor counts for diagnostics
@@ -123,16 +227,7 @@ public class MonitorPoller(
             if (logged >= 10) break;
         }
 
-        // Deliberately not awaited: Start runs for the lifetime of the sidecar.
-        // It returns a Task (rather than being async void) so a failure inside it
-        // can no longer reach the thread pool unhandled and kill the process; it
-        // logs and leaves sensors running instead.
-        _ = _presentMonPoller.Start(stoppingToken);
-        _presentMonPoller.OnUpdateApps += SendPresentMonAppsToClients;
-        _socketHost.StartServer();
-        _socketHost.OnClientData += OnClientData;
-        _socketHost.OnClientConnected += OnClientConnected;
-
+        _progress.Begin("Mapping sensor readings");
         var sharedMemoryData = QueryHardwareData();
         var knownSensorCount = CountActiveSensors();
         var sensorSetChanges = 0;
@@ -142,6 +237,7 @@ public class MonitorPoller(
         var accumulator = 0;
 
         WriteDataToStream(writer, sharedMemoryData);
+        _progress.Ready();
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -153,6 +249,7 @@ public class MonitorPoller(
             {
                 _nextGpuReconcileAt = Environment.TickCount64 + GpuReconcileIntervalMs;
 
+                _progress.Begin("Refreshing graphics adapters");
                 var reconcile = ReconcileGpus();
                 if (reconcile != GpuReconcileResult.Unchanged)
                 {
@@ -170,6 +267,7 @@ public class MonitorPoller(
             if (!_socketHost.HasConnections())
             {
                 //logger.LogInformation("No clients connected, waiting for connections...");
+                _progress.Ready();
                 await Task.Delay(1000, stoppingToken);
                 continue;
             }
@@ -178,6 +276,7 @@ public class MonitorPoller(
             {
                 try
                 {
+                    _progress.Begin($"Reading sensors: {hardware.Name}");
                     hardware.Update();
                 }
                 catch
@@ -200,6 +299,7 @@ public class MonitorPoller(
             // reuses existing entries, so a StopUpdates() suspension above
             // survives. On GPUs that activate everything up front (e.g. NVIDIA
             // via NvAPI) the count never moves and this whole block is a no-op.
+            _progress.Begin("Mapping sensor readings");
             var activeSensorCount = CountActiveSensors();
             if (activeSensorCount != knownSensorCount)
             {
@@ -218,6 +318,7 @@ public class MonitorPoller(
                 MapHardwareData(sharedMemoryData);
             }
 
+            _progress.Begin("Sending sensor readings");
             WriteDataToStream(writer, sharedMemoryData);
 
             if (_socketHost.HasConnections())
@@ -239,12 +340,11 @@ public class MonitorPoller(
             // collection; with a fixed 500 it instead tracked poll count, so at
             // the 33ms floor it forced a full GC roughly every 66ms, about 15x
             // too often, and only matched its intent at the default rate.
+            _progress.Ready();
             accumulator += _pollingRate;
             await Task.Delay(_pollingRate, stoppingToken);
         }
 
-        Stop();
-        hostApplicationLifetime.StopApplication();
     }
 
     private static void WriteDataToStream(BinaryWriter writer, SharedMemoryData sharedMemoryData)
@@ -754,14 +854,6 @@ public class MonitorPoller(
         }
 
         return count;
-    }
-
-    private void Stop()
-    {
-        _computer.Close();
-        _presentMonPoller.Stop();
-        _socketHost.Close();
-        _socketHost.OnClientData -= OnClientData;
     }
 
     private static SharedMemoryHardware MapHardware(IHardware hardware) => new()
