@@ -57,7 +57,8 @@ fn read_sample(path: &Path, now: SystemTime) -> Option<FpsSample> {
     let (fps, frametime) = tail[start..end]
         .lines()
         .rev()
-        .find_map(|l| values(l, cols))?;
+        .find(|l| !l.trim().is_empty())
+        .and_then(|l| values(l, cols))?;
     let stem = path.file_stem()?.to_str()?;
     // MangoHud names logs <program>_YYYY-MM-DD_HH-MM-SS.csv.
     let app = if stem.len() > 20 && stem.is_char_boundary(stem.len() - 20) {
@@ -136,6 +137,11 @@ mod tests {
         assert_eq!(sample.app, "game");
         assert_eq!(sample.fps, 120.0);
         assert!(read_sample(&p, SystemTime::now() + Duration::from_secs(10)).is_none());
+        fs::write(&p, "fps,frametime\n60,16.6\n0,0\n").unwrap();
+        assert!(
+            read_sample(&p, SystemTime::now()).is_none(),
+            "a fresh invalid row must not revive old FPS"
+        );
         fs::remove_dir_all(dir).unwrap();
     }
 }

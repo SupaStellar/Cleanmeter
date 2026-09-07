@@ -163,7 +163,7 @@ function ShortcutsSection() {
           accelerator={overlayAccelerator}
           defaultAccelerator={OVERLAY_SHORTCUT_DEFAULT}
           onChange={(overlayShortcut) => updateSettings({ overlayShortcut })}
-          conflictsWith={{ "Start/stop FPS lows recording": recordingAccelerator }}
+          conflictsWith={platform.percentileLows ? { "Start/stop FPS lows recording": recordingAccelerator } : {}}
           className="gap-[var(--spacingL)]"
         />
         {platform.percentileLows && <ShortcutField

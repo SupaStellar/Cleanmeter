@@ -34,6 +34,7 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf rpm xvfb dbus-x11
       - run: npm ci
       - run: npm run lint && npm test && npm run build
+      - run: python3 src-tauri/linux/test_launcher.py
       - name: Test native backend
         run: cargo test --locked --manifest-path src-tauri/Cargo.toml --lib
       - name: Build Linux packages
@@ -60,3 +61,45 @@ jobs:
             tauri-app/src-tauri/target/release/bundle/rpm/*.rpm
             tauri-app/src-tauri/target/release/bundle/appimage/*.AppImage
             tauri-app/linux-smoke.log
+
+  live-fps:
+    needs: linux
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: cleanmeter-linux-x86_64
+          path: packages
+      - name: Install desktop runtime and real MangoHud
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-0 libayatana-appindicator3-1 mangohud vulkan-tools mesa-vulkan-drivers xvfb
+          mangohud --version
+      - name: Verify real Vulkan FPS through the AppImage launcher
+        run: |
+          image=$(find packages -name '*.AppImage' -print -quit)
+          chmod +x "$image"
+          "$image" --appimage-extract > /dev/null
+          chmod +x squashfs-root/usr/bin/cleanmeter
+          export XDG_CACHE_HOME="$RUNNER_TEMP/cleanmeter-live-test"
+          xvfb-run -a squashfs-root/usr/bin/cleanmeter --run vkcube > game.log 2>&1 &
+          game=$!
+          trap 'kill "$game" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 20); do
+            squashfs-root/usr/bin/cleanmeter --diagnose > diagnostics.json
+            if python3 -c 'import json; d=json.load(open("diagnostics.json")); assert any(g["fps"] > 0 and g["frametime"] > 0 for g in d["games"]); assert any(s["name"] == "CPU Total" for s in d["hardware"]["sensors"])'; then
+              cat diagnostics.json
+              exit 0
+            fi
+            sleep 1
+          done
+          cat game.log
+          exit 1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cleanmeter-live-fps-evidence
+          path: |
+            diagnostics.json
+            game.log

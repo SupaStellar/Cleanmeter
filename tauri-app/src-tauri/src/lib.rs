@@ -401,6 +401,15 @@ pub fn run() {
                         let _=overlay.set_focusable(true);
                         let _=overlay.set_skip_taskbar(false);
                         let _=overlay.set_title("Cleanmeter — hardware monitor");
+                        let handle = app.handle().clone();
+                        let monitor = overlay.clone();
+                        overlay.on_window_event(move |event| {
+                            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                                api.prevent_close();
+                                let _ = monitor.hide();
+                                let _ = handle.emit("hotkey", "hide-overlay");
+                            }
+                        });
                     }
                 }
             }
@@ -735,4 +744,10 @@ pub fn run() {
                 }
             }
         });
+}
+
+/// Print a read-only hardware/FPS snapshot without opening a desktop window.
+#[cfg(target_os = "linux")]
+pub fn linux_diagnostics() -> Result<(), String> {
+    linux_monitor::diagnostics()
 }

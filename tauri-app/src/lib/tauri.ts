@@ -290,3 +290,9 @@ export const getPlatformInfo = () => {
   }
   return safeInvoke<PlatformInfo>("get_platform_info");
 };
+
+export const quitApp = async (): Promise<void> => {
+  if (isBrowser) return;
+  const { exit } = await import("@tauri-apps/plugin-process");
+  await exit(0);
+};

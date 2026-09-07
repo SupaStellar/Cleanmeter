@@ -119,7 +119,7 @@ export default function OverlayApp() {
   // HUD pixels — never freezes the rest of the desktop.
   useEffect(() => {
     const el = hudRef.current;
-    if (!el || monitors.length === 0) return;
+    if (!el || (canPosition && monitors.length === 0)) return;
     const monitor = monitors[settings.selectedDisplayIndex] ?? monitors[0];
 
     const apply = () => {
@@ -130,6 +130,7 @@ export default function OverlayApp() {
       const hudH = Math.max(1, Math.ceil(rect.height * scale));
       hudSizeRef.current = { w: hudW, h: hudH };
       setOverlaySize(hudW, hudH);
+      if (!canPosition) return;
 
       // Skip position updates while the user is actively dragging.
       if (dragStart.current) return;
@@ -179,6 +180,7 @@ export default function OverlayApp() {
     // changes — not on every settings update (font sizes, sensor toggles,
     // etc. would otherwise round-trip a no-op setOverlayPosition).
   }, [
+    canPosition,
     settings.selectedDisplayIndex,
     settings.useCustomPosition,
     settings.positionX,

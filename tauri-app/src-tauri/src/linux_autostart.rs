@@ -22,7 +22,7 @@ fn desktop_exec(exe: &str) -> Result<String, String> {
     Ok(out)
 }
 pub fn set(config: &Path, exe: &Path, enabled: bool) -> Result<(), String> {
-    let path = config.join("autostart/com.cleanmeter.desktop.desktop");
+    let path = config.join("autostart/com.cleanmeter.desktop");
     if !enabled {
         return match fs::remove_file(path) {
             Ok(()) => Ok(()),
@@ -35,7 +35,7 @@ pub fn set(config: &Path, exe: &Path, enabled: bool) -> Result<(), String> {
     fs::write(path,format!("[Desktop Entry]\nType=Application\nName=Cleanmeter\nExec={exec}\nTerminal=false\nX-GNOME-Autostart-enabled=true\n")).map_err(|e|e.to_string())
 }
 pub fn enabled(config: &Path) -> bool {
-    fs::read_to_string(config.join("autostart/com.cleanmeter.desktop.desktop"))
+    fs::read_to_string(config.join("autostart/com.cleanmeter.desktop"))
         .map(|s| {
             !s.lines()
                 .any(|l| matches!(l.trim(), "Hidden=true" | "X-GNOME-Autostart-enabled=false"))
@@ -53,5 +53,28 @@ mod tests {
         );
         assert_eq!(desktop_exec("/tmp/$HOME").unwrap(), "\"/tmp/\\\\$HOME\"");
         assert!(desktop_exec("a\nb").is_err());
+    }
+
+    #[test]
+    fn toggles_only_our_autostart_entry() {
+        let root = std::env::temp_dir().join(format!(
+            "cleanmeter-autostart-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(root.join("autostart")).unwrap();
+        let other = root.join("autostart/another.desktop");
+        fs::write(&other, "other app").unwrap();
+        assert!(!enabled(&root));
+        set(&root, Path::new("/apps/Clean meter.AppImage"), true).unwrap();
+        assert!(enabled(&root));
+        set(&root, Path::new("/apps/Clean meter.AppImage"), false).unwrap();
+        assert!(!enabled(&root));
+        set(&root, Path::new("/apps/Clean meter.AppImage"), false).unwrap();
+        assert_eq!(fs::read_to_string(other).unwrap(), "other app");
+        fs::remove_dir_all(root).unwrap();
     }
 }

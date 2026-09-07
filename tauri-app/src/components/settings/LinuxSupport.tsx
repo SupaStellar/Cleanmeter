@@ -1,3 +1,4 @@
+import { quitApp } from "@/lib/tauri";
 import { usePlatformStore } from "@/stores/platform-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { Switch } from "@/components/shadcn/switch";
@@ -18,7 +19,8 @@ export function LinuxSupport() {
           ? "Linux preview · X11/XWayland. Overlay visibility in fullscreen games depends on your desktop."
           : "Wayland controls window placement. Use the monitor as a separate window, or sign in with an X11 session for overlay positioning and global shortcuts."}
       </p>
-      <p className="text-[13px] text-muted-foreground">Temperature, power, and GPU readings depend on your hardware driver. Unavailable sensors are not collected.</p>
+      <p className="text-[13px] text-muted-foreground">Temperature, power, and GPU readings depend on your hardware driver. Unavailable readings show a dash. CPU power is not collected in this preview.</p>
+      <button type="button" onClick={() => void quitApp()} className="self-start rounded-[var(--cornerS)] text-[13px] underline focus-visible:shadow-focus-default">Quit Cleanmeter</button>
     </section>
   );
 }

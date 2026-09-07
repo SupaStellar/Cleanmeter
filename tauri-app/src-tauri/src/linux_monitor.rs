@@ -173,3 +173,30 @@ pub fn run(
     }
     let _ = app.emit("pipe-status", PipeStatus { connected: false });
 }
+
+/// Useful for driver troubleshooting and an end-to-end Linux smoke test.
+pub fn diagnostics() -> Result<(), String> {
+    let mut reader = LinuxSensors::default();
+    reader.sample(Path::new("/proc"), Path::new("/sys"), Duration::ZERO)?;
+    let start = Instant::now();
+    std::thread::sleep(Duration::from_millis(250));
+    let mut data = reader.sample(Path::new("/proc"), Path::new("/sys"), start.elapsed())?;
+    append_nvidia(&mut data, &nvidia());
+    let dir = dirs::cache_dir()
+        .unwrap_or_else(std::env::temp_dir)
+        .join("cleanmeter/fps");
+    let games: Vec<_> = linux_fps::samples(&dir)
+        .iter()
+        .map(|s| {
+            serde_json::json!({
+                "app": s.app, "fps": s.fps, "frametime": s.frametime
+            })
+        })
+        .collect();
+    let output = serde_json::json!({ "hardware": data, "games": games });
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&output).map_err(|e| e.to_string())?
+    );
+    Ok(())
+}

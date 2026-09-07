@@ -143,8 +143,9 @@ export function FpsSection() {
       </div>
       {platform.os === "linux" && (
         <div className="flex flex-col gap-2 text-[13px] text-muted-foreground">
-          <p>Install MangoHud, then launch your game with <code>cleanmeter-run</code>. Steam launch options:</p>
+          <p>Install MangoHud 0.7.0 or newer, then launch your game with <code>cleanmeter-run</code>. Steam launch options:</p>
           <code className="select-text rounded bg-muted p-2">cleanmeter-run %command%</code>
+          <p>Using AppImage? Run <code>./Cleanmeter.AppImage --run your-game</code> instead.</p>
           <p>FPS and frametime are sampled every 100 ms. Percentile lows and benchmark recording require per-frame capture and are unavailable in this Linux preview.</p>
           {presentMonApps.length === 0 && <p>No game telemetry yet. Start a game with the launcher above.</p>}
         </div>

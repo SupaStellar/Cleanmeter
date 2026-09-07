@@ -273,6 +273,7 @@ pub fn bring_to_front(window: &tauri::WebviewWindow) {
 /// everywhere else the plain call is already the right one.
 #[cfg(not(windows))]
 pub fn bring_to_front(window: &tauri::WebviewWindow) {
+    let _ = window.unminimize();
     let _ = window.set_focus();
 }
 

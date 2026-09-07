@@ -39,7 +39,7 @@ function MonitoringBanner() {
   }, []);
 
   const verdict = monitoringVerdict({
-    hasSensorData: !!sensorData,
+    hasSensorData: !!sensorData && (!linux || !sidecarStatus.spawnError),
     sidecar: sidecarStatus,
     graceExpired,
   });

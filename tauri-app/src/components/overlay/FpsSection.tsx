@@ -76,7 +76,7 @@ export function FpsSection({ isHorizontal }: FpsSectionProps) {
   const onePercentValue = Math.round(onePercentLowSensor?.value ?? 0);
   const zeroPointOneValue = Math.round(zeroPointOneLowSensor?.value ?? 0);
   const lastFrametime = frametimeHistory.length > 0 ? frametimeHistory[frametimeHistory.length - 1] : 0;
-  const showFrametime = frametime.isEnabled && frametimeHistory.length > 2;
+  const showFrametime = frametime.isEnabled && frametimeHistory.length > 2 && (lowsSupported || !!fpsSensor);
   // A low with no reading yet reads 0, and the cluster STAYS on screen.
   //
   // The sidecar reports 0 while it warms up — LOWS_MIN_TOTAL_MS is 5s, and
@@ -165,7 +165,7 @@ export function FpsSection({ isHorizontal }: FpsSectionProps) {
   );
   const valueText = framerate.isEnabled && (
     <span style={valueStyle} className="tabular-nums">
-      {formatValue(fpsValue)}
+      {!lowsSupported && !fpsSensor ? "—" : formatValue(fpsValue)}
     </span>
   );
   // Only ever BETWEEN things. With the average hidden it would lead the pill,

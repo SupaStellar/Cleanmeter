@@ -448,11 +448,43 @@ mod tests {
         )
         .unwrap();
         fs::write(root.join("net/dev"), "eth0: 100 0 0 0 0 0 0 0 200").unwrap();
+        let gpu = root.join("class/drm/card0/device");
+        fs::create_dir_all(gpu.join("hwmon/hwmon0")).unwrap();
+        for (file, value) in [
+            ("vendor", "0x1002"),
+            ("gpu_busy_percent", "42"),
+            ("mem_info_vram_used", "1073741824"),
+            ("mem_info_vram_total", "4294967296"),
+            ("hwmon/hwmon0/temp1_input", "65000"),
+            ("hwmon/hwmon0/power1_average", "125000000"),
+        ] {
+            fs::write(gpu.join(file), value).unwrap();
+        }
         let mut s = LinuxSensors::default();
         s.sample(&root, &root, Duration::from_secs(1)).unwrap();
         fs::write(root.join("stat"), "cpu 150 0 0 150 0 0 0 0").unwrap();
         fs::write(root.join("net/dev"), "eth0: 1100 0 0 0 0 0 0 0 2200").unwrap();
         let d = s.sample(&root, &root, Duration::from_millis(500)).unwrap();
+        assert!(d
+            .hardwares
+            .iter()
+            .any(|h| h.hardware_type == HardwareType::GpuAmd));
+        for (name, kind, expected) in [
+            ("GPU Core", SensorType::Load, 42.0),
+            ("GPU Core", SensorType::Temperature, 65.0),
+            ("GPU Power", SensorType::Power, 125.0),
+            ("GPU Memory Used", SensorType::SmallData, 1024.0),
+            ("GPU Memory", SensorType::Load, 25.0),
+        ] {
+            assert_eq!(
+                d.sensors
+                    .iter()
+                    .find(|s| s.name == name && s.sensor_type == kind)
+                    .unwrap()
+                    .value,
+                expected
+            );
+        }
         assert_eq!(
             d.sensors
                 .iter()
