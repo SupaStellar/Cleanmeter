@@ -259,9 +259,9 @@ export const submitFeedback = (input: {
   return safeInvoke("submit_feedback", { input });
 };
 
-// Opens the OS image picker and returns the absolute path + display name.
+// Opens the OS attachment picker and returns the absolute path + display name.
 // Browser preview has no Tauri runtime, so it returns null (no-op).
-export const pickImageAttachment = async (): Promise<
+export const pickFeedbackAttachment = async (): Promise<
   { path: string; name: string } | null
 > => {
   if (isBrowser) return null;
@@ -269,7 +269,11 @@ export const pickImageAttachment = async (): Promise<
   const selected = await open({
     multiple: false,
     directory: false,
-    filters: [{ name: "Image", extensions: ["png", "jpg", "jpeg", "webp", "gif"] }],
+    filters: [
+      { name: "Images and logs", extensions: ["png", "jpg", "jpeg", "webp", "gif", "log", "txt"] },
+      { name: "Log files", extensions: ["log", "txt"] },
+      { name: "Images", extensions: ["png", "jpg", "jpeg", "webp", "gif"] },
+    ],
   });
   if (typeof selected !== "string") return null;
   const name = selected.split(/[/\\]/).pop() ?? "attachment";
