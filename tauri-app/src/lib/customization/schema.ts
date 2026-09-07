@@ -42,7 +42,16 @@ const record = (v: unknown): Record<string, unknown> => v !== null && typeof v =
 const number = (v: unknown, fallback: number, min: number, max: number) => typeof v === "number" && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fallback;
 const color = (v: unknown, fallback: string) => typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v) ? v : fallback;
 export function validImage(v: unknown): v is string {
-  return typeof v === "string" && v.length <= MAX_IMAGE_CHARS && (v === "" || /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(v));
+  if (typeof v !== "string" || v.length > MAX_IMAGE_CHARS) return false;
+  if (v === "") return true;
+  const match = /^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})$/.exec(v);
+  if (!match || match[2].length % 4 !== 0) return false;
+  try {
+    const header = atob(match[2].slice(0, 32));
+    if (match[1] === "png") return header.startsWith("\x89PNG\r\n\x1a\n");
+    if (match[1] === "jpeg") return header.startsWith("\xff\xd8\xff");
+    return header.startsWith("RIFF") && header.slice(8, 12) === "WEBP";
+  } catch { return false; }
 }
 function surface(value: unknown, fallback: Surface): Surface {
   const v = record(value);

@@ -17,15 +17,15 @@ export function CustomGauge({ style, value, max = 100, color, size = 20 }: {
     const radius = 9, length = 2 * Math.PI * radius * sweep / 360;
     const rotation = sweep === 180 ? -180 : sweep === 270 ? -225 : -90;
     const width = style === "thin-ring" ? 1 : style === "pie" ? 9 : style === "donut" ? 5 : 2.5;
-    const segments = style === "dotted-ring" ? 12 : 24;
+    const segments = style === "dotted-ring" || style === "dashed-ring" ? 12 : 24;
     body = <>
-      {["dotted-ring", "radial-ticks", "compass"].includes(style) ? Array.from({ length: segments }, (_, i) => {
+      {["dotted-ring", "dashed-ring", "radial-ticks", "compass"].includes(style) ? Array.from({ length: segments }, (_, i) => {
         const a = i / segments * Math.PI * 2 - Math.PI / 2, [x, y] = point(a, 9), [x2, y2] = point(a, style === "compass" && i % 6 === 0 ? 5 : 7);
+        if (style === "dashed-ring") return <circle key={i} cx="12" cy="12" r="9" fill="none" stroke={active(i, segments)} strokeWidth="2.5" strokeDasharray="3.4 100" transform={`rotate(${i * 30 - 90} 12 12)`} />;
         return style === "dotted-ring" ? <circle key={i} cx={x} cy={y} r={1.25} fill={active(i, segments)} /> : <line key={i} x1={x} y1={y} x2={x2} y2={y2} stroke={active(i, segments)} strokeWidth={style === "compass" && i % 6 === 0 ? 2 : 1} />;
       }) : <>
         <circle cx="12" cy="12" r={radius} fill="none" stroke={track} strokeWidth={width} strokeDasharray={`${length} 100`} transform={`rotate(${rotation} 12 12)`} />
         <circle cx="12" cy="12" r={radius} fill="none" stroke={color} strokeWidth={width} strokeDasharray={`${p * length} 100`} transform={`rotate(${rotation} 12 12)`} />
-        {style === "dashed-ring" && Array.from({ length: 12 }, (_, i) => <line key={i} x1="12" y1="1" x2="12" y2="5" transform={`rotate(${i * 30} 12 12)`} stroke="var(--overlay-gauge-cutout, #1e1e1e)" strokeWidth="1.5" />)}
       </>}
       {style === "double-ring" && <circle cx="12" cy="12" r="5.5" fill="none" stroke={color} strokeWidth="1" strokeDasharray={`${p * 34.56} 100`} transform="rotate(90 12 12)" />}
       {style === "needle" && <><line x1="12" y1="12" x2={point(Math.PI + p * Math.PI, 8)[0]} y2={point(Math.PI + p * Math.PI, 8)[1]} stroke={color} strokeWidth="1.5" /><circle cx="12" cy="12" r="2" fill={color} /></>}

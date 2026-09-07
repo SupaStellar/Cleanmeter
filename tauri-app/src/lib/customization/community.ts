@@ -11,7 +11,7 @@ async function request(action: "list" | "get" | "submit", args: { id?: string; p
   if (!base) throw new Error("Community preview is not configured. Local presets are available offline.");
   const url = new URL(action === "get" ? `/api/presets/${args.id}` : "/api/presets", base);
   if (action === "list") url.searchParams.set("page", String(args.page ?? 0));
-  const response = await fetch(url, { method: action === "submit" ? "POST" : "GET", headers: { "Content-Type": "application/json" }, body: action === "submit" ? JSON.stringify(args.preset) : undefined, signal: AbortSignal.timeout(20000), credentials: "omit" });
+  const response = await fetch(url, { method: action === "submit" ? "POST" : "GET", headers: action === "submit" ? { "Content-Type": "application/json" } : undefined, body: action === "submit" ? JSON.stringify(args.preset) : undefined, signal: AbortSignal.timeout(20000), credentials: "omit" });
   if (!response.ok) throw new Error(response.status === 429 ? "Please wait before submitting again." : "Community gallery unavailable. Try again later.");
   const text = await response.text();
   if (text.length > MAX_PRESET_BYTES + 50000) throw new Error("Community response too large.");

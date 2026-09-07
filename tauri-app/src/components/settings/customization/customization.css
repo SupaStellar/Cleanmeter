@@ -15,7 +15,7 @@
   outline-offset: 2px;
 }
 /* Keep DialKit controls offline and consistent with the installed app fonts. */
-.customization-controls { font-family: Inter, sans-serif; }
+.customization-controls { font-family: Inter, sans-serif; --overlay-track: var(--borderBold); }
 .customization-controls * { --dial-font-mono: Consolas, monospace; }
 
 .customization-controls :is(.dialkit-slider-wrapper, .dialkit-select-row, .dialkit-color-control, .dialkit-toggle) { margin-block: 4px; }
