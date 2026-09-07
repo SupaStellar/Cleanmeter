@@ -22,6 +22,9 @@ The exact failing native call has not been established.
    `LogFiles/<date>/Log.txt` beside it. Share this log with the stage text.
    It includes process ID and startup milestones. Review it before sharing;
    it can include hardware names and running application names.
+6. Also collect `%LOCALAPPDATA%\Cleanmeter\Logs\cleanmeter.log`. This records
+   the app version, executable paths, sidecar PID, pipe errors, and whether a
+   first sensor packet reached the Rust client. Paths can contain your username.
 
 The installer has no new signing certificate; it is an unsigned development
 build if repository signing is not configured. This workflow does not publish a

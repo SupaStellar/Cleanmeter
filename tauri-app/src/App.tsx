@@ -59,7 +59,7 @@ function MonitoringBanner() {
 
   if (hardwareStatus && hardwareStatus.state !== "ready") {
     return (
-      <div className="border-b border-[var(--borderSubtle)] bg-[var(--bgSurfaceRaised)] px-4 py-2.5 text-[13px] leading-snug text-[var(--textBody)]" role="status">
+      <div className="border-b border-[var(--borderSubtle)] bg-[var(--bgSurfaceRaised)] px-4 py-2.5 text-[13px] leading-snug text-[var(--textParagraph1)]" role="status">
         <strong>Hardware readings unavailable.</strong>{" "}
         {hardwareStatus.stage} has {hardwareStatus.state === "failed" ? "failed" : "not finished"}.
         {" "}Cleanmeter is connected, but sensors are not ready. If this persists, share the HardwareMonitor log from its LogFiles folder.

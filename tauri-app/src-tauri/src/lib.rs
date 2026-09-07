@@ -255,7 +255,26 @@ pub fn run() {
         return;
     }
 
-    env_logger::init();
+    // A packaged GUI has no console. Persist connection/spawn diagnostics so
+    // a report can distinguish "server never opened" from a client failure.
+    let mut logger = env_logger::Builder::from_env(
+        env_logger::Env::default().default_filter_or("info"),
+    );
+    if let Some(base) = dirs::data_local_dir() {
+        let dir = base.join("Cleanmeter").join("Logs");
+        if std::fs::create_dir_all(&dir).is_ok() {
+            let path = dir.join("cleanmeter.log");
+            // Keep the previous log when rotating; never truncate on every
+            // launch (a second-instance invocation could erase the evidence).
+            if path.metadata().map(|m| m.len() > 2 * 1024 * 1024).unwrap_or(false) {
+                let _ = std::fs::rename(&path, dir.join("cleanmeter.previous.log"));
+            }
+            if let Ok(file) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+                logger.target(env_logger::Target::Pipe(Box::new(file)));
+            }
+        }
+    }
+    let _ = logger.try_init();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
@@ -272,7 +291,8 @@ pub fn run() {
             }
         }))
         .setup(|app| {
-            info!("Cleanmeter starting up...");
+            info!("Cleanmeter {} starting (pid {}, executable {:?})",
+                app.package_info().version, std::process::id(), std::env::current_exe());
 
             // Initialize the settings manager early so startup can read the
             // start_minimized preference before deciding whether to show the
@@ -409,6 +429,7 @@ pub fn run() {
                             .and_then(|p| p.parent().map(|d| d.join("HardwareMonitor.exe")))
                     })
                     .unwrap_or_else(|| std::path::PathBuf::from("HardwareMonitor.exe"));
+                info!("HardwareMonitor executable: {}", hw_exe.display());
 
                 // The PawnIO installer is bundled beside the sidecar as a Tauri
                 // resource; resolve it the same way so first-launch driver setup

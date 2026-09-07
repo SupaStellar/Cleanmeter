@@ -430,6 +430,7 @@ pub async fn run_pipe_client(
                 });
 
                 // Async loop: forward events to Tauri and handle outgoing commands
+                let mut received_sensor_data = false;
                 while let Some(input) =
                     crate::pipe_input::next_input(&mut cmd_rx, &mut event_rx).await
                 {
@@ -444,6 +445,11 @@ pub async fn run_pipe_client(
                         crate::pipe_input::PipeInput::Event(event) => {
                             match event {
                                 ParsedEvent::SensorData(data) => {
+                                    if !received_sensor_data {
+                                        info!("First sensor packet received: {} hardware entries, {} sensors",
+                                            data.hardwares.len(), data.sensors.len());
+                                        received_sensor_data = true;
+                                    }
                                     let _ = app_for_read.emit("sensor-data", &data);
                                 }
                                 ParsedEvent::HardwareStatus(status) => {

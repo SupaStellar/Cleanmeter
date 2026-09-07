@@ -75,7 +75,7 @@ jobs:
         working-directory: tauri-app
         shell: pwsh
         run: |
-          '{"version":"2.2.17-startup.1","bundle":{"createUpdaterArtifacts":false}}' | Set-Content startup-build.json
+          '{"version":"2.2.17-startup.2","bundle":{"createUpdaterArtifacts":false}}' | Set-Content startup-build.json
           npm run tauri:build -- --bundles nsis --config startup-build.json
       - name: Prepare download
         shell: pwsh

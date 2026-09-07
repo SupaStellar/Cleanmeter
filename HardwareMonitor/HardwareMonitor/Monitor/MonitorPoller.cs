@@ -182,6 +182,13 @@ public class MonitorPoller : BackgroundService
             ("Discovering battery sensors", () => _computer.IsBatteryEnabled = true),
         }, _progress, logger, stoppingToken);
 
+        // LHM sets IsGpuEnabled only after all vendor groups are added. If
+        // enabling throws partway through, some groups can exist while the
+        // flag is still false; toggling false/true would not tear them down
+        // and could add duplicates. Keep any surviving groups for this run.
+        if (!_computer.IsGpuEnabled)
+            _gpuGroupRebuilds = MaxGpuGroupRebuilds;
+
         // Read each device separately as well: a thrown first read on one
         // device should not prevent initial readings from all later devices.
         HardwareDiscovery.Run(_computer.Hardware.Select(hw =>
