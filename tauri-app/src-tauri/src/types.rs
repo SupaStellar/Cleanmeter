@@ -372,6 +372,10 @@ pub struct OverlaySettings {
     // struct comment above).
     #[serde(rename = "pixelShift", default)]
     pub pixel_shift: bool,
+    #[serde(rename = "pixelShiftDistance", default = "default_pixel_shift_distance")]
+    pub pixel_shift_distance: u32,
+    #[serde(rename = "pixelShiftInterval", default = "default_pixel_shift_interval")]
+    pub pixel_shift_interval: u32,
     // Hardware identifier of the GPU every GPU reading is taken from, e.g.
     // "/gpu-nvidia/0". Empty means "not chosen yet", which the app resolves on
     // load. Machines with one GPU never show the control that sets this.
@@ -435,6 +439,8 @@ impl Default for OverlaySettings {
             polling_rate: 500,
             is_logging_enabled: false,
             pixel_shift: false,
+            pixel_shift_distance: default_pixel_shift_distance(),
+            pixel_shift_interval: default_pixel_shift_interval(),
             selected_gpu_id: String::new(),
             recording_shortcut: default_recording_shortcut(),
             overlay_shortcut: default_overlay_shortcut(),
@@ -507,6 +513,21 @@ pub struct MonitorInfo {
 mod tests {
     use super::*;
 
+    #[test]
+    fn pixel_shift_defaults_and_round_trip() {
+        let mut value = serde_json::to_value(OverlaySettings::default()).unwrap();
+        value.as_object_mut().unwrap().remove("pixelShiftDistance");
+        value.as_object_mut().unwrap().remove("pixelShiftInterval");
+        let mut loaded: OverlaySettings = serde_json::from_value(value).unwrap();
+        assert_eq!(loaded.pixel_shift_distance, 6);
+        assert_eq!(loaded.pixel_shift_interval, 3);
+        loaded.pixel_shift_distance = 12;
+        loaded.pixel_shift_interval = 30;
+        let restored: OverlaySettings = serde_json::from_str(&serde_json::to_string(&loaded).unwrap()).unwrap();
+        assert_eq!(restored.pixel_shift_distance, 12);
+        assert_eq!(restored.pixel_shift_interval, 30);
+    }
+
     /// The settings file is written by deserialising the app's JSON into
     /// OverlaySettings and serialising it straight back out, so any field the
     /// struct does not model is dropped on the first save. That is silent, and
@@ -566,3 +587,5 @@ pub enum HardwareState {
     Delayed,
     Failed,
 }
+fn default_pixel_shift_distance() -> u32 { 6 }
+fn default_pixel_shift_interval() -> u32 { 3 }
