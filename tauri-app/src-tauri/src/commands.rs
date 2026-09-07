@@ -575,32 +575,9 @@ pub async fn submit_feedback(input: FeedbackInput) -> Result<(), String> {
         .text("os", std::env::consts::OS);
 
     if let Some(path) = input.attachment_path.as_deref() {
-        let bytes = tokio::fs::read(path)
-            .await
-            .map_err(|e| format!("read attachment: {e}"))?;
         let file_path = std::path::Path::new(path);
-        let filename = file_path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("attachment")
-            .to_string();
-        // The portal validates the part's content type against an image
-        // allowlist; reqwest defaults to application/octet-stream, so the
-        // mime must be set explicitly (extensions per pickImageAttachment).
-        let mime = match file_path
-            .extension()
-            .and_then(|e| e.to_str())
-            .map(|e| e.to_ascii_lowercase())
-            .as_deref()
-        {
-            Some("png") => "image/png",
-            Some("jpg") | Some("jpeg") => "image/jpeg",
-            Some("webp") => "image/webp",
-            Some("gif") => "image/gif",
-            // The portal would reject anything else anyway (opaque 400);
-            // fail fast with an actionable message instead.
-            _ => return Err("attachment must be a png, jpg, webp, or gif image".to_string()),
-        };
+        let (bytes, mime) = crate::feedback_attachment::read(file_path).await?;
+        let filename = file_path.file_name().and_then(|n| n.to_str()).unwrap_or("attachment").to_string();
         let part = reqwest::multipart::Part::bytes(bytes)
             .file_name(filename)
             .mime_str(mime)

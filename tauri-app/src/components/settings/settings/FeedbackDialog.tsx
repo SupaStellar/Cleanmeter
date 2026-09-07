@@ -12,7 +12,7 @@ import { Input } from "@/app/components/Input";
 import { Textarea } from "@/app/components/Textarea";
 import { Button } from "@/app/components/Button";
 import { cn } from "@/lib/utils";
-import { submitFeedback, pickImageAttachment } from "@/lib/tauri";
+import { submitFeedback, pickFeedbackAttachment } from "@/lib/tauri";
 
 // Close icon — Figma 2488:5953 (20×20, #61646C → iconBolderActive).
 function CloseIcon({ className }: { className?: string }) {
@@ -63,11 +63,12 @@ export interface FeedbackDialogProps {
 export function FeedbackDialog({
   open,
   onOpenChange,
-  pickAttachment = pickImageAttachment,
+  pickAttachment = pickFeedbackAttachment,
 }: FeedbackDialogProps) {
   const [name, setName] = React.useState("");
   const [message, setMessage] = React.useState("");
   const [attachment, setAttachment] = React.useState<Attachment | null>(null);
+  const [error, setError] = React.useState("");
   const [status, setStatus] = React.useState<Status>("idle");
 
   // Reset everything whenever the dialog closes.
@@ -77,14 +78,20 @@ export function FeedbackDialog({
       setMessage("");
       setAttachment(null);
       setStatus("idle");
+      setError("");
     }
   }, [open]);
 
   const canSubmit = message.trim() !== "" && status !== "submitting";
 
   const handlePick = async () => {
-    const picked = await pickAttachment();
-    if (picked) setAttachment(picked);
+    try {
+      const picked = await pickAttachment();
+      if (picked) { setAttachment(picked); setStatus("idle"); setError(""); }
+    } catch (err) {
+      setError(`Couldn’t select an attachment: ${String(err)}`);
+      setStatus("error");
+    }
   };
 
   const handleSubmit = async () => {
@@ -101,6 +108,7 @@ export function FeedbackDialog({
       // Surface the underlying Rust error (e.g. "request failed", "portal
       // returned 401") so failures are diagnosable instead of opaque.
       console.error("submit_feedback failed:", err);
+      setError(String(err));
       setStatus("error");
     }
   };
@@ -177,6 +185,7 @@ export function FeedbackDialog({
                 <button
                   type="button"
                   aria-label="Remove attachment"
+                  disabled={status === "submitting"}
                   onClick={() => setAttachment(null)}
                   className="flex size-5 shrink-0 items-center justify-center rounded-[4px] text-[var(--iconBolderActive)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
@@ -187,16 +196,18 @@ export function FeedbackDialog({
 
             <button
               type="button"
+              disabled={status === "submitting"}
               onClick={handlePick}
               className="flex w-fit items-center gap-2 rounded-[4px] text-[var(--textHeading)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <PlusIcon className="size-5" />
-              <span className="text-body-sm-medium">Add attachment</span>
+              <span className="text-body-sm-medium">Attach image or log</span>
             </button>
 
+            <p className="text-body-sm-regular text-[var(--textParagraph1)]">One image or UTF-8 .log/.txt file, up to 8 MiB. Choose the app or HardwareMonitor log you want to share.</p>
             {status === "error" && (
               <p className="text-body-sm-regular text-[var(--iconDanger)]">
-                Couldn’t send feedback. Please try again.
+                Couldn’t complete feedback: {error || "Please try again."}
               </p>
             )}
 
