@@ -4,6 +4,7 @@ import {
   onPresentMonApps,
   onPipeStatus,
   onSidecarStatus,
+  onHardwareStatus,
 } from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
 import type { HardwareMonitorData } from "@/lib/types";
@@ -12,6 +13,7 @@ export function useSensorData() {
   const setSensorData = useSettingsStore((s) => s.setSensorData);
   const setPresentMonApps = useSettingsStore((s) => s.setPresentMonApps);
   const setPipeStatus = useSettingsStore((s) => s.setPipeStatus);
+  const setHardwareStatus = useSettingsStore((s) => s.setHardwareStatus);
   const setSidecarStatus = useSettingsStore((s) => s.setSidecarStatus);
   const loadSidecarStatus = useSettingsStore((s) => s.loadSidecarStatus);
 
@@ -29,6 +31,15 @@ export function useSensorData() {
       const u3 = await onPipeStatus((status) => setPipeStatus(status));
       if (mounted) unlisteners.push(u3); else u3();
 
+      const u5 = await onHardwareStatus((status) => {
+        // Pipe-first startup can connect before this webview subscribes to
+        // the one-shot pipe-status event. This heartbeat arrived over that
+        // pipe, so it also repairs missed initial connection state.
+        setPipeStatus({ connected: true });
+        setHardwareStatus(status);
+      });
+      if (mounted) unlisteners.push(u5); else u5();
+
       const u4 = await onSidecarStatus((status) => setSidecarStatus(status));
       if (mounted) unlisteners.push(u4); else u4();
 
@@ -44,7 +55,7 @@ export function useSensorData() {
       mounted = false;
       unlisteners.forEach((u) => u());
     };
-  }, [setSensorData, setPresentMonApps, setPipeStatus, setSidecarStatus, loadSidecarStatus]);
+  }, [setSensorData, setPresentMonApps, setPipeStatus, setSidecarStatus, setHardwareStatus, loadSidecarStatus]);
 }
 
 /** Hook for overlay — keeps a rolling buffer of frametime values */
@@ -77,4 +88,3 @@ export function useFrametimeHistory(maxPoints = 30) {
 
   return history;
 }
-

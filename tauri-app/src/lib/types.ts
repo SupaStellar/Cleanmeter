@@ -271,3 +271,10 @@ export const DEFAULT_SETTINGS: OverlaySettings = {
     downRate: { isEnabled: true, customReadingId: "" },
   },
 };
+
+/** Hardware progress, sent even when no sensor readings can be produced. */
+export interface HardwareStatus {
+  state: "starting" | "ready" | "delayed" | "failed";
+  stage: string;
+  elapsedMs: number;
+}

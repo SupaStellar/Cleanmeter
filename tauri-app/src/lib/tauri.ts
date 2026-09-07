@@ -2,6 +2,7 @@ import type { UnlistenFn } from "@tauri-apps/api/event";
 import type {
   OverlaySettings,
   HardwareMonitorData,
+  HardwareStatus,
   PipeStatus,
   MonitorInfo,
   AppPreferences,
@@ -274,3 +275,8 @@ export const pickImageAttachment = async (): Promise<
   const name = selected.split(/[/\\]/).pop() ?? "attachment";
   return { path: selected, name };
 };
+
+export const onHardwareStatus = (
+  callback: (status: HardwareStatus) => void
+): Promise<UnlistenFn> =>
+  safeListen<HardwareStatus>("hardware-status", (event) => callback(event.payload));

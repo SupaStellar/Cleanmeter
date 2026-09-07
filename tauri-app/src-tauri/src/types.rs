@@ -9,6 +9,7 @@ pub enum Command {
     SelectPresentMonApp = 2,
     PresentMonApps = 3,
     SelectPollingRate = 4,
+    HardwareStatus = 6,
 }
 
 impl TryFrom<u16> for Command {
@@ -20,6 +21,7 @@ impl TryFrom<u16> for Command {
             2 => Ok(Command::SelectPresentMonApp),
             3 => Ok(Command::PresentMonApps),
             4 => Ok(Command::SelectPollingRate),
+            6 => Ok(Command::HardwareStatus),
             _ => Err(format!("Unknown command: {}", value)),
         }
     }
@@ -544,4 +546,23 @@ mod tests {
 
         assert_eq!(loaded.selected_gpu_id, "");
     }
+}
+
+/// Sidecar progress is independent of sensor packets: a connected pipe is not
+/// proof that a hardware read succeeded. Unknown states fail deserialization.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HardwareStatus {
+    pub state: HardwareState,
+    pub stage: String,
+    pub elapsed_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum HardwareState {
+    Starting,
+    Ready,
+    Delayed,
+    Failed,
 }

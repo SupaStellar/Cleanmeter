@@ -97,3 +97,26 @@ describe("STARTUP_GRACE_MS", () => {
     expect(STARTUP_GRACE_MS).toBeGreaterThan(slowestObservedMs * 2);
   });
 });
+
+describe("hardware progress", () => {
+  it("does not treat a connected sidecar's startup as successful sensor data", () => {
+    expect(monitoringVerdict({
+      hasSensorData: true, sidecar: healthy, graceExpired: false,
+      hardware: { state: "starting", stage: "Opening hardware sensors", elapsedMs: 1000 },
+    })).toBe("starting");
+  });
+
+  it.each(["delayed", "failed"] as const)("reports %s despite an old sensor snapshot", (state) => {
+    expect(monitoringVerdict({
+      hasSensorData: true, sidecar: healthy, graceExpired: true,
+      hardware: { state, stage: "Reading CPU sensors", elapsedMs: 45000 },
+    })).toBe("failed");
+  });
+
+  it("recovers when late hardware readings become available", () => {
+    expect(monitoringVerdict({
+      hasSensorData: true, sidecar: healthy, graceExpired: true,
+      hardware: { state: "ready", stage: "Hardware readings available", elapsedMs: 0 },
+    })).toBe("ok");
+  });
+});

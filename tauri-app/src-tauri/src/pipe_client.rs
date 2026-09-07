@@ -35,6 +35,7 @@ const PRESENT_MON_APP_STRIDE: usize = 128;
 /// Events parsed from the pipe read thread
 enum ParsedEvent {
     SensorData(HardwareMonitorData),
+    HardwareStatus(HardwareStatus),
     PresentMonApps(Vec<String>),
 }
 
@@ -407,6 +408,14 @@ pub async fn run_pipe_client(
                                     Err(e) => error!("Failed to parse data packet: {}", e),
                                 }
                             }
+                            Ok(Command::HardwareStatus) => {
+                                match serde_json::from_slice::<HardwareStatus>(&payload) {
+                                    Ok(status) => {
+                                        let _ = event_tx.blocking_send(ParsedEvent::HardwareStatus(status));
+                                    }
+                                    Err(e) => error!("Failed to parse hardware status: {}", e),
+                                }
+                            }
                             Ok(Command::PresentMonApps) => {
                                 match parse_present_mon_apps(&payload) {
                                     Ok(apps) => {
@@ -421,26 +430,36 @@ pub async fn run_pipe_client(
                 });
 
                 // Async loop: forward events to Tauri and handle outgoing commands
-                loop {
-                    tokio::select! {
-                        Some(cmd) = cmd_rx.recv() => {
+                let mut received_sensor_data = false;
+                while let Some(input) =
+                    crate::pipe_input::next_input(&mut cmd_rx, &mut event_rx).await
+                {
+                    match input {
+                        crate::pipe_input::PipeInput::Command(cmd) => {
                             let bytes = build_command(&cmd);
                             if let Err(e) = writer.write_all(&bytes) {
                                 error!("Failed to send command: {}", e);
                                 break;
                             }
                         }
-                        Some(event) = event_rx.recv() => {
+                        crate::pipe_input::PipeInput::Event(event) => {
                             match event {
                                 ParsedEvent::SensorData(data) => {
+                                    if !received_sensor_data {
+                                        info!("First sensor packet received: {} hardware entries, {} sensors",
+                                            data.hardwares.len(), data.sensors.len());
+                                        received_sensor_data = true;
+                                    }
                                     let _ = app_for_read.emit("sensor-data", &data);
+                                }
+                                ParsedEvent::HardwareStatus(status) => {
+                                    let _ = app_for_read.emit("hardware-status", &status);
                                 }
                                 ParsedEvent::PresentMonApps(apps) => {
                                     let _ = app_for_read.emit("present-mon-apps", &apps);
                                 }
                             }
                         }
-                        else => break,
                     }
 
                     if !running.load(Ordering::Relaxed) {
@@ -448,6 +467,10 @@ pub async fn run_pipe_client(
                     }
                 }
 
+                // Report the lost connection before waiting or retrying. On
+                // reader EOF its task has finished and joining cannot stall.
+                let _ = app.emit("pipe-status", PipeStatus { connected: false });
+                announced_disconnect = true;
                 let _ = read_handle.await;
                 // The connection just ended: start a fresh fast-poll window so a
                 // sidecar crash reconnects as quickly as a cold start does.

@@ -21,6 +21,7 @@ function MonitoringBanner() {
   const sensorData = useSettingsStore((s) => s.sensorData);
   const pipeStatus = useSettingsStore((s) => s.pipeStatus);
   const sidecarStatus = useSettingsStore((s) => s.sidecarStatus);
+  const hardwareStatus = useSettingsStore((s) => s.hardwareStatus);
   const [graceExpired, setGraceExpired] = useState(false);
   const [dotnetMissing, setDotnetMissing] = useState(false);
 
@@ -40,20 +41,31 @@ function MonitoringBanner() {
     hasSensorData: !!sensorData,
     sidecar: sidecarStatus,
     graceExpired,
+    hardware: hardwareStatus,
   });
 
   // Only a failing verdict is worth telling the user about, and only then is it
   // worth paying for the .NET probe.
   useEffect(() => {
-    if (verdict !== "failed") return;
+    if (verdict !== "failed" || hardwareStatus) return;
     checkDotnetRuntime()
       .then((ok) => {
         if (!ok) setDotnetMissing(true);
       })
       .catch(() => {});
-  }, [verdict]);
+  }, [verdict, hardwareStatus]);
 
   if (verdict !== "failed") return null;
+
+  if (hardwareStatus && hardwareStatus.state !== "ready") {
+    return (
+      <div className="border-b border-[var(--borderSubtle)] bg-[var(--bgSurfaceRaised)] px-4 py-2.5 text-[13px] leading-snug text-[var(--textParagraph1)]" role="status">
+        <strong>Hardware readings unavailable.</strong>{" "}
+        {hardwareStatus.stage} has {hardwareStatus.state === "failed" ? "failed" : "not finished"}.
+        {" "}Cleanmeter is connected, but sensors are not ready. If this persists, share the HardwareMonitor log from its LogFiles folder.
+      </div>
+    );
+  }
 
   return (
     <div className="border-b border-yellow-400 bg-yellow-50 px-4 py-2.5 text-[13px] leading-snug text-yellow-900 dark:border-yellow-700 dark:bg-yellow-950 dark:text-yellow-200">

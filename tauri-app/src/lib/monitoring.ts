@@ -1,4 +1,4 @@
-import type { SidecarStatus } from "./types";
+import type { HardwareStatus, SidecarStatus } from "./types";
 
 /**
  * How long a launch may go without a reading before we call it broken.
@@ -46,8 +46,12 @@ export function monitoringVerdict(input: {
   hasSensorData: boolean;
   sidecar: SidecarStatus;
   graceExpired: boolean;
+  hardware?: HardwareStatus | null;
 }): MonitoringVerdict {
-  // A reading settles it, whatever happened on the way here.
+  // An old snapshot does not override a current blocked/failed hardware read.
+  if (input.hardware?.state === "delayed" || input.hardware?.state === "failed") return "failed";
+  if (input.hardware?.state === "starting") return input.graceExpired ? "failed" : "starting";
+  // A reading settles it when the hardware worker has reported no problem.
   if (input.hasSensorData) return "ok";
   // Evidence of real failure, worth saying so without waiting.
   if (input.sidecar.spawnError) return "failed";
