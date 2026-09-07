@@ -32,15 +32,18 @@ trap cleanup EXIT
 trap 'if [ -n "$child" ]; then kill -TERM "$child" 2>/dev/null || true; fi' INT TERM
 # A private config file avoids altering the user's MangoHud configuration.
 # Uploads are not enabled. Files are removed when the launched process exits.
+# MangoHud 0.7.x no_display prevents autostart_log from running. Transparent
+# rendering keeps that update path active without showing a second HUD.
 cat > "$session/MangoHud.conf" <<CONF
-no_display
+alpha=0
+background_alpha=0
 autostart_log=1
 log_interval=100
 log_duration=0
 permit_upload=0
 output_folder=$session
 CONF
-MANGOHUD_CONFIGFILE="$session/MangoHud.conf" MANGOHUD_CONFIG="no_display,autostart_log=1,log_interval=100,log_duration=0,permit_upload=0,output_folder=$session" mangohud "$@" &
+MANGOHUD_CONFIGFILE="$session/MangoHud.conf" MANGOHUD_CONFIG="alpha=0,background_alpha=0,autostart_log=1,log_interval=100,log_duration=0,permit_upload=0,output_folder=$session" mangohud "$@" &
 child=$!
 code=0
 wait "$child" || code=$?

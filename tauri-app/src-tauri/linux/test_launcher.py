@@ -45,6 +45,8 @@ sys.exit(17)
         self.assertEqual(captured["mode"], 0o700)
         self.assertIn("log_interval=100\n", captured["config"])
         self.assertIn("permit_upload=0", captured["overrides"])
+        self.assertIn("alpha=0", captured["overrides"])
+        self.assertNotIn("no_display", captured["overrides"])
         self.assertEqual(list((Path(self.env["XDG_CACHE_HOME"]) / "cleanmeter/fps").iterdir()), [])
 
     def test_rejects_old_or_unknown_mangohud_without_starting_game(self):

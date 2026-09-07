@@ -123,6 +123,7 @@ jobs:
             sleep 1
           done
           cat game.log
+          find "$XDG_CACHE_HOME/cleanmeter/fps" -name '*.csv' -exec sh -c 'head -n 4 "$1"; tail -n 3 "$1"' sh {} \;
           exit 1
       - uses: actions/upload-artifact@v4
         if: always()
