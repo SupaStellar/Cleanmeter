@@ -1,3 +1,4 @@
+import { usePlatformStore } from "@/stores/platform-store";
 import { useEffect, useRef, useState } from "react";
 import {
   onSensorData,
@@ -49,6 +50,8 @@ export function useSensorData() {
 
 /** Hook for overlay — keeps a rolling buffer of frametime values */
 export function useFrametimeHistory(maxPoints = 30) {
+  const linux = usePlatformStore((s) => s.platform.os === "linux");
+  const previousGame = useRef("");
   const sensorData = useSettingsStore((s) => s.sensorData);
   const bufferRef = useRef<number[]>([]);
   const prevData = useRef<HardwareMonitorData | null>(null);
@@ -62,6 +65,14 @@ export function useFrametimeHistory(maxPoints = 30) {
   /* eslint-disable react-hooks/refs */
   if (sensorData && sensorData !== prevData.current) {
     prevData.current = sensorData;
+    if (linux) {
+      const game = sensorData.hardwares.find((h) => h.identifier === "/linux/fps")?.name ?? "";
+      if (game !== previousGame.current) {
+        previousGame.current = game;
+        bufferRef.current = [];
+        setHistory([]);
+      }
+    }
 
     const frametime = sensorData.sensors.find(
       (s) => s.name.toLowerCase().includes("frametime") || s.identifier.toLowerCase().includes("frametime")

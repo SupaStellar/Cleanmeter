@@ -213,11 +213,13 @@ pub fn toggle_recording(app: &AppHandle) {
 /// reset to defaults — so there is one place that knows the mapping from
 /// settings field to action.
 pub fn apply_all(app: &AppHandle, settings: &OverlaySettings) {
+    if crate::platform::native_wayland() { return; }
     let mut unavailable = HashMap::<&'static str, String>::new();
     for (action, accelerator) in [
         (ShortcutAction::ToggleOverlay, &settings.overlay_shortcut),
         (ShortcutAction::ToggleRecording, &settings.recording_shortcut),
     ] {
+        if cfg!(target_os = "linux") && action == ShortcutAction::ToggleRecording { continue; }
         if let Err(accel) = apply(app, action, accelerator) {
             unavailable.insert(action.settings_key(), accel);
         }

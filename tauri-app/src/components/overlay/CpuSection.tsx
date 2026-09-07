@@ -1,3 +1,4 @@
+import { usePlatformStore } from "@/stores/platform-store";
 import { Pill } from "./Pill";
 import { ProgressRing } from "./ProgressRing";
 import { ProgressBar } from "./ProgressBar";
@@ -9,6 +10,7 @@ interface CpuSectionProps {
 }
 
 export function CpuSection({ isHorizontal }: CpuSectionProps) {
+  const linux = usePlatformStore((s) => s.platform.os === "linux");
   const settings = useSettingsStore((s) => s.settings);
   const sensorData = useSettingsStore((s) => s.sensorData);
   const sensors = sensorData?.sensors ?? [];
@@ -33,6 +35,7 @@ export function CpuSection({ isHorizontal }: CpuSectionProps) {
   const cpuPowerVal = findSensorById(sensors, cpuConsumption.customReadingId)?.value ?? 0;
 
   const temp = formatTemperature(cpuTempVal, settings.temperatureUnit);
+  if (linux && !findSensorById(sensors, cpuTemp.customReadingId)) temp.label = "—";
 
   return (
     <Pill title="CPU" isHorizontal={isHorizontal}>
@@ -59,14 +62,14 @@ export function CpuSection({ isHorizontal }: CpuSectionProps) {
           <Progress
             value={cpuUsageVal}
             max={100}
-            label={formatValue(cpuUsageVal)}
+            label={linux && !findSensorById(sensors, cpuUsage.customReadingId) ? "—" : formatValue(cpuUsageVal)}
             unit="%"
             boundaries={cpuUsage.boundaries}
           />
         ) : (
           <div className="flex items-center gap-1">
             <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
-              {formatValue(cpuUsageVal)}
+              {linux && !findSensorById(sensors, cpuUsage.customReadingId) ? "—" : formatValue(cpuUsageVal)}
             </span>
             <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>%</span>
           </div>
@@ -77,7 +80,7 @@ export function CpuSection({ isHorizontal }: CpuSectionProps) {
       {cpuConsumption.isEnabled && (
         <div className="flex items-center gap-1">
           <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
-            {formatValue(cpuPowerVal)}
+            {linux && !findSensorById(sensors, cpuConsumption.customReadingId) ? "—" : formatValue(cpuPowerVal)}
           </span>
           <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>W</span>
         </div>

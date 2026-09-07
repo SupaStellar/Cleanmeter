@@ -31,9 +31,9 @@ log = "0.4"
 env_logger = "0.11"
 dirs = "6"
 
-winreg = "0.55"
 
 [target.'cfg(windows)'.dependencies]
+winreg = "0.55"
 windows = { version = "0.58", features = [
     "Win32_Foundation",
     "Win32_Storage_FileSystem",

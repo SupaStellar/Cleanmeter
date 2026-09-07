@@ -1,3 +1,4 @@
+import { usePlatformStore } from "@/stores/platform-store";
 import { useRef } from "react";
 import { Checkbox } from "@/components/shadcn/checkbox";
 import {
@@ -25,11 +26,13 @@ const FPS_READINGS = [
 type FpsReading = (typeof FPS_READINGS)[number];
 
 export function FpsSection() {
+  const platform = usePlatformStore((s) => s.platform);
+  const readings = FPS_READINGS.filter((key) => platform.percentileLows || key === "framerate" || key === "frametime");
   const settings = useSettingsStore((s) => s.settings);
   const updateSensor = useSettingsStore((s) => s.updateSensor);
   const presentMonApps = useSettingsStore((s) => s.presentMonApps);
   const { framerate, frametime, onePercentLow, zeroPointOnePercentLow } = settings.sensors;
-  const anyEnabled = FPS_READINGS.some((key) => settings.sensors[key].isEnabled);
+  const anyEnabled = readings.some((key) => settings.sensors[key].isEnabled);
   const prevState = useRef<Record<FpsReading, boolean> | null>(null);
   // `|| ""` guards a settings.json written before targetAppName existed, where
   // the field is absent at runtime whatever the type says.
@@ -45,16 +48,16 @@ export function FpsSection() {
       onToggle={(enabled) => {
         if (!enabled) {
           prevState.current = Object.fromEntries(
-            FPS_READINGS.map((key) => [key, settings.sensors[key].isEnabled]),
+            readings.map((key) => [key, settings.sensors[key].isEnabled]),
           ) as Record<FpsReading, boolean>;
-          FPS_READINGS.forEach((key) => updateSensor(key, { isEnabled: false }));
+          readings.forEach((key) => updateSensor(key, { isEnabled: false }));
         } else {
           const prev = prevState.current;
           // With nothing stored (the card was already off at launch), fall back
           // to each reading's shipped default rather than switching everything
           // on: the two percentile lows default to off, and a blanket `true`
           // here would enable readings the user never asked for.
-          FPS_READINGS.forEach((key) =>
+          readings.forEach((key) =>
             updateSensor(key, {
               isEnabled: prev ? prev[key] : DEFAULT_SETTINGS.sensors[key].isEnabled,
             }),
@@ -85,14 +88,16 @@ export function FpsSection() {
             into two rows that had to stay in sync. */}
         <label className="flex cursor-pointer items-center gap-2">
           <Checkbox
-            checked={onePercentLow.isEnabled}
+            checked={platform.percentileLows && onePercentLow.isEnabled}
+            disabled={!platform.percentileLows}
             onCheckedChange={(v) => updateSensor("onePercentLow", { isEnabled: v === true })}
           />
           <span className="text-[14px] font-medium text-foreground">1% Low</span>
         </label>
         <label className="flex cursor-pointer items-center gap-2">
           <Checkbox
-            checked={zeroPointOnePercentLow.isEnabled}
+            checked={platform.percentileLows && zeroPointOnePercentLow.isEnabled}
+            disabled={!platform.percentileLows}
             onCheckedChange={(v) =>
               updateSensor("zeroPointOnePercentLow", { isEnabled: v === true })
             }
@@ -128,12 +133,23 @@ export function FpsSection() {
         <div className="flex items-center gap-[var(--spacingXxxs)] text-[12px] font-medium leading-[15px] text-[var(--textParagraph1)]">
           <InfoIcon className="size-[16px] shrink-0" />
           <span>
-            {presentMonApps.length > 0
-              ? "Apps are auto updated every 10 seconds."
-              : "No apps detected yet. Auto follows the app in focus."}
+            {platform.os === "linux"
+              ? "Auto uses the most recently updated game. Select a game to keep its readings pinned."
+              : presentMonApps.length > 0
+                ? "Apps are auto updated every 10 seconds."
+                : "No apps detected yet. Auto follows the app in focus."}
           </span>
         </div>
       </div>
+      {platform.os === "linux" && (
+        <div className="flex flex-col gap-2 text-[13px] text-muted-foreground">
+          <p>Install MangoHud 0.7.0 or newer, then launch your game with <code>cleanmeter-run</code>. Steam launch options:</p>
+          <code className="select-text rounded bg-muted p-2">cleanmeter-run %command%</code>
+          <p>Using AppImage? Run <code>./Cleanmeter.AppImage --run your-game</code> instead.</p>
+          <p>FPS and frametime are sampled every 100 ms. Percentile lows and benchmark recording require per-frame capture and are unavailable in this Linux preview.</p>
+          {presentMonApps.length === 0 && <p>No game telemetry yet. Start a game with the launcher above.</p>}
+        </div>
+      )}
     </SectionCard>
   );
 }

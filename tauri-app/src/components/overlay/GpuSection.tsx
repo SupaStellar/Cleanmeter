@@ -1,3 +1,4 @@
+import { usePlatformStore } from "@/stores/platform-store";
 import { Pill } from "./Pill";
 import { ProgressRing } from "./ProgressRing";
 import { ProgressBar } from "./ProgressBar";
@@ -11,6 +12,7 @@ interface GpuSectionProps {
 }
 
 export function GpuSection({ isHorizontal }: GpuSectionProps) {
+  const linux = usePlatformStore((s) => s.platform.os === "linux");
   const settings = useSettingsStore((s) => s.settings);
   const sensorData = useSettingsStore((s) => s.sensorData);
   const sensors = sensorData?.sensors ?? [];
@@ -79,6 +81,7 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
       : vramLoadVal;
 
   const temp = formatTemperature(gpuTempVal, settings.temperatureUnit);
+  if (linux && !findSensorById(sensors, gpuTemp.customReadingId)) temp.label = "—";
 
   return (
     <Pill title="GPU" isHorizontal={isHorizontal}>
@@ -105,14 +108,14 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
           <Progress
             value={gpuUsageVal}
             max={100}
-            label={formatValue(gpuUsageVal)}
+            label={linux && !findSensorById(sensors, gpuUsage.customReadingId) ? "—" : formatValue(gpuUsageVal)}
             unit="%"
             boundaries={gpuUsage.boundaries}
           />
         ) : (
           <div className="flex items-center gap-1">
             <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
-              {formatValue(gpuUsageVal)}
+              {linux && !findSensorById(sensors, gpuUsage.customReadingId) ? "—" : formatValue(gpuUsageVal)}
             </span>
             <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>%</span>
           </div>
@@ -127,14 +130,14 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
           <Progress
             value={vramUsageVal}
             max={100}
-            label={vramUsedVal > 0 ? formatValue(vramUsedVal, 1) : formatValue(vramUsageVal, 0)}
+            label={linux && !vramUsedSensor && !findSensorById(sensors, vramUsage.customReadingId) ? "—" : vramUsedVal > 0 ? formatValue(vramUsedVal, 1) : formatValue(vramUsageVal, 0)}
             unit={vramUsedVal > 0 ? "GB" : "%"}
             boundaries={vramUsage.boundaries}
           />
         ) : (
           <div className="flex items-center gap-1">
             <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
-              {vramUsedVal > 0 ? formatValue(vramUsedVal, 1) : formatValue(vramUsageVal, 0)}
+              {linux && !vramUsedSensor && !findSensorById(sensors, vramUsage.customReadingId) ? "—" : vramUsedVal > 0 ? formatValue(vramUsedVal, 1) : formatValue(vramUsageVal, 0)}
             </span>
             <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{vramUsedVal > 0 ? "GB" : "%"}</span>
           </div>
@@ -145,7 +148,7 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
       {gpuConsumption.isEnabled && (
         <div className="flex items-center gap-1">
           <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
-            {formatValue(gpuPowerVal)}
+            {linux && !findSensorById(sensors, gpuConsumption.customReadingId) ? "—" : formatValue(gpuPowerVal)}
           </span>
           <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>W</span>
         </div>

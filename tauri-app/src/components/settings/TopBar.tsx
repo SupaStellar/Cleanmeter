@@ -1,3 +1,4 @@
+import { usePlatformStore } from "@/stores/platform-store";
 import { Minus, X } from "lucide-react";
 import { isBrowser } from "@/lib/tauri";
 import { cn } from "@/lib/utils";
@@ -100,6 +101,7 @@ function CleanmeterLogo() {
 }
 
 export function TopBar() {
+  const linux = usePlatformStore((s) => s.platform.os === "linux");
   // Defer startDragging() until the mouse actually moves. Calling it on
   // mousedown would make Windows swallow the mouseup event, breaking the
   // click → click → dblclick sequence the browser needs for onDoubleClick.
@@ -177,7 +179,7 @@ export function TopBar() {
           <Minus className="size-[18px]" strokeWidth={2} />
         </ChromeButton>
         <ChromeButton
-          onClick={() => appWindowPromise.then((w) => w.hide())}
+          onClick={() => appWindowPromise.then((w) => linux ? w.minimize() : w.hide())}
           title="Close to tray"
           className="hover:bg-destructive hover:text-destructive-foreground"
         >

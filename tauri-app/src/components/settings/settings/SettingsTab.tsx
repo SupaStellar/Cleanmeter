@@ -1,3 +1,4 @@
+import { usePlatformStore } from "@/stores/platform-store";
 import * as React from "react";
 import * as RadioGroupPrimitive from "@radix-ui/react-radio-group";
 import { Checkbox } from "@/components/shadcn/checkbox";
@@ -47,6 +48,7 @@ function SectionCard({
 }
 
 function GeneralSection() {
+  const linux = usePlatformStore((s) => s.platform.os === "linux");
   const startMinimized = useSettingsStore((s) => s.preferences.startMinimized);
   const updatePreferences = useSettingsStore((s) => s.updatePreferences);
   const pixelShift = useSettingsStore((s) => s.settings.pixelShift);
@@ -85,7 +87,7 @@ function GeneralSection() {
               disabled={autoStartPending}
               onCheckedChange={(v) => handleStartWithWindows(v === true)}
             />
-          Start with windows
+          {linux ? "Start at login" : "Start with Windows"}
         </label>
         <label className="flex cursor-pointer items-center gap-[var(--spacingXs)] text-[14px] font-medium text-foreground">
           <Checkbox
@@ -145,12 +147,14 @@ function GeneralSection() {
  * No grey panel: the rows sit directly on the card.
  */
 function ShortcutsSection() {
+  const platform = usePlatformStore((s) => s.platform);
   const settings = useSettingsStore((s) => s.settings);
   const updateSettings = useSettingsStore((s) => s.updateSettings);
 
   const overlayAccelerator = settings.overlayShortcut ?? OVERLAY_SHORTCUT_DEFAULT;
   const recordingAccelerator = settings.recordingShortcut ?? RECORDING_SHORTCUT_DEFAULT;
 
+  if (!platform.globalShortcuts) return <SectionCard title="Shortcuts"><p className="text-[13px] text-muted-foreground">Global shortcuts need an X11/XWayland session. Use Show monitor in Stats on native Wayland.</p></SectionCard>;
   return (
     <SectionCard title="Shortcuts">
       <div className="flex flex-col gap-[var(--spacingS)]">
@@ -159,17 +163,17 @@ function ShortcutsSection() {
           accelerator={overlayAccelerator}
           defaultAccelerator={OVERLAY_SHORTCUT_DEFAULT}
           onChange={(overlayShortcut) => updateSettings({ overlayShortcut })}
-          conflictsWith={{ "Start/stop FPS lows recording": recordingAccelerator }}
+          conflictsWith={platform.percentileLows ? { "Start/stop FPS lows recording": recordingAccelerator } : {}}
           className="gap-[var(--spacingL)]"
         />
-        <ShortcutField
+        {platform.percentileLows && <ShortcutField
           label="Start/stop FPS lows recording"
           accelerator={recordingAccelerator}
           defaultAccelerator={RECORDING_SHORTCUT_DEFAULT}
           onChange={(recordingShortcut) => updateSettings({ recordingShortcut })}
           conflictsWith={{ "Show/hide overlay": overlayAccelerator }}
           className="gap-[var(--spacingL)]"
-        />
+        />}
       </div>
     </SectionCard>
   );
@@ -405,9 +409,14 @@ const DISCORD_INVITE_URL = "https://discord.gg/SCgXtTMNvJ";
 // Triggers an in-app update check and reflects the updater status in its label.
 // The actual "download & install" happens from the floating UpdateBanner.
 function UpdatesButton() {
+  const platform = usePlatformStore((s) => s.platform);
   const status = useUpdaterStore((s) => s.status);
   const dismissed = useUpdaterStore((s) => s.dismissed);
   const check = useUpdaterStore((s) => s.check);
+
+  if (platform.os === "linux") {
+    return <FooterLinkButton icon={<BrowserUpdatedIcon className="size-8" />} label="Download Linux updates" href="https://github.com/SupaStellar/Cleanmeter/releases" />;
+  }
 
   const busy =
     status === "checking" ||
