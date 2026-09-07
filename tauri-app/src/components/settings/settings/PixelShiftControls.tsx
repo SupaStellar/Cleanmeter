@@ -16,7 +16,7 @@ export function PixelShiftControls() {
         <label key={key} className="flex items-center justify-between gap-[var(--spacingS)] text-body-sm-medium text-[var(--textHeading)]">
           {label}
           <Input key={value} type="number" min={1} max={max} step={1} defaultValue={value}
-            className="w-24" aria-label={label}
+            className="w-24 focus-visible:shadow-focus-default" aria-label={label}
             onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
             onBlur={(event) => {
               const next = boundedInteger(event.currentTarget.valueAsNumber, 1, max, value);
