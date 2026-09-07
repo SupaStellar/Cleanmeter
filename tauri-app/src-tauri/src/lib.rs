@@ -291,6 +291,8 @@ pub fn run() {
         }))
         .setup(|app| {
             info!("Cleanmeter starting up...");
+            #[cfg(target_os = "linux")]
+            info!("Display backend: {}", platform::get_platform_info().display_backend);
 
             // Initialize the settings manager early so startup can read the
             // start_minimized preference before deciding whether to show the

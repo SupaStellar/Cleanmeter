@@ -68,6 +68,7 @@ pub fn run(
     let mut nv = String::new();
     let mut connected = false;
     let mut last_apps = vec![];
+    let mut apps_next = Instant::now();
     while running.load(Ordering::Relaxed) {
         while let Ok(command) = commands.try_recv() {
             match command {
@@ -79,7 +80,7 @@ pub fn run(
                     target = if app == "Auto" { String::new() } else { app }
                 }
                 PipeCommand::RefreshPresentMonApps => {
-                    last_apps.clear();
+                    apps_next = Instant::now();
                     next = Instant::now();
                 }
                 PipeCommand::SetLowsMode(_) => {}
@@ -103,9 +104,13 @@ pub fn run(
                 let mut apps: Vec<_> = samples.iter().map(|s| s.app.clone()).collect();
                 apps.sort();
                 apps.dedup();
-                if apps != last_apps {
+                // Webviews may subscribe after the first poll. Replay the list
+                // and connection status periodically even if nothing changed.
+                if apps != last_apps || now >= apps_next {
                     let _ = app.emit("present-mon-apps", &apps);
+                    let _ = app.emit("pipe-status", PipeStatus { connected: true });
                     last_apps = apps;
+                    apps_next = now + Duration::from_secs(2);
                 }
                 let chosen = if target.is_empty() || target == "Auto" {
                     samples.first()

@@ -31,7 +31,7 @@ jobs:
       - name: Install Linux build and smoke-test dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf rpm xvfb dbus-x11
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf rpm xvfb dbus-x11 weston
       - run: npm ci
       - run: npm run lint && npm test && npm run build
       - run: python3 src-tauri/linux/test_launcher.py
@@ -44,13 +44,33 @@ jobs:
       - name: Smoke test GUI and native monitoring
         run: |
           set +e
-          RUST_LOG=info WEBKIT_DISABLE_COMPOSITING_MODE=1 timeout 15s dbus-run-session -- xvfb-run -a src-tauri/target/release/cleanmeter > linux-smoke.log 2>&1
+          RUST_LOG=info WEBKIT_DISABLE_COMPOSITING_MODE=1 timeout 15s xvfb-run -a dbus-run-session -- src-tauri/target/release/cleanmeter > linux-smoke.log 2>&1
           result=$?
           set -e
           cat linux-smoke.log
           test "$result" -eq 124
           grep -q 'Linux monitoring connected' linux-smoke.log
           test -x src-tauri/linux/cleanmeter-run
+      - name: Smoke test native Wayland fallback
+        run: |
+          export XDG_RUNTIME_DIR="$RUNNER_TEMP/cleanmeter-wayland"
+          mkdir -p "$XDG_RUNTIME_DIR"
+          chmod 700 "$XDG_RUNTIME_DIR"
+          weston --backend=headless-backend.so --socket=cleanmeter-test --idle-time=0 > weston.log 2>&1 &
+          compositor=$!
+          trap 'kill "$compositor" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 20); do
+            test -S "$XDG_RUNTIME_DIR/cleanmeter-test" && break
+            sleep 0.5
+          done
+          set +e
+          env -u DISPLAY GDK_BACKEND=wayland WAYLAND_DISPLAY=cleanmeter-test RUST_LOG=info WEBKIT_DISABLE_COMPOSITING_MODE=1 timeout 15s dbus-run-session -- src-tauri/target/release/cleanmeter > wayland-smoke.log 2>&1
+          result=$?
+          set -e
+          cat wayland-smoke.log
+          test "$result" -eq 124
+          grep -q 'Linux monitoring connected' wayland-smoke.log
+          grep -q 'Display backend: wayland' wayland-smoke.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -61,6 +81,8 @@ jobs:
             tauri-app/src-tauri/target/release/bundle/rpm/*.rpm
             tauri-app/src-tauri/target/release/bundle/appimage/*.AppImage
             tauri-app/linux-smoke.log
+            tauri-app/wayland-smoke.log
+            tauri-app/weston.log
 
   live-fps:
     needs: linux

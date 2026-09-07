@@ -153,10 +153,10 @@ export type AppUpdate = import("@tauri-apps/plugin-updater").Update;
 // Returns the pending Update when a newer release exists, or null when the app
 // is current (or running in the browser preview, which has no Tauri runtime).
 export const checkForUpdate = async (): Promise<AppUpdate | null> => {
+  if ((await getPlatformInfo()).os === "linux") return null;
   // The preview reports an update so the download banner has a state to be in.
   if (usePreviewFixture) return previewUpdate();
   if (isBrowser) return null;
-  if ((await getPlatformInfo()).os === "linux") return null;
   const { check } = await import("@tauri-apps/plugin-updater");
   return check();
 };
@@ -286,7 +286,8 @@ export interface PlatformInfo {
 export const getPlatformInfo = () => {
   if (isBrowser) {
     const linux = navigator.platform.toLowerCase().includes("linux") || (import.meta.env.DEV && new URLSearchParams(location.search).get("platform") === "linux");
-    return Promise.resolve<PlatformInfo>({ os: linux ? "linux" : "windows", displayBackend: linux ? "x11" : "native", canPositionOverlay: true, globalShortcuts: true, percentileLows: !linux });
+    const wayland = linux && import.meta.env.DEV && new URLSearchParams(location.search).get("display") === "wayland";
+    return Promise.resolve<PlatformInfo>({ os: linux ? "linux" : "windows", displayBackend: linux ? (wayland ? "wayland" : "x11") : "native", canPositionOverlay: !wayland, globalShortcuts: !wayland, percentileLows: !linux });
   }
   return safeInvoke<PlatformInfo>("get_platform_info");
 };
