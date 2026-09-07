@@ -70,7 +70,6 @@ export function OverlayHud() {
           gap: appearance.gap, padding: `${appearance.outer.paddingY}px ${appearance.outer.paddingX}px`,
           borderRadius: appearance.outer.radius,
           position: "relative", isolation: "isolate", background: "transparent",
-          "--overlay-gauge-cutout": appearance.inner.color,
         } : {}),
       } as React.CSSProperties & Record<`--${string}`, string | number>}
     >

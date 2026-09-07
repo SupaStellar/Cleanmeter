@@ -14,9 +14,9 @@ export function CustomGauge({ style, value, max = 100, color, size = 20 }: {
   let body: React.ReactNode;
   if (circular) {
     const sweep = style === "half-ring" || style === "needle" ? 180 : style === "arc" ? 270 : 360;
-    const radius = 9, length = 2 * Math.PI * radius * sweep / 360;
+    const radius = style === "pie" ? 6 : 9, length = 2 * Math.PI * radius * sweep / 360;
     const rotation = sweep === 180 ? -180 : sweep === 270 ? -225 : -90;
-    const width = style === "thin-ring" ? 1 : style === "pie" ? 9 : style === "donut" ? 5 : 2.5;
+    const width = style === "thin-ring" ? 1 : style === "pie" ? 12 : style === "donut" ? 5 : 2.5;
     const segments = style === "dotted-ring" || style === "dashed-ring" ? 12 : 24;
     body = <>
       {["dotted-ring", "dashed-ring", "radial-ticks", "compass"].includes(style) ? Array.from({ length: segments }, (_, i) => {
@@ -61,5 +61,5 @@ export function CustomGauge({ style, value, max = 100, color, size = 20 }: {
       }
     });
   }
-  return <svg aria-hidden="true" data-gauge-style={style} width={size} height={size} viewBox="0 0 24 24" style={{ flexShrink: 0 }}>{body}</svg>;
+  return <svg aria-hidden="true" data-gauge-style={style} width={size} height={size} viewBox="0 0 24 24" strokeLinejoin="round" style={{ flexShrink: 0 }}>{body}</svg>;
 }
