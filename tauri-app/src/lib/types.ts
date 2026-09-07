@@ -70,10 +70,12 @@ export interface SensorsConfig {
   cpuTemp: GraphSensorConfig;
   cpuUsage: GraphSensorConfig;
   cpuConsumption: SensorConfig;
+  cpuClock: SensorConfig;
   gpuTemp: GraphSensorConfig;
   gpuUsage: GraphSensorConfig;
   vramUsage: GraphSensorConfig;
   gpuConsumption: SensorConfig;
+  gpuClock: SensorConfig;
   totalVramUsed: SensorConfig;
   ramUsage: GraphSensorConfig;
   upRate: SensorConfig;
@@ -261,10 +263,12 @@ export const DEFAULT_SETTINGS: OverlaySettings = {
     cpuTemp: { isEnabled: true, customReadingId: "", boundaries: { low: 60, medium: 80, high: 90 } },
     cpuUsage: { isEnabled: true, customReadingId: "", boundaries: { low: 60, medium: 80, high: 90 } },
     cpuConsumption: { isEnabled: true, customReadingId: "" },
+    cpuClock: { isEnabled: false, customReadingId: "" },
     gpuTemp: { isEnabled: true, customReadingId: "", boundaries: { low: 60, medium: 80, high: 90 } },
     gpuUsage: { isEnabled: true, customReadingId: "", boundaries: { low: 60, medium: 80, high: 90 } },
     vramUsage: { isEnabled: true, customReadingId: "", boundaries: { low: 60, medium: 80, high: 90 } },
     gpuConsumption: { isEnabled: true, customReadingId: "" },
+    gpuClock: { isEnabled: false, customReadingId: "" },
     totalVramUsed: { isEnabled: true, customReadingId: "" },
     ramUsage: { isEnabled: true, customReadingId: "", boundaries: { low: 60, medium: 80, high: 90 } },
     upRate: { isEnabled: true, customReadingId: "" },

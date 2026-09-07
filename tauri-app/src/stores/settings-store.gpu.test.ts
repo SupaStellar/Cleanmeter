@@ -389,3 +389,31 @@ describe("single-GPU machines", () => {
       .toBe("/amdcpu/0/load/0");
   });
 });
+
+describe("clock readings", () => {
+  it("prefers a CPU core and selected GPU core over bus and memory clocks", () => {
+    const clocks = {
+      ...DATA,
+      hardwares: [...DATA.hardwares, { name: "CPU", identifier: "/cpu", hardwareType: HardwareType.Cpu }],
+      sensors: [...DATA.sensors,
+        sensor("/cpu", "/cpu/clock/0", "Bus Speed", SensorType.Clock, 100),
+        sensor("/cpu", "/cpu/clock/1", "CPU Core #1", SensorType.Clock, 5400),
+        sensor(NVIDIA.identifier, "/gpu-nvidia/0/clock/1", "GPU Memory", SensorType.Clock, 10000),
+        sensor(NVIDIA.identifier, "/gpu-nvidia/0/clock/0", "GPU Core", SensorType.Clock, 2500),
+        sensor(INTEL.identifier, "/gpu-intel/0/clock/0", "GPU Core", SensorType.Clock, 900),
+      ],
+    };
+    useSettingsStore.getState().setSensorData(clocks);
+    let rows = useSettingsStore.getState().settings.sensors;
+    expect(rows.cpuClock.customReadingId).toBe("/cpu/clock/1");
+    expect(rows.gpuClock.customReadingId).toBe("/gpu-nvidia/0/clock/0");
+    expect(rows.cpuClock.isEnabled).toBe(false);
+    expect(rows.gpuClock.isEnabled).toBe(false);
+    useSettingsStore.getState().selectGpu(INTEL.identifier);
+    rows = useSettingsStore.getState().settings.sensors;
+    expect(rows.gpuClock.customReadingId).toBe("/gpu-intel/0/clock/0");
+    useSettingsStore.getState().setSensorData({ ...clocks, sensors: clocks.sensors.filter(s => !s.identifier.startsWith('/gpu-intel/0/clock')) });
+    // Preserve the chosen sensor during a transient absence; the HUD shows —.
+    expect(useSettingsStore.getState().settings.sensors.gpuClock.customReadingId).toBe("/gpu-intel/0/clock/0");
+  });
+});

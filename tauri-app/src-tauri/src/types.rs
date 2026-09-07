@@ -265,6 +265,8 @@ pub struct SensorsConfig {
     pub cpu_usage: GraphSensorConfig,
     #[serde(rename = "cpuConsumption")]
     pub cpu_consumption: SensorConfig,
+    #[serde(rename = "cpuClock", default = "sensor_config_disabled")]
+    pub cpu_clock: SensorConfig,
     #[serde(rename = "gpuTemp")]
     pub gpu_temp: GraphSensorConfig,
     #[serde(rename = "gpuUsage")]
@@ -273,6 +275,8 @@ pub struct SensorsConfig {
     pub vram_usage: GraphSensorConfig,
     #[serde(rename = "gpuConsumption")]
     pub gpu_consumption: SensorConfig,
+    #[serde(rename = "gpuClock", default = "sensor_config_disabled")]
+    pub gpu_clock: SensorConfig,
     #[serde(rename = "totalVramUsed")]
     pub total_vram_used: SensorConfig,
     #[serde(rename = "ramUsage")]
@@ -293,10 +297,12 @@ impl Default for SensorsConfig {
             cpu_temp: GraphSensorConfig::default(),
             cpu_usage: GraphSensorConfig::default(),
             cpu_consumption: SensorConfig::default(),
+            cpu_clock: sensor_config_disabled(),
             gpu_temp: GraphSensorConfig::default(),
             gpu_usage: GraphSensorConfig::default(),
             vram_usage: GraphSensorConfig::default(),
             gpu_consumption: SensorConfig::default(),
+            gpu_clock: sensor_config_disabled(),
             total_vram_used: SensorConfig::default(),
             ram_usage: GraphSensorConfig::default(),
             up_rate: SensorConfig::default(),
@@ -506,6 +512,21 @@ pub struct MonitorInfo {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn clock_settings_upgrade_and_round_trip() {
+        let mut value = serde_json::to_value(OverlaySettings::default()).unwrap();
+        value["sensors"].as_object_mut().unwrap().remove("cpuClock");
+        value["sensors"].as_object_mut().unwrap().remove("gpuClock");
+        let mut loaded: OverlaySettings = serde_json::from_value(value).unwrap();
+        assert!(!loaded.sensors.cpu_clock.is_enabled);
+        assert!(!loaded.sensors.gpu_clock.is_enabled);
+        loaded.sensors.gpu_clock.is_enabled = true;
+        loaded.sensors.gpu_clock.custom_reading_id = "/gpu-nvidia/0/clock/0".into();
+        let restored: OverlaySettings = serde_json::from_str(&serde_json::to_string(&loaded).unwrap()).unwrap();
+        assert!(restored.sensors.gpu_clock.is_enabled);
+        assert_eq!(restored.sensors.gpu_clock.custom_reading_id, "/gpu-nvidia/0/clock/0");
+    }
 
     /// The settings file is written by deserialising the app's JSON into
     /// OverlaySettings and serialising it straight back out, so any field the

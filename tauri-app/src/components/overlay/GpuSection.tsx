@@ -19,8 +19,10 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
   const labelFontSize = settings.fontSizeLabel ?? 12;
   const valueFontWeight = settings.fontWeight ?? 500;
   const labelFontWeight = settings.labelFontWeight ?? 500;
-  const { gpuTemp, gpuUsage, vramUsage, totalVramUsed, gpuConsumption } =
+  const { gpuTemp, gpuUsage, vramUsage, totalVramUsed, gpuConsumption, gpuClock } =
     settings.sensors;
+  const clock = findSensorById(sensors, gpuClock.customReadingId);
+  const clockLabel = clock && Number.isFinite(clock.value) && clock.value >= 0 ? formatValue(clock.value) : "—";
   const progressType = settings.progressType;
 
   const anyEnabled =
@@ -28,7 +30,7 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
     gpuUsage.isEnabled ||
     vramUsage.isEnabled ||
     totalVramUsed.isEnabled ||
-    gpuConsumption.isEnabled;
+    gpuConsumption.isEnabled || gpuClock.isEnabled;
 
   if (!anyEnabled) return null;
 
@@ -148,6 +150,12 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
             {formatValue(gpuPowerVal)}
           </span>
           <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>W</span>
+        </div>
+      )}
+      {gpuClock.isEnabled && (
+        <div className="flex items-center gap-1" title={clock?.name ?? "Clock unavailable"}>
+          <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">{clockLabel}</span>
+          <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>MHz</span>
         </div>
       )}
     </Pill>

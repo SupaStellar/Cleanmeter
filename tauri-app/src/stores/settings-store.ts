@@ -136,11 +136,13 @@ function autoSelectSensors(
 
   tryFill("cpuUsage", cpuHw, SensorType.Load, ["CPU Total", "CPU Package", "CPU"]);
   tryFill("cpuTemp", cpuHw, SensorType.Temperature, ["CPU Package", "CPU Core", "CPU"]);
+  tryFill("cpuClock", cpuHw, SensorType.Clock, ["CPU Core #1", "CPU Core", "Core #1", "Core"]);
   tryFill("cpuConsumption", cpuHw, SensorType.Power, ["CPU Package", "CPU"]);
   fillOnGpu("gpuUsage", SensorType.Load, ["GPU Core", "D3D 3D", "GPU"]);
   fillOnGpu("gpuTemp", SensorType.Temperature, ["GPU Core", "GPU"]);
   fillOnGpu("vramUsage", SensorType.Load, ["GPU Memory", "Memory"]);
   fillOnGpu("totalVramUsed", SensorType.SmallData, ["GPU Memory Used", "Memory Used", "VRAM"]);
+  fillOnGpu("gpuClock", SensorType.Clock, ["GPU Core", "Graphics", "GPU"]);
   fillOnGpu("gpuConsumption", SensorType.Power, ["GPU Package", "GPU Power", "GPU"]);
   tryFill("ramUsage", [HardwareType.Memory], SensorType.Load, ["Memory Used", "Memory"]);
   // For network, pick the most active non-virtual adapter
