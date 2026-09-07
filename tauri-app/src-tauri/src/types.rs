@@ -372,6 +372,8 @@ pub struct OverlaySettings {
     // struct comment above).
     #[serde(rename = "pixelShift", default)]
     pub pixel_shift: bool,
+    #[serde(rename = "fixedPillSize", default)]
+    pub fixed_pill_size: bool,
     // Hardware identifier of the GPU every GPU reading is taken from, e.g.
     // "/gpu-nvidia/0". Empty means "not chosen yet", which the app resolves on
     // load. Machines with one GPU never show the control that sets this.
@@ -435,6 +437,7 @@ impl Default for OverlaySettings {
             polling_rate: 500,
             is_logging_enabled: false,
             pixel_shift: false,
+            fixed_pill_size: false,
             selected_gpu_id: String::new(),
             recording_shortcut: default_recording_shortcut(),
             overlay_shortcut: default_overlay_shortcut(),
@@ -506,6 +509,17 @@ pub struct MonitorInfo {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fixed_pills_upgrade_and_round_trip() {
+        let mut value = serde_json::to_value(OverlaySettings::default()).unwrap();
+        value.as_object_mut().unwrap().remove("fixedPillSize");
+        let mut loaded: OverlaySettings = serde_json::from_value(value).unwrap();
+        assert!(!loaded.fixed_pill_size);
+        loaded.fixed_pill_size = true;
+        let restored: OverlaySettings = serde_json::from_str(&serde_json::to_string(&loaded).unwrap()).unwrap();
+        assert!(restored.fixed_pill_size);
+    }
 
     /// The settings file is written by deserialising the app's JSON into
     /// OverlaySettings and serialising it straight back out, so any field the

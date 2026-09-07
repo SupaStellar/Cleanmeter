@@ -1,3 +1,4 @@
+import { MetricValue } from "./MetricValue";
 import { getBoundaryColor } from "@/lib/utils";
 import type { Boundaries } from "@/lib/types";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -77,10 +78,10 @@ export function ProgressRing({
           (Pill gap); number→unit stays gap-1 (Figma 4). tabular-nums avoids
           same-digit jitter. */}
       <div className="flex items-center gap-1" style={{ fontSize: valueFontSize }}>
-        <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
+        <MetricValue style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
           {label}
-        </span>
-        <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{unit}</span>
+        </MetricValue>
+        <span data-metric-unit style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{unit}</span>
       </div>
     </div>
   );

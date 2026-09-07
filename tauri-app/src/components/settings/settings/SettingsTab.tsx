@@ -49,6 +49,7 @@ function SectionCard({
 function GeneralSection() {
   const startMinimized = useSettingsStore((s) => s.preferences.startMinimized);
   const updatePreferences = useSettingsStore((s) => s.updatePreferences);
+  const fixedPillSize = useSettingsStore((s) => s.settings.fixedPillSize);
   const pixelShift = useSettingsStore((s) => s.settings.pixelShift);
   const updateSettings = useSettingsStore((s) => s.updateSettings);
   const [startWithWindows, setStartWithWindows] = React.useState(false);
@@ -118,6 +119,14 @@ function GeneralSection() {
           aria-label="Pixel Shift"
         />
       </div>
+      <div className="h-px w-full shrink-0 bg-[var(--borderSubtle)]" />
+      <label className="flex items-center gap-[var(--spacingS)]">
+        <span className="flex flex-1 flex-col gap-[6px]">
+          <span className="text-body-sm-medium text-[var(--textHeading)]">Fixed pill size</span>
+          <span className="text-body-sm-regular text-[var(--textParagraph1)]">Reserve space for readings so pills stay still as numbers change.</span>
+        </span>
+        <Switch checked={fixedPillSize} onCheckedChange={(fixedPillSize) => updateSettings({ fixedPillSize })} aria-label="Fixed pill size" />
+      </label>
     </SectionCard>
   );
 }

@@ -110,6 +110,7 @@ export interface OverlaySettings {
   // When true, the overlay is nudged a few pixels on a slow cycle to spread
   // OLED wear (burn-in mitigation). See pixel-shift logic in OverlayApp.
   pixelShift: boolean;
+  fixedPillSize: boolean;
   /**
    * Hardware identifier of the GPU every GPU reading is taken from, e.g.
    * "/gpu-nvidia/0". Empty means "not chosen yet".
@@ -246,6 +247,7 @@ export const DEFAULT_SETTINGS: OverlaySettings = {
   pollingRate: 500,
   isLoggingEnabled: false,
   pixelShift: false,
+  fixedPillSize: false,
   selectedGpuId: "",
   recordingShortcut: RECORDING_SHORTCUT_DEFAULT,
   overlayShortcut: OVERLAY_SHORTCUT_DEFAULT,

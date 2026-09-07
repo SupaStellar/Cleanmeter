@@ -65,6 +65,7 @@ export function Pill({ title, isHorizontal, children, tooltip, graphRow }: PillP
     // gauge-less pills (FPS, NET) at gauge + pad so they match their siblings.
     return (
       <div
+        data-pill={title}
         title={tooltip}
         style={{
           display: "flex",
@@ -92,6 +93,7 @@ export function Pill({ title, isHorizontal, children, tooltip, graphRow }: PillP
   // row); without one it renders a single centered row exactly as before.
   return (
     <div
+      data-pill={title}
       title={tooltip}
       style={{
         display: "flex",
