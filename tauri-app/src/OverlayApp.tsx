@@ -1,3 +1,4 @@
+import { pixelShiftOptions, pixelShiftPosition } from "@/lib/pixel-shift";
 import { useEffect, useRef, useState } from "react";
 import { OverlayHud } from "@/components/overlay/OverlayHud";
 import { useSensorData } from "@/hooks/useSensorData";
@@ -199,25 +200,21 @@ export default function OverlayApp() {
       resetOffset();
       return;
     }
-    const AMPLITUDE = 6; // logical px per axis (12px span), scaled by DPI below
-    const TICK_MS = 3000; // one small step every 3s
-    const D_PHASE = 0.1; // keeps each step <=1px at this amplitude
-    const RATIO = Math.SQRT2; // incommensurate -> path fills the box over time
-    let phase = 0;
+    resetOffset();
+    const { distance, interval } = pixelShiftOptions({ pixelShiftDistance: settings.pixelShiftDistance, pixelShiftInterval: settings.pixelShiftInterval });
+    let tick = 0;
     const id = setInterval(() => {
       // Never fight an in-progress drag (apply() also early-returns then).
       if (dragStart.current) return;
-      phase += D_PHASE;
-      const dpr = window.devicePixelRatio || 1;
-      const nx = Math.round(AMPLITUDE * Math.sin(phase) * dpr);
-      const ny = Math.round(AMPLITUDE * Math.sin(phase * RATIO) * dpr);
+      tick += 1;
+      const { x: nx, y: ny } = pixelShiftPosition(tick, distance, window.devicePixelRatio || 1);
       if (nx !== pixelShiftOffset.current.x || ny !== pixelShiftOffset.current.y) {
         pixelShiftOffset.current = { x: nx, y: ny };
         applyPositionRef.current();
       }
-    }, TICK_MS);
+    }, interval * 1000);
     return () => clearInterval(id);
-  }, [settings.pixelShift]);
+  }, [settings.pixelShift, settings.pixelShiftDistance, settings.pixelShiftInterval]);
 
   // Manual drag. startDragging() needed an async dynamic import that lost the
   // button-down window on Windows before WM_NCLBUTTONDOWN could post, so drag

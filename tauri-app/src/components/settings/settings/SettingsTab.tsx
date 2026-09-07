@@ -1,3 +1,4 @@
+import { PixelShiftControls } from "./PixelShiftControls";
 import * as React from "react";
 import * as RadioGroupPrimitive from "@radix-ui/react-radio-group";
 import { Checkbox } from "@/components/shadcn/checkbox";
@@ -118,6 +119,7 @@ function GeneralSection() {
           aria-label="Pixel Shift"
         />
       </div>
+      <PixelShiftControls />
     </SectionCard>
   );
 }
