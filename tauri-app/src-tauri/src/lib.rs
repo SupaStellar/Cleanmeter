@@ -1,5 +1,6 @@
 mod commands;
 mod pipe_client;
+mod pipe_input;
 mod shortcuts;
 mod settings;
 mod tray;
