@@ -293,7 +293,9 @@ impl LinuxSensors {
             if let Some(v) = number(device.join("gpu_busy_percent")).filter(|v| *v <= 100.0) {
                 add(&mut data, &id, "load", "GPU Core", SensorType::Load, v);
             }
-            if let Some(used) = number(device.join("mem_info_vram_used")) {
+            if let Some(used) =
+                number(device.join("mem_info_vram_used")).filter(|v| v.is_finite() && *v >= 0.0)
+            {
                 add(
                     &mut data,
                     &id,
@@ -302,7 +304,8 @@ impl LinuxSensors {
                     SensorType::SmallData,
                     used / 1_048_576.0,
                 );
-                if let Some(total) = number(device.join("mem_info_vram_total")).filter(|v| *v > 0.0)
+                if let Some(total) =
+                    number(device.join("mem_info_vram_total")).filter(|v| v.is_finite() && *v > 0.0)
                 {
                     add(
                         &mut data,
@@ -372,7 +375,7 @@ pub fn append_nvidia(data: &mut HardwareMonitorData, csv: &str) {
             }
         }
         if let (Ok(used), Ok(total)) = (v[4].parse::<f64>(), v[5].parse::<f64>()) {
-            if total > 0.0 {
+            if used.is_finite() && used >= 0.0 && total.is_finite() && total > 0.0 {
                 add(
                     data,
                     &id,
@@ -430,6 +433,12 @@ mod tests {
                 .value,
             25.0
         );
+        d.sensors.clear();
+        append_nvidia(&mut d, "GPU-123, RTX Test, 30, 60, NaN, 4096, 120");
+        assert!(!d
+            .sensors
+            .iter()
+            .any(|s| s.identifier.ends_with("memory-load")));
     }
     #[test]
     fn fixture_rates_units_and_counter_reset() {
