@@ -56,6 +56,9 @@ jobs:
       - name: Stage PresentMon
         shell: pwsh
         run: Copy-Item presentmon/* HardwareMonitor/HardwareMonitor/bin/Release/net8.0/win-x64/publish/
+      - name: Run the published Windows sidecar on runner hardware
+        shell: pwsh
+        run: ./scripts/test-windows-sidecar.ps1
       - name: Rust tests
         working-directory: tauri-app/src-tauri
         run: cargo test --lib --target x86_64-pc-windows-msvc

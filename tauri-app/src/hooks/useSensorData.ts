@@ -31,7 +31,13 @@ export function useSensorData() {
       const u3 = await onPipeStatus((status) => setPipeStatus(status));
       if (mounted) unlisteners.push(u3); else u3();
 
-      const u5 = await onHardwareStatus(setHardwareStatus);
+      const u5 = await onHardwareStatus((status) => {
+        // Pipe-first startup can connect before this webview subscribes to
+        // the one-shot pipe-status event. This heartbeat arrived over that
+        // pipe, so it also repairs missed initial connection state.
+        setPipeStatus({ connected: true });
+        setHardwareStatus(status);
+      });
       if (mounted) unlisteners.push(u5); else u5();
 
       const u4 = await onSidecarStatus((status) => setSidecarStatus(status));
@@ -82,4 +88,3 @@ export function useFrametimeHistory(maxPoints = 30) {
 
   return history;
 }
-
