@@ -39,6 +39,35 @@ try {
             "Hardware entries: $hardware; sensors: $sensors" | Add-Content "$evidence/live-sensor-counts.txt"
             # Five PresentMon sensors alone do not demonstrate LHM success.
             $readingsSeen = $hardware -gt 0 -and $sensors -gt 5
+            if ($readingsSeen) {
+                $reader = [IO.BinaryReader]::new([IO.MemoryStream]::new([byte[]]$payload))
+                try {
+                    $null = $reader.ReadInt32(); $null = $reader.ReadInt32()
+                    for ($i = 0; $i -lt $hardware; $i++) {
+                        $nameLength = $reader.ReadInt16(); $idLength = $reader.ReadInt16()
+                        $null = $reader.ReadBytes($nameLength + $idLength)
+                        $null = $reader.ReadInt32()
+                    }
+                    $memory = @{}
+                    for ($i = 0; $i -lt $sensors; $i++) {
+                        $nameLength = $reader.ReadInt16(); $idLength = $reader.ReadInt16(); $hardwareLength = $reader.ReadInt16()
+                        $null = $reader.ReadBytes($nameLength)
+                        $id = [Text.Encoding]::UTF8.GetString($reader.ReadBytes($idLength))
+                        $null = $reader.ReadBytes($hardwareLength)
+                        $null = $reader.ReadInt32()
+                        $value = $reader.ReadSingle()
+                        if ($id.StartsWith('/ram/') -or $id.StartsWith('/vram/')) { $memory[$id] = $value }
+                    }
+                    $expected = @('/ram/load/0', '/ram/data/0', '/ram/data/1', '/vram/load/1', '/vram/data/2', '/vram/data/3')
+                    foreach ($id in $expected) {
+                        if (-not $memory.ContainsKey($id)) { throw "Missing OS memory sensor $id" }
+                        if ([float]::IsNaN($memory[$id]) -or [float]::IsInfinity($memory[$id])) { throw "Invalid value for $id" }
+                    }
+                    if ($memory['/ram/load/0'] -lt 0 -or $memory['/ram/load/0'] -gt 100) { throw 'RAM load outside percentage range' }
+                    if (($memory['/ram/data/0'] + $memory['/ram/data/1']) -le 0) { throw 'No physical memory reported' }
+                    $memory | ConvertTo-Json | Set-Content "$evidence/live-memory-values.json"
+                } finally { $reader.Dispose() }
+            }
         }
     }
     Write-Host 'Published Windows sidecar connected, reported progress, and sent real hardware sensor entries.'

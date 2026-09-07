@@ -1,7 +1,7 @@
 # Windows startup test build
 
-This build includes PR #67's reconnect fix plus independent pipe startup and
-hardware-stage reporting. It keeps PawnIO. It is a test build, not a release or
+This build (2.2.17-startup.3) includes PR #67's reconnect fix, independent pipe startup,
+hardware-stage reporting, and a targeted replacement for stalled memory discovery. It keeps PawnIO. It is a test build, not a release or
 a confirmed fix for the reported PC.
 
 Reported configuration: Windows 11, Intel Core i7-14700K, NVIDIA RTX 4080 Super,
@@ -40,10 +40,12 @@ send readings through the already connected pipe. Separate status packets report
 the current stage, including stalls during later sensor reads. No dummy sensor
 packets are sent to suppress the failure banner.
 
-Discovery enables the same sensor categories in the same order, but separately,
-using LibreHardwareMonitor 0.9.6's supported enable-after-open setters. An exception
-in motherboard discovery or an initial device read no longer skips all remaining
-categories/devices. Logs identify each category before calling its probe.
+The affected PC reported a stall at **Discovering memory sensors** in startup.2.
+This build leaves LibreHardwareMonitor's MemoryGroup disabled and uses Windows'
+GlobalMemoryStatusEx for physical RAM and system committed-memory usage instead.
+It preserves the existing sensor IDs and GiB/percentage units. Per-DIMM
+identification and RAM-stick temperatures are not collected. CPU/GPU monitoring
+and PawnIO stay enabled. Other sensor categories are still discovered separately.
 
 A permanently blocked hardware call still prevents sensor readings. The build
 does not claim that starting PresentMon independently makes its FPS readings
@@ -60,7 +62,8 @@ A mutation moving pipe startup behind the blocked operation must fail that
 regression test. Other checks cover C#, Rust, and frontend code, followed by a
 full Windows installer build.
 
-The simulated stall is a regression test, not a reproduction of this exact
+The Windows check also verifies all six OS memory sensor identifiers and finite
+values through the published sidecar's real pipe. The simulated stall is a regression test, not a reproduction of this exact
 motherboard/driver failure. Real sensor success on the affected PC remains the
 acceptance test. The frontend build currently has unrelated existing standalone
 TypeScript type-check errors; the repository's lint, unit tests, and Vite build

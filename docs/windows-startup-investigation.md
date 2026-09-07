@@ -53,3 +53,26 @@ The independent logs distinguish these next outcomes:
 See [test instructions](windows-startup-test.md) for log locations and the
 acceptance check. Sensor readings on the affected PC, not a green build or a
 connected pipe, determine whether this resolves that user's issue.
+
+## Follow-up: screenshot from startup.2
+
+The affected PC now reports a connected pipe and **Discovering memory sensors
+has not finished**. That stage surrounds `Computer.IsMemoryEnabled = true`,
+which constructs LibreHardwareMonitor 0.9.6's MemoryGroup. Earlier motherboard
+and CPU discovery calls have returned by this point (possibly with logged
+exceptions); this screenshot does not establish that all their readings work.
+
+MemoryGroup constructs the ordinary memory counters, then synchronously calls
+RAMSPDToolkit's driver loading and DIMM/SMBus discovery before its constructor
+returns. The screenshot cannot distinguish driver loading from a later DIMM
+probe, but it does identify this constructor as the blocked operation.
+
+Startup.3 avoids that constructor altogether. WindowsMemoryHardware reads
+GlobalMemoryStatusEx and publishes the existing physical (`/ram`) and committed
+memory (`/vram`) sensor IDs. It removes per-stick temperature/detail probing from
+this build; it does not disable RAM usage monitoring or replace PawnIO for other
+hardware. The next affected-PC test must confirm that discovery passes this stage
+and actual CPU/GPU/RAM readings arrive.
+
+Sources: [LHM MemoryGroup](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/blob/v0.9.6/LibreHardwareMonitorLib/Hardware/Memory/MemoryGroup.cs),
+[Windows GlobalMemoryStatusEx](https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-globalmemorystatusex).

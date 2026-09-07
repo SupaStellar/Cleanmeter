@@ -39,6 +39,12 @@ public class MonitorPoller : BackgroundService
     // LHM 0.9.6 supports enabling groups after Open. This exposes which probe
     // stalls, and an exception in one group no longer skips every later group.
     private readonly Computer _computer = new();
+    private readonly IHardware[] _windowsMemory = [new WindowsMemoryHardware(), new WindowsMemoryHardware(virtualMemory: true)];
+
+    // MemoryGroup is intentionally never enabled: ordinary usage comes from
+    // Windows, without RAM-driver/SPD discovery. Include these stable sensors
+    // everywhere topology is mapped or counted so later refreshes retain them.
+    private IHardware[] HardwareSnapshot() => [.. _computer.Hardware, .. _windowsMemory];
 
     private readonly PipeHost _socketHost;
     private readonly PresentMonPoller _presentMonPoller;
@@ -166,14 +172,14 @@ public class MonitorPoller : BackgroundService
         logger.LogInformation("Hardware init: Computer.Open completed");
         stoppingToken.ThrowIfCancellationRequested();
 
-        // Keep LHM's original ordering, including CPU before GPU (Intel GPU
-        // discovery uses the CPU group). Every category previously enabled is
-        // still enabled; no board-specific blacklist or driver change.
+        // Keep CPU before GPU (Intel GPU discovery uses the CPU group).
+        // Replace only memory discovery with OS counters; this avoids the
+        // reported stalled MemoryGroup constructor while retaining RAM usage.
         HardwareDiscovery.Run(new (string, Action)[]
         {
             ("Discovering motherboard sensors", () => _computer.IsMotherboardEnabled = true),
             ("Discovering CPU sensors", () => _computer.IsCpuEnabled = true),
-            ("Discovering memory sensors", () => _computer.IsMemoryEnabled = true),
+            ("Reading Windows memory usage (no DIMM probing)", () => { foreach (var memory in _windowsMemory) memory.Update(); }),
             ("Discovering graphics sensors", () => _computer.IsGpuEnabled = true),
             ("Discovering controller sensors", () => _computer.IsControllerEnabled = true),
             ("Discovering storage sensors", () => _computer.IsStorageEnabled = true),
@@ -191,7 +197,7 @@ public class MonitorPoller : BackgroundService
 
         // Read each device separately as well: a thrown first read on one
         // device should not prevent initial readings from all later devices.
-        HardwareDiscovery.Run(_computer.Hardware.Select(hw =>
+        HardwareDiscovery.Run(HardwareSnapshot().Select(hw =>
             ($"First sensor read: {hw.Name}", (Action)(() => hw.Accept(new UpdateVisitor())))),
             _progress, logger, stoppingToken);
 
@@ -208,7 +214,7 @@ public class MonitorPoller : BackgroundService
 
         // Log discovered hardware and sensor counts for diagnostics
         int hwCount = 0, sensorCount = 0;
-        foreach (var hw in _computer.Hardware)
+        foreach (var hw in HardwareSnapshot())
         {
             hwCount++;
             sensorCount += hw.Sensors.Length;
@@ -224,7 +230,7 @@ public class MonitorPoller : BackgroundService
 
         // Log first few sensor values to check if readings are non-zero
         int logged = 0;
-        foreach (var hw in _computer.Hardware)
+        foreach (var hw in HardwareSnapshot())
         {
             foreach (var s in hw.Sensors)
             {
@@ -744,7 +750,7 @@ public class MonitorPoller : BackgroundService
     /// </summary>
     private void MapHardwareData(SharedMemoryData sharedMemoryData)
     {
-        var hardwares = _computer.Hardware;
+        var hardwares = HardwareSnapshot();
 
         MapHardwares(sharedMemoryData, hardwares);
         MapSensors(sharedMemoryData, hardwares);
@@ -851,7 +857,7 @@ public class MonitorPoller : BackgroundService
     {
         var count = 0;
 
-        foreach (var hardware in _computer.Hardware)
+        foreach (var hardware in HardwareSnapshot())
         {
             count += hardware.Sensors.Length;
             foreach (var subHardware in hardware.SubHardware)
