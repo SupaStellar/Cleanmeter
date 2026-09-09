@@ -2,7 +2,7 @@ import { Pill } from "./Pill";
 import { ProgressRing } from "./ProgressRing";
 import { ProgressBar } from "./ProgressBar";
 import { useSettingsStore } from "@/stores/settings-store";
-import { findSensorById, formatValue, formatTemperature } from "@/lib/utils";
+import { findSensorById, formatClockLabel, formatValue, formatTemperature } from "@/lib/utils";
 
 interface CpuSectionProps {
   isHorizontal: boolean;
@@ -19,7 +19,7 @@ export function CpuSection({ isHorizontal }: CpuSectionProps) {
   const labelFontWeight = settings.labelFontWeight ?? 500;
   const { cpuTemp, cpuUsage, cpuConsumption, cpuClock } = settings.sensors;
   const clock = findSensorById(sensors, cpuClock.customReadingId);
-  const clockLabel = clock && Number.isFinite(clock.value) && clock.value >= 0 ? formatValue(clock.value) : "—";
+  const clockLabel = formatClockLabel(clock);
   const progressType = settings.progressType;
 
   const anyEnabled =

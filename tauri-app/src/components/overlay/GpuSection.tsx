@@ -4,7 +4,7 @@ import { ProgressBar } from "./ProgressBar";
 import { useSettingsStore } from "@/stores/settings-store";
 import { SensorType } from "@/lib/types";
 import type { Sensor } from "@/lib/types";
-import { findSensorById, formatValue, formatTemperature } from "@/lib/utils";
+import { findSensorById, formatClockLabel, formatValue, formatTemperature } from "@/lib/utils";
 
 interface GpuSectionProps {
   isHorizontal: boolean;
@@ -22,7 +22,7 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
   const { gpuTemp, gpuUsage, vramUsage, totalVramUsed, gpuConsumption, gpuClock } =
     settings.sensors;
   const clock = findSensorById(sensors, gpuClock.customReadingId);
-  const clockLabel = clock && Number.isFinite(clock.value) && clock.value >= 0 ? formatValue(clock.value) : "—";
+  const clockLabel = formatClockLabel(clock);
   const progressType = settings.progressType;
 
   const anyEnabled =
