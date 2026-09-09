@@ -397,7 +397,7 @@ describe("clock readings", () => {
       hardwares: [...DATA.hardwares, { name: "CPU", identifier: "/cpu", hardwareType: HardwareType.Cpu }],
       sensors: [...DATA.sensors,
         sensor("/cpu", "/cpu/clock/0", "Bus Speed", SensorType.Clock, 100),
-        sensor("/cpu", "/cpu/clock/1", "CPU Core #1", SensorType.Clock, 5400),
+        sensor("/cpu", "/cpu/clock/1", "CPU Core _1", SensorType.Clock, 5400),
         sensor(NVIDIA.identifier, "/gpu-nvidia/0/clock/1", "GPU Memory", SensorType.Clock, 10000),
         sensor(NVIDIA.identifier, "/gpu-nvidia/0/clock/0", "GPU Core", SensorType.Clock, 2500),
         sensor(INTEL.identifier, "/gpu-intel/0/clock/0", "GPU Core", SensorType.Clock, 900),
@@ -415,5 +415,57 @@ describe("clock readings", () => {
     useSettingsStore.getState().setSensorData({ ...clocks, sensors: clocks.sensors.filter(s => !s.identifier.startsWith('/gpu-intel/0/clock')) });
     // Preserve the chosen sensor during a transient absence; the HUD shows —.
     expect(useSettingsStore.getState().settings.sensors.gpuClock.customReadingId).toBe("/gpu-intel/0/clock/0");
+  });
+
+  /**
+   * Sensor names below are written the way the SIDECAR emits them, not the way
+   * LibreHardwareMonitor spells them: MonitorPoller.RemoveSpecialCharacters
+   * rewrites [^a-zA-Z0-9_ .]+ to "_", so "Core #1" becomes "Core _1",
+   * "Cores (Average)" becomes "Cores _Average_" and "P-Core #1" becomes
+   * "P_Core _1". Testing the unsanitised spelling would exercise a match that
+   * cannot happen on a real machine.
+   */
+  const cpuOnly = (...clocks: Sensor[]): HardwareMonitorData => ({
+    ...DATA,
+    hardwares: [...DATA.hardwares, { name: "CPU", identifier: "/cpu", hardwareType: HardwareType.Cpu }],
+    sensors: [...DATA.sensors, ...clocks],
+  });
+
+  it("picks the average core clock on Zen, never the bus or the effective clock", () => {
+    // Amd17Cpu activates Bus Speed(0), Cores (Average)(1) and
+    // Cores (Average Effective)(2) in that index order, and the average pair
+    // before any per-core sensor. The effective readings sit near-idle (they
+    // count halted cycles) so selecting one would look broken in the HUD.
+    seed({});
+    useSettingsStore.getState().setSensorData(cpuOnly(
+      sensor("/cpu", "/amdcpu/0/clock/0", "Bus Speed", SensorType.Clock, 100),
+      sensor("/cpu", "/amdcpu/0/clock/1", "Cores _Average_", SensorType.Clock, 4347),
+      sensor("/cpu", "/amdcpu/0/clock/2", "Cores _Average Effective_", SensorType.Clock, 285),
+      sensor("/cpu", "/amdcpu/0/clock/3", "Core _1", SensorType.Clock, 5150),
+      sensor("/cpu", "/amdcpu/0/clock/4", "Core _1 _Effective_", SensorType.Clock, 253),
+    ));
+    expect(useSettingsStore.getState().settings.sensors.cpuClock.customReadingId)
+      .toBe("/amdcpu/0/clock/1");
+  });
+
+  it("picks a P-Core on hybrid Intel, where no name contains \"CPU Core\"", () => {
+    // 12th gen and newer name cores "P-Core #N"/"E-Core #N" (IntelCpu.cs), so
+    // the "CPU Core" pattern misses entirely and only "Core" can match.
+    seed({});
+    useSettingsStore.getState().setSensorData(cpuOnly(
+      sensor("/cpu", "/intelcpu/0/clock/0", "Bus Speed", SensorType.Clock, 100),
+      sensor("/cpu", "/intelcpu/0/clock/1", "P_Core _1", SensorType.Clock, 5200),
+      sensor("/cpu", "/intelcpu/0/clock/9", "E_Core _1", SensorType.Clock, 4000),
+    ));
+    expect(useSettingsStore.getState().settings.sensors.cpuClock.customReadingId)
+      .toBe("/intelcpu/0/clock/1");
+  });
+
+  it("leaves the row empty when the CPU exposes no clock at all", () => {
+    // GenericCpu declares no Clock sensors, so an unsupported CPU or a VM has
+    // nothing to select and the HUD falls back to the dash.
+    seed({});
+    useSettingsStore.getState().setSensorData(cpuOnly());
+    expect(useSettingsStore.getState().settings.sensors.cpuClock.customReadingId).toBe("");
   });
 });

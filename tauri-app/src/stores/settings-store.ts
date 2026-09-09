@@ -136,7 +136,15 @@ function autoSelectSensors(
 
   tryFill("cpuUsage", cpuHw, SensorType.Load, ["CPU Total", "CPU Package", "CPU"]);
   tryFill("cpuTemp", cpuHw, SensorType.Temperature, ["CPU Package", "CPU Core", "CPU"]);
-  tryFill("cpuClock", cpuHw, SensorType.Clock, ["CPU Core #1", "CPU Core", "Core #1", "Core"]);
+  // No "#" in these patterns: the sidecar runs every sensor name through
+  // RemoveSpecialCharacters ([^a-zA-Z0-9_ .]+ -> "_"), so LHM's "Core #1"
+  // arrives here as "Core _1" and a "#" pattern can never match on any machine.
+  // These two cover every family LHM 0.9.6 reports a core clock for:
+  // "CPU Core" hits non-hybrid Intel and pre-Zen AMD ("CPU Core #N"), and
+  // "Core" hits Zen ("Cores (Average)", which Amd17Cpu activates first) and
+  // hybrid Intel ("P-Core #N"). "Bus Speed" contains neither, so the bus clock
+  // is never selected.
+  tryFill("cpuClock", cpuHw, SensorType.Clock, ["CPU Core", "Core"]);
   tryFill("cpuConsumption", cpuHw, SensorType.Power, ["CPU Package", "CPU"]);
   fillOnGpu("gpuUsage", SensorType.Load, ["GPU Core", "D3D 3D", "GPU"]);
   fillOnGpu("gpuTemp", SensorType.Temperature, ["GPU Core", "GPU"]);
