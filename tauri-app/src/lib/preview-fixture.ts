@@ -70,6 +70,11 @@ export function previewSensorData(): HardwareMonitorData {
       sensor("/gpu-nvidia/0", "/gpu-nvidia/0/smalldata/2", "GPU Memory Total", SensorType.SmallData, 4096),
       sensor("/gpu-nvidia/0", "/gpu-nvidia/0/smalldata/9", "D3D Dedicated Memory Used", SensorType.SmallData, 2048),
 
+      // Representative clock readings for exercising the optional HUD controls.
+      sensor("/intelcpu/0", "/intelcpu/0/clock/1", "CPU Core #1", SensorType.Clock, 4200),
+      sensor("/gpu-nvidia/0", "/gpu-nvidia/0/clock/0", "GPU Core", SensorType.Clock, 1755),
+      sensor("/gpu-intel/0", "/gpu-intel/0/clock/0", "GPU Core", SensorType.Clock, 900),
+
       // Integrated GPU: load through D3D engine nodes, and its only "memory
       // total" is system memory it may borrow.
       sensor("/gpu-intel/0", "/gpu-intel/0/load/0", "D3D 3D", SensorType.Load, 7),
