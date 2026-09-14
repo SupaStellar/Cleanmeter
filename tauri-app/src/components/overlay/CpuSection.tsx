@@ -1,9 +1,10 @@
-import { MetricValue } from "./MetricValue";
+import { MetricValue, MetricUnit } from "./MetricValue";
 import { Pill } from "./Pill";
 import { ProgressRing } from "./ProgressRing";
 import { ProgressBar } from "./ProgressBar";
 import { useSettingsStore } from "@/stores/settings-store";
 import { findSensorById, formatValue, formatTemperature } from "@/lib/utils";
+import { Reserve } from "@/lib/metric-reserve";
 
 interface CpuSectionProps {
   isHorizontal: boolean;
@@ -44,14 +45,15 @@ export function CpuSection({ isHorizontal }: CpuSectionProps) {
             max={100}
             label={temp.label}
             unit={temp.symbol}
+            reserve={Reserve.threeDigits}
             boundaries={cpuTemp.boundaries}
           />
         ) : (
           <div className="flex items-center gap-1">
-            <MetricValue style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
+            <MetricValue reserve={Reserve.threeDigits} style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
               {temp.label}
             </MetricValue>
-            <span data-metric-unit style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{temp.symbol}</span>
+            <MetricUnit style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{temp.symbol}</MetricUnit>
           </div>
         )
       )}
@@ -62,14 +64,15 @@ export function CpuSection({ isHorizontal }: CpuSectionProps) {
             max={100}
             label={formatValue(cpuUsageVal)}
             unit="%"
+            reserve={Reserve.threeDigits}
             boundaries={cpuUsage.boundaries}
           />
         ) : (
           <div className="flex items-center gap-1">
-            <MetricValue style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
+            <MetricValue reserve={Reserve.threeDigits} style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
               {formatValue(cpuUsageVal)}
             </MetricValue>
-            <span data-metric-unit style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>%</span>
+            <MetricUnit style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>%</MetricUnit>
           </div>
         )
       )}
@@ -77,10 +80,10 @@ export function CpuSection({ isHorizontal }: CpuSectionProps) {
           always a plain value + unit (matches v2.2.x early build). */}
       {cpuConsumption.isEnabled && (
         <div className="flex items-center gap-1">
-          <MetricValue style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
+          <MetricValue reserve={Reserve.threeDigits} style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
             {formatValue(cpuPowerVal)}
           </MetricValue>
-          <span data-metric-unit style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>W</span>
+          <MetricUnit style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>W</MetricUnit>
         </div>
       )}
     </Pill>

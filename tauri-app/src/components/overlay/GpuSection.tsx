@@ -1,4 +1,4 @@
-import { MetricValue } from "./MetricValue";
+import { MetricValue, MetricUnit } from "./MetricValue";
 import { Pill } from "./Pill";
 import { ProgressRing } from "./ProgressRing";
 import { ProgressBar } from "./ProgressBar";
@@ -6,6 +6,7 @@ import { useSettingsStore } from "@/stores/settings-store";
 import { SensorType } from "@/lib/types";
 import type { Sensor } from "@/lib/types";
 import { findSensorById, formatValue, formatTemperature } from "@/lib/utils";
+import { Reserve, gigabyteReserve } from "@/lib/metric-reserve";
 
 interface GpuSectionProps {
   isHorizontal: boolean;
@@ -90,14 +91,15 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
             max={100}
             label={temp.label}
             unit={temp.symbol}
+            reserve={Reserve.threeDigits}
             boundaries={gpuTemp.boundaries}
           />
         ) : (
           <div className="flex items-center gap-1">
-            <MetricValue style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
+            <MetricValue reserve={Reserve.threeDigits} style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
               {temp.label}
             </MetricValue>
-            <span data-metric-unit style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{temp.symbol}</span>
+            <MetricUnit style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{temp.symbol}</MetricUnit>
           </div>
         )
       )}
@@ -108,14 +110,15 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
             max={100}
             label={formatValue(gpuUsageVal)}
             unit="%"
+            reserve={Reserve.threeDigits}
             boundaries={gpuUsage.boundaries}
           />
         ) : (
           <div className="flex items-center gap-1">
-            <MetricValue style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
+            <MetricValue reserve={Reserve.threeDigits} style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
               {formatValue(gpuUsageVal)}
             </MetricValue>
-            <span data-metric-unit style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>%</span>
+            <MetricUnit style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>%</MetricUnit>
           </div>
         )
       )}
@@ -130,14 +133,16 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
             max={100}
             label={vramUsedVal > 0 ? formatValue(vramUsedVal, 1) : formatValue(vramUsageVal, 0)}
             unit={vramUsedVal > 0 ? "GB" : "%"}
+            reserve={gigabyteReserve(vramTotalVal)}
+            unitReserve={Reserve.gigabyteUnit}
             boundaries={vramUsage.boundaries}
           />
         ) : (
           <div className="flex items-center gap-1">
-            <MetricValue style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
+            <MetricValue reserve={gigabyteReserve(vramTotalVal)} style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
               {vramUsedVal > 0 ? formatValue(vramUsedVal, 1) : formatValue(vramUsageVal, 0)}
             </MetricValue>
-            <span data-metric-unit style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{vramUsedVal > 0 ? "GB" : "%"}</span>
+            <MetricUnit reserve={Reserve.gigabyteUnit} style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{vramUsedVal > 0 ? "GB" : "%"}</MetricUnit>
           </div>
         )
       )}
@@ -145,10 +150,10 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
           always a plain value + unit (matches v2.2.x early build). */}
       {gpuConsumption.isEnabled && (
         <div className="flex items-center gap-1">
-          <MetricValue style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
+          <MetricValue reserve={Reserve.threeDigits} style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
             {formatValue(gpuPowerVal)}
           </MetricValue>
-          <span data-metric-unit style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>W</span>
+          <MetricUnit style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>W</MetricUnit>
         </div>
       )}
     </Pill>

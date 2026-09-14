@@ -1,10 +1,11 @@
-import { MetricValue } from "./MetricValue";
+import { MetricValue, MetricUnit } from "./MetricValue";
 import { Pill } from "./Pill";
 import { ProgressRing } from "./ProgressRing";
 import { ProgressBar } from "./ProgressBar";
 import { useSettingsStore } from "@/stores/settings-store";
 import { SensorType } from "@/lib/types";
 import { formatValue } from "@/lib/utils";
+import { Reserve, gigabyteReserve } from "@/lib/metric-reserve";
 
 interface RamSectionProps {
   isHorizontal: boolean;
@@ -49,8 +50,20 @@ export function RamSection({ isHorizontal }: RamSectionProps) {
       !s.identifier.startsWith("/vram")
   );
 
+  // Used + available is the machine's total, which sizes the fixed GB slot for
+  // the life of the process (a 16 GB machine reserves "00.0"). Pinned to
+  // physical memory the same way as the two lookups above.
+  const ramAvailableSensor = sensors.find(
+    (s) =>
+      s.sensorType === SensorType.Data &&
+      s.name.toLowerCase() === "memory available" &&
+      !s.identifier.startsWith("/vram")
+  );
+
   const ramPercent = ramSensor?.value ?? 0;
   const ramUsedGB = ramDataSensor?.value ?? 0;
+  const ramTotalGB = ramAvailableSensor ? ramUsedGB + (ramAvailableSensor.value ?? 0) : 0;
+  const reserve = gigabyteReserve(ramTotalGB);
 
   return (
     <Pill title="RAM" isHorizontal={isHorizontal}>
@@ -60,14 +73,16 @@ export function RamSection({ isHorizontal }: RamSectionProps) {
           max={100}
           label={ramUsedGB > 0 ? formatValue(ramUsedGB, 1) : formatValue(ramPercent, 0)}
           unit={ramUsedGB > 0 ? "GB" : "%"}
+          reserve={reserve}
+          unitReserve={Reserve.gigabyteUnit}
           boundaries={ramUsage.boundaries}
         />
       ) : (
         <div className="flex items-center gap-1">
-          <MetricValue style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
+          <MetricValue reserve={reserve} style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
             {ramUsedGB > 0 ? formatValue(ramUsedGB, 1) : formatValue(ramPercent, 0)}
           </MetricValue>
-          <span data-metric-unit style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{ramUsedGB > 0 ? "GB" : "%"}</span>
+          <MetricUnit reserve={Reserve.gigabyteUnit} style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{ramUsedGB > 0 ? "GB" : "%"}</MetricUnit>
         </div>
       )}
     </Pill>

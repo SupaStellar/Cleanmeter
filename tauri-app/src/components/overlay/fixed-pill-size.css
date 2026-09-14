@@ -1,32 +1,37 @@
-/* Fixed per-reading slots preserve each pill's size in both orientations.
-   Fonts, enabled readings and graph settings may still resize the layout. */
-[data-fixed-pills] .tabular-nums:not([data-metric-suffix]) {
-  display: inline-block;
+/* Fixed pill size (OverlayHud data-fixed-pills).
+
+   Every reading and unit is a MetricValue / MetricUnit: a slot holding an
+   invisible copy of the widest string it can show (its `reserve`) under the
+   live text, both in one grid cell. The slot is therefore exactly as wide as
+   that widest string in the reading's own font, weight and tracking, so pills
+   hold their size while digits change and grow no wider than they have to.
+   A reading past its reserve widens the slot rather than being clipped.
+
+   Fonts, enabled readings and graph settings still resize the layout. */
+
+[data-metric-reserve] {
+  display: none;
+}
+
+[data-fixed-pills] [data-metric-value],
+[data-fixed-pills] [data-metric-unit] {
+  display: inline-grid;
   flex: 0 0 auto;
-  width: 5ch;
-  text-align: right;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* Frametime includes its unit inside the same span. */
-[data-fixed-pills] [data-metric-value][data-frametime] {
-  width: 9ch;
+[data-fixed-pills] [data-metric-value] > *,
+[data-fixed-pills] [data-metric-unit] > * {
+  grid-area: 1 / 1;
 }
 
-/* % ↔ GB and KB/s ↔ MB/s must not resize the pill either. */
-[data-fixed-pills] [data-metric-unit] {
-  display: inline-block;
-  flex: 0 0 auto;
-  width: 2.5ch;
+[data-fixed-pills] [data-metric-reserve] {
+  display: block;
+  visibility: hidden;
 }
 
-[data-fixed-pills] [data-pill="NET"] [data-metric-unit] {
-  width: 4.5ch;
-}
-
-/* Network rates can reach 1023.9 before changing units. */
-[data-fixed-pills] [data-pill="NET"] [data-metric-value] {
-  width: 6ch;
+/* Digits grow leftwards so the unit after a reading stays put; a unit keeps
+   hugging its reading. */
+[data-fixed-pills] [data-metric-value] > [data-metric-text] {
+  text-align: right;
 }

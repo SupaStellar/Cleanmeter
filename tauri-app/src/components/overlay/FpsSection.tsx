@@ -5,6 +5,7 @@ import { useSettingsStore } from "@/stores/settings-store";
 import { useFrametimeHistory } from "@/hooks/useSensorData";
 import { findSensorById } from "@/lib/utils";
 import { formatValue } from "@/lib/utils";
+import { Reserve, formatFrametime } from "@/lib/metric-reserve";
 
 /**
  * Frametime graph width, in CSS pixels — the same number in both layouts
@@ -164,7 +165,7 @@ export function FpsSection({ isHorizontal }: FpsSectionProps) {
     />
   );
   const valueText = framerate.isEnabled && (
-    <MetricValue style={valueStyle} className="tabular-nums">
+    <MetricValue reserve={Reserve.fps} style={valueStyle} className="tabular-nums">
       {formatValue(fpsValue)}
     </MetricValue>
   );
@@ -178,7 +179,7 @@ export function FpsSection({ isHorizontal }: FpsSectionProps) {
   // spacing — the lows are full-size readings, not decorations on the average.
   const lowCluster = (value: number, suffix: string) => (
     <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-      <MetricValue style={valueStyle} className="tabular-nums">
+      <MetricValue reserve={Reserve.fps} style={valueStyle} className="tabular-nums">
         {formatValue(value)}
       </MetricValue>
       <span data-metric-suffix style={suffixStyle} className="tabular-nums">
@@ -187,9 +188,14 @@ export function FpsSection({ isHorizontal }: FpsSectionProps) {
     </div>
   );
 
+  // One string, so it lays out as one text run like its reserve. As two text
+  // nodes ("6.2" and " ms") the runs are snapped to layout units separately
+  // and could land 1/64 px wider than the reserve, nudging the fixed pill.
+  // formatFrametime also saturates at 999.9 ms: the sidecar hands over the
+  // raw interval, so the first frame after a load or an idle gap is seconds.
   const frametimeText = showFrametime && (
-    <MetricValue data-frametime className="tabular-nums" style={frametimeStyle}>
-      {formatValue(lastFrametime, 1)} ms
+    <MetricValue reserve={Reserve.frametime} className="tabular-nums" style={frametimeStyle}>
+      {formatFrametime(lastFrametime)}
     </MetricValue>
   );
 
