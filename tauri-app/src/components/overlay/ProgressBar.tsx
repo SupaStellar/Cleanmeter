@@ -1,3 +1,5 @@
+import { useAppearance } from "@/hooks/useAppearance";
+import { CustomGauge } from "./CustomGauge";
 import { getBoundaryColor } from "@/lib/utils";
 import type { Boundaries } from "@/lib/types";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -18,6 +20,7 @@ export function ProgressBar({
   unit,
   boundaries,
 }: ProgressBarProps) {
+  const appearance = useAppearance();
   const valueFontSize = useSettingsStore((s) => s.settings.fontSizeValue ?? 12);
   const labelFontSize = useSettingsStore((s) => s.settings.fontSizeLabel ?? 12);
   const valueFontWeight = useSettingsStore((s) => s.settings.fontWeight ?? 500);
@@ -70,7 +73,7 @@ export function ProgressBar({
       {/* viewBox is DEVICE px (barWDev×sizeDev) while the SVG lays out at CSS
           size (barWidth×boxCss), so integer bar coords map 1:1 to physical
           pixels and render crisp. */}
-      <svg
+      {appearance.enabled ? <CustomGauge style={appearance.gauge} value={value} max={max} color={appearance.thresholdColors ? color : appearance.graphColor} size={size} /> : <svg
         width={barWidth}
         height={boxCss}
         viewBox={`0 0 ${barWDev} ${sizeDev}`}
@@ -96,14 +99,14 @@ export function ProgressBar({
             />
           );
         })}
-      </svg>
+      </svg>}
       {/* number→unit stays gap-1 (Figma 4); unit holds at labelFontSize like
           the ring. tabular-nums avoids same-digit jitter. */}
       <div className="flex items-center gap-1" style={{ fontSize: valueFontSize }}>
-        <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
+        <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "var(--overlay-font, Inter)", letterSpacing: "-0.02em" }} className="tabular-nums">
           {label}
         </span>
-        <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{unit}</span>
+        <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-unit, var(--overlay-text))", fontFamily: "var(--overlay-font, Inter)", letterSpacing: "0.04em" }}>{unit}</span>
       </div>
     </div>
   );

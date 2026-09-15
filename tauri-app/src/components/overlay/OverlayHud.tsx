@@ -1,3 +1,5 @@
+import { SurfaceBackground } from "./SurfaceBackground";
+import { useAppearance } from "@/hooks/useAppearance";
 import { useSettingsStore } from "@/stores/settings-store";
 import { FpsSection } from "./FpsSection";
 import { GpuSection } from "./GpuSection";
@@ -7,6 +9,8 @@ import { NetSection } from "./NetSection";
 
 export function OverlayHud() {
   const settings = useSettingsStore((s) => s.settings);
+  const appearance = useAppearance();
+  const custom = appearance.enabled;
   const isHorizontal = settings.isHorizontal;
   const dark = !settings.isMeterLight;
   // Pre-PR#8 background: fixed 0.7 outer + 1px border. PR#8 had tied the outer
@@ -16,6 +20,7 @@ export function OverlayHud() {
 
   return (
     <div
+      data-overlay-hud
       style={{
         display: "flex",
         // Figma horizontal (2106:2313) and vertical (2169:286) both use
@@ -57,13 +62,22 @@ export function OverlayHud() {
               borderRadius: 12,
               background: bg,
             }),
-      }}
+        ...(custom ? {
+          "--overlay-font": `"${appearance.font}", Inter, sans-serif`,
+          "--overlay-text": appearance.valueColor,
+          "--overlay-text-muted": appearance.labelColor,
+          "--overlay-unit": appearance.labelColor,
+          gap: appearance.gap, padding: `${appearance.outer.paddingY}px ${appearance.outer.paddingX}px`,
+          borderRadius: appearance.outer.radius,
+          position: "relative", isolation: "isolate", background: "transparent",
+        } : {}),
+      } as React.CSSProperties & Record<`--${string}`, string | number>}
     >
-      <FpsSection isHorizontal={isHorizontal} />
-      <CpuSection isHorizontal={isHorizontal} />
-      <GpuSection isHorizontal={isHorizontal} />
-      <RamSection isHorizontal={isHorizontal} />
-      <NetSection isHorizontal={isHorizontal} />
+      {custom && <SurfaceBackground surface={appearance.outer} />}
+      {(custom ? appearance.order : (["FPS", "CPU", "GPU", "RAM", "NET"] as const)).map((section) => {
+        const Component = { FPS: FpsSection, CPU: CpuSection, GPU: GpuSection, RAM: RamSection, NET: NetSection }[section];
+        return Component ? <Component key={section} isHorizontal={isHorizontal} /> : null;
+      })}
     </div>
   );
 }

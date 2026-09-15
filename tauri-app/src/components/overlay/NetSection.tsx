@@ -30,14 +30,14 @@ export function NetSection({ isHorizontal }: NetSectionProps) {
     fontSize: valueFontSize,
     fontWeight: valueFontWeight,
     color: "var(--overlay-text)",
-    fontFamily: "Inter",
+    fontFamily: "var(--overlay-font, Inter)",
     letterSpacing: "-0.02em",
   };
   const labelStyle: React.CSSProperties = {
     fontSize: labelFontSize,
     fontWeight: labelFontWeight,
-    color: "var(--overlay-text)",
-    fontFamily: "Inter",
+    color: "var(--overlay-unit, var(--overlay-text))",
+    fontFamily: "var(--overlay-font, Inter)",
     letterSpacing: "0.04em",
   };
   // The ↓/↑ arrows are a fixed 12×15 glyph box (Figma node — TEXT "↓"/"↑"
@@ -53,7 +53,7 @@ export function NetSection({ isHorizontal }: NetSectionProps) {
     fontSize: 12,
     fontWeight: labelFontWeight,
     color: "var(--overlay-text)",
-    fontFamily: "Inter",
+    fontFamily: "var(--overlay-font, Inter)",
     letterSpacing: "0.04em",
   };
 

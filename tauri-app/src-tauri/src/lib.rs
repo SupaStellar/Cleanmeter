@@ -1,4 +1,5 @@
 mod commands;
+mod community;
 mod pipe_client;
 mod pipe_input;
 mod shortcuts;
@@ -668,6 +669,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            community::community_presets,
             commands::get_settings,
             commands::save_settings,
             commands::clear_settings,

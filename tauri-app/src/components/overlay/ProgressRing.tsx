@@ -1,3 +1,5 @@
+import { useAppearance } from "@/hooks/useAppearance";
+import { CustomGauge } from "./CustomGauge";
 import { getBoundaryColor } from "@/lib/utils";
 import type { Boundaries } from "@/lib/types";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -18,6 +20,7 @@ export function ProgressRing({
   unit,
   boundaries,
 }: ProgressRingProps) {
+  const appearance = useAppearance();
   const valueFontSize = useSettingsStore((s) => s.settings.fontSizeValue ?? 12);
   const labelFontSize = useSettingsStore((s) => s.settings.fontSizeLabel ?? 12);
   const valueFontWeight = useSettingsStore((s) => s.settings.fontWeight ?? 500);
@@ -43,7 +46,7 @@ export function ProgressRing({
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: ringToTextGap }}>
-      <svg
+      {appearance.enabled ? <CustomGauge style={appearance.gauge} value={value} max={max} color={appearance.thresholdColors ? color : appearance.graphColor} size={ringSize} /> : <svg
         width={ringSize}
         height={ringSize}
         viewBox={`0 0 ${ringSize} ${ringSize}`}
@@ -72,15 +75,15 @@ export function ProgressRing({
           strokeLinecap="round"
           transform={`rotate(-90 ${center} ${center})`}
         />
-      </svg>
+      </svg>}
       {/* Cluster hugs content: cluster→cluster gap reads as the Figma 12px
           (Pill gap); number→unit stays gap-1 (Figma 4). tabular-nums avoids
           same-digit jitter. */}
       <div className="flex items-center gap-1" style={{ fontSize: valueFontSize }}>
-        <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
+        <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "var(--overlay-font, Inter)", letterSpacing: "-0.02em" }} className="tabular-nums">
           {label}
         </span>
-        <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>{unit}</span>
+        <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-unit, var(--overlay-text))", fontFamily: "var(--overlay-font, Inter)", letterSpacing: "0.04em" }}>{unit}</span>
       </div>
     </div>
   );

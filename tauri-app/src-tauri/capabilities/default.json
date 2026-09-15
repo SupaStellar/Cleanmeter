@@ -42,6 +42,7 @@
     "updater:allow-download",
     "updater:allow-install",
     "dialog:default",
-    "dialog:allow-open"
+    "dialog:allow-open",
+    "dialog:allow-save"
   ]
 }
