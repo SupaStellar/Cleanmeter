@@ -105,6 +105,15 @@ export function FeedbackDialog({
 
   const canSubmit = message.trim() !== "" && !submitting;
 
+  // Editing the report retires the previous failure message.
+  const edit = (set: (value: string) => void) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    set(e.target.value);
+    if (status === "error") {
+      setStatus("idle");
+      setError("");
+    }
+  };
+
   const handlePick = async () => {
     try {
       const picked = await pickAttachment();
@@ -188,7 +197,7 @@ export function FeedbackDialog({
                 disabled={submitting}
                 placeholder="Ex: Leon Kennedy"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={edit(setName)}
               />
             </div>
 
@@ -202,7 +211,7 @@ export function FeedbackDialog({
                 disabled={submitting}
                 placeholder="Your feedback here..."
                 value={message}
-                onChange={(e) => setMessage(e.target.value)}
+                onChange={edit(setMessage)}
               />
             </div>
 
