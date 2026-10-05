@@ -11,8 +11,11 @@ import { Label } from "@/components/shadcn/label";
 import { Input } from "@/app/components/Input";
 import { Textarea } from "@/app/components/Textarea";
 import { Button } from "@/app/components/Button";
+import { Checkbox } from "@/app/components/Checkbox";
 import { cn } from "@/lib/utils";
 import { submitFeedback, pickFeedbackAttachment } from "@/lib/tauri";
+import closeIcon from "@/assets/feedback/close.svg";
+import addIcon from "@/assets/feedback/add.svg";
 
 // Close icon — Figma 2488:5953 (20×20, #61646C → iconBolderActive).
 export function CloseIcon({ className }: { className?: string }) {
@@ -38,18 +41,6 @@ function DescriptionIcon({ className }: { className?: string }) {
   );
 }
 
-// Add icon — Figma 2488:6010 (Material "add", 20×20).
-function PlusIcon({ className }: { className?: string }) {
-  return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
-      <path
-        d="M9.16667 10.8333H4.16667C3.93056 10.8333 3.73264 10.7535 3.57292 10.5937C3.41319 10.434 3.33333 10.2361 3.33333 10C3.33333 9.76389 3.41319 9.56597 3.57292 9.40625C3.73264 9.24653 3.93056 9.16667 4.16667 9.16667H9.16667V4.16667C9.16667 3.93056 9.24653 3.73264 9.40625 3.57292C9.56597 3.41319 9.76389 3.33333 10 3.33333C10.2361 3.33333 10.434 3.41319 10.5938 3.57292C10.7535 3.73264 10.8333 3.93056 10.8333 4.16667V9.16667H15.8333C16.0694 9.16667 16.2674 9.24653 16.4271 9.40625C16.5868 9.56597 16.6667 9.76389 16.6667 10C16.6667 10.2361 16.5868 10.434 16.4271 10.5937C16.2674 10.7535 16.0694 10.8333 15.8333 10.8333H10.8333V15.8333C10.8333 16.0694 10.7535 16.2674 10.5938 16.4271C10.434 16.5868 10.2361 16.6667 10 16.6667C9.76389 16.6667 9.56597 16.5868 9.40625 16.4271C9.24653 16.2674 9.16667 16.0694 9.16667 15.8333V10.8333Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
-
 type Attachment = { path: string; name: string };
 type Status = "idle" | "submitting" | "error";
 
@@ -68,6 +59,7 @@ export function FeedbackDialog({
   const [name, setName] = React.useState("");
   const [message, setMessage] = React.useState("");
   const [attachment, setAttachment] = React.useState<Attachment | null>(null);
+  const [includeDiagnostics, setIncludeDiagnostics] = React.useState(false);
   const [error, setError] = React.useState("");
   const [status, setStatus] = React.useState<Status>("idle");
 
@@ -77,6 +69,7 @@ export function FeedbackDialog({
       setName("");
       setMessage("");
       setAttachment(null);
+      setIncludeDiagnostics(false);
       setStatus("idle");
       setError("");
     }
@@ -102,6 +95,7 @@ export function FeedbackDialog({
         name: name.trim(),
         message: message.trim(),
         attachmentPath: attachment?.path,
+        includeDiagnostics,
       });
       onOpenChange(false);
     } catch (err) {
@@ -139,7 +133,7 @@ export function FeedbackDialog({
                 "[touch-action:manipulation]",
               )}
             >
-              <CloseIcon className="size-5" />
+              <img src={closeIcon} alt="" />
             </DialogClose>
           </div>
 
@@ -169,15 +163,10 @@ export function FeedbackDialog({
               />
             </div>
 
-            {/* Attachment chip (shown once a file is picked) — Figma 2488:6214:
-                Input shell (40px height, 12px padding, 8px radius, borderBolder)
-                with description icon + filename + remove ✕. */}
-            {attachment && (
+            {attachment ? (
               <div className="flex h-10 items-center gap-[var(--spacingXxs)] rounded-[var(--cornerL)] border border-[var(--borderBolder)] bg-[var(--bgSurfaceRaised)] p-[var(--spacingS)]">
                 <div className="flex min-w-0 flex-1 items-center gap-[var(--spacingXs)]">
-                  {/* #1C1B1F has no token (Figma literal) and won't adapt —
-                      follow the adjacent filename color in dark mode. */}
-                  <DescriptionIcon className="size-5 shrink-0 text-[#1C1B1F] dark:text-[var(--textHeading)]" />
+                  <DescriptionIcon className="size-5 shrink-0 text-[var(--textHeading)]" />
                   <span className="truncate text-body-sm-medium text-[var(--textHeading)]">
                     {attachment.name}
                   </span>
@@ -187,26 +176,36 @@ export function FeedbackDialog({
                   aria-label="Remove attachment"
                   disabled={status === "submitting"}
                   onClick={() => setAttachment(null)}
-                  className="flex size-5 shrink-0 items-center justify-center rounded-[4px] text-[var(--iconBolderActive)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex size-5 shrink-0 items-center justify-center rounded-[4px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <CloseIcon className="size-5" />
+                  <img src={closeIcon} alt="" />
                 </button>
               </div>
+            ) : (
+              <button
+                type="button"
+                disabled={status === "submitting"}
+                onClick={handlePick}
+                className={cn(
+                  "flex h-10 w-full items-center justify-center gap-2 rounded-[var(--cornerL)] border border-dashed border-[var(--borderBolder)]",
+                  "text-body-sm-medium text-[var(--textHeading)]",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--borderBrand)] focus-visible:ring-offset-2",
+                  "disabled:cursor-not-allowed disabled:opacity-50",
+                )}
+              >
+                <img src={addIcon} alt="" />
+                <span>Add attachment</span>
+              </button>
             )}
 
-            <button
-              type="button"
+            <Checkbox
+              checked={includeDiagnostics}
+              onCheckedChange={setIncludeDiagnostics}
               disabled={status === "submitting"}
-              onClick={handlePick}
-              className="flex w-fit items-center gap-2 rounded-[4px] text-[var(--textHeading)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <PlusIcon className="size-5" />
-              <span className="text-body-sm-medium">Attach image or log</span>
-            </button>
-
-            <p className="text-body-sm-regular text-[var(--textParagraph1)]">One image or UTF-8 .log/.txt file, up to 8 MiB. Choose the app or HardwareMonitor log you want to share.</p>
+              label="Include system specs and app logs"
+            />
             {status === "error" && (
-              <p className="text-body-sm-regular text-[var(--iconDanger)]">
+              <p role="alert" className="text-body-sm-regular text-[var(--iconDanger)]">
                 Couldn’t complete feedback: {error || "Please try again."}
               </p>
             )}

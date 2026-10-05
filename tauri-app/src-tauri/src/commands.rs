@@ -546,6 +546,8 @@ pub struct FeedbackInput {
     pub message: String,
     #[serde(rename = "attachmentPath")]
     pub attachment_path: Option<String>,
+    #[serde(rename = "includeDiagnostics", default)]
+    pub include_diagnostics: bool,
 }
 
 // POSTs feedback to the portal. URL + write key are injected at build time via
@@ -564,13 +566,19 @@ fn injected(value: Option<&'static str>) -> Option<&'static str> {
 }
 
 #[tauri::command]
-pub async fn submit_feedback(input: FeedbackInput) -> Result<(), String> {
+pub async fn submit_feedback(input: FeedbackInput, app: AppHandle) -> Result<(), String> {
     let portal = injected(option_env!("FEEDBACK_PORTAL_URL")).ok_or("feedback portal not configured")?;
     let key = injected(option_env!("FEEDBACK_WRITE_KEY")).ok_or("feedback key not configured")?;
 
+    let message = if input.include_diagnostics {
+        crate::feedback_diagnostics::append(&input.message, app.path().resource_dir().ok().as_deref())?
+    } else {
+        input.message
+    };
+
     let mut form = reqwest::multipart::Form::new()
         .text("name", input.name)
-        .text("message", input.message)
+        .text("message", message)
         .text("app_version", env!("CARGO_PKG_VERSION"))
         .text("os", std::env::consts::OS);
 

@@ -250,6 +250,7 @@ export const submitFeedback = (input: {
   name: string;
   message: string;
   attachmentPath?: string;
+  includeDiagnostics?: boolean;
 }): Promise<void> => {
   // Reject in the browser preview rather than no-op — otherwise the dialog
   // would close as if the feedback sent when nothing actually happened.
