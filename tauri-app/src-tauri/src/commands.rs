@@ -570,15 +570,9 @@ pub async fn submit_feedback(input: FeedbackInput, app: AppHandle) -> Result<(),
     let portal = injected(option_env!("FEEDBACK_PORTAL_URL")).ok_or("feedback portal not configured")?;
     let key = injected(option_env!("FEEDBACK_WRITE_KEY")).ok_or("feedback key not configured")?;
 
-    let message = if input.include_diagnostics {
-        crate::feedback_diagnostics::append(&input.message, app.path().resource_dir().ok().as_deref())?
-    } else {
-        input.message
-    };
-
     let mut form = reqwest::multipart::Form::new()
         .text("name", input.name)
-        .text("message", message)
+        .text("message", input.message)
         .text("app_version", env!("CARGO_PKG_VERSION"))
         .text("os", std::env::consts::OS);
 
@@ -591,6 +585,18 @@ pub async fn submit_feedback(input: FeedbackInput, app: AppHandle) -> Result<(),
             .mime_str(mime)
             .map_err(|e| format!("attachment mime: {e}"))?;
         form = form.part("attachment", part);
+    }
+
+    if input.include_diagnostics {
+        let resource_dir = app.path().resource_dir().ok();
+        let diagnostics = tokio::task::spawn_blocking(move || crate::feedback_diagnostics::collect(resource_dir.as_deref()))
+            .await
+            .map_err(|e| format!("collect diagnostics: {e}"))?;
+        let part = reqwest::multipart::Part::bytes(diagnostics.report.into_bytes())
+            .file_name("cleanmeter-diagnostics.txt")
+            .mime_str("text/plain")
+            .map_err(|e| format!("diagnostics mime: {e}"))?;
+        form = form.text("diagnostics_summary", diagnostics.summary).part("diagnostics", part);
     }
 
     let resp = reqwest::Client::new()

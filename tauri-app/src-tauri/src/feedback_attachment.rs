@@ -14,10 +14,16 @@ fn attachment_mime(path: &Path) -> Result<&'static str, String> {
     }
 }
 
+// Text logs may carry tabs, line breaks, form feeds and ANSI colour escapes;
+// any other C0 control byte means the file is binary, not a log.
+fn is_text_control(byte: u8) -> bool {
+    byte < 0x20 && !matches!(byte, b'\t' | b'\n' | b'\r' | 0x0c | 0x1b)
+}
+
 fn validate(bytes: &[u8], mime: &str) -> Result<(), String> {
     if bytes.is_empty() { return Err("The attachment is empty.".into()); }
     if bytes.len() as u64 > MAX_BYTES { return Err("The attachment must be 8 MiB or smaller.".into()); }
-    if mime == "text/plain" && (bytes.contains(&0) || std::str::from_utf8(bytes).is_err()) {
+    if mime == "text/plain" && (bytes.iter().copied().any(is_text_control) || std::str::from_utf8(bytes).is_err()) {
         return Err("Log attachments must be UTF-8 text (.log or .txt).".into());
     }
     Ok(())
@@ -54,6 +60,8 @@ mod tests {
         assert!(validate(b"[INFO] Starting monitor\r\n", "text/plain").is_ok());
         assert!(validate(&[0xff], "text/plain").is_err());
         assert!(validate(b"binary\0", "text/plain").is_err());
+        assert!(validate(b"\x01\x02 packed", "text/plain").is_err());
+        assert!(validate(b"\x1b[32mINFO\x1b[0m\tok\x0c\r\n", "text/plain").is_ok());
         assert!(validate(b"", "text/plain").is_err());
         assert!(validate(&vec![b'a'; MAX_BYTES as usize + 1], "text/plain").is_err());
         assert!(validate(&[0xff, 0], "image/jpeg").is_ok());
