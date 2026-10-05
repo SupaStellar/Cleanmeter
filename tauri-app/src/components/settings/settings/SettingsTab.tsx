@@ -12,7 +12,7 @@ import {
 import { SelectFieldTrigger } from "@/components/ui/SelectField";
 import { cn } from "@/lib/utils";
 import { getAutoStart, setAutoStart } from "@/lib/tauri";
-import { useSettingsStore } from "@/stores/settings-store";
+import { systemPrefersDark, useSettingsStore } from "@/stores/settings-store";
 import { useUpdaterStore } from "@/stores/updater-store";
 import { POLLING_RATES } from "@/lib/types";
 import type { TemperatureUnit } from "@/lib/types";
@@ -272,32 +272,13 @@ function AppearanceSection() {
   const themeMode = useSettingsStore((s) => s.settings.themeMode);
   const updateSettings = useSettingsStore((s) => s.updateSettings);
 
-  React.useEffect(() => {
-    if (themeMode !== "system") return;
-    if (typeof window === "undefined" || !window.matchMedia) return;
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const apply = (matches: boolean) => {
-      if (useSettingsStore.getState().settings.isDarkTheme !== matches) {
-        updateSettings({ isDarkTheme: matches });
-      }
-    };
-    apply(mq.matches);
-    const onChange = (e: MediaQueryListEvent) => apply(e.matches);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, [themeMode, updateSettings]);
-
   const handleThemeChange = (value: ThemeChoice) => {
     if (value === "light") {
       updateSettings({ themeMode: "light", isDarkTheme: false });
     } else if (value === "dark") {
       updateSettings({ themeMode: "dark", isDarkTheme: true });
     } else {
-      const prefersDark =
-        typeof window !== "undefined" &&
-        !!window.matchMedia &&
-        window.matchMedia("(prefers-color-scheme: dark)").matches;
-      updateSettings({ themeMode: "system", isDarkTheme: prefersDark });
+      updateSettings({ themeMode: "system", isDarkTheme: systemPrefersDark() });
     }
   };
 

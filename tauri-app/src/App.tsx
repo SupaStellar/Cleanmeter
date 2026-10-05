@@ -200,6 +200,22 @@ export default function App() {
     };
   }, []);
 
+  // Follow OS theme changes while in "system" mode. Load and reset resolve
+  // the initial value, so this only reacts to change events; resolving on
+  // mount would save defaults before loadSettings() has resolved.
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = (e: MediaQueryListEvent) => {
+      const { settings, updateSettings } = useSettingsStore.getState();
+      if (settings.themeMode === "system" && settings.isDarkTheme !== e.matches) {
+        updateSettings({ isDarkTheme: e.matches });
+      }
+    };
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
   // Keep <html data-theme> in sync and mirror the resolved theme into
   // localStorage so the pre-hydration script in index.html can paint the
   // correct theme on the next launch before settings load — no startup flash.

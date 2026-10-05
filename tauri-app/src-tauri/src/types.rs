@@ -318,7 +318,7 @@ fn default_number_font_size() -> f32 { 14.0 }
 fn default_number_label_font_size() -> f32 { 10.0 }
 fn default_font_weight() -> u16 { 500 }
 fn default_temperature_unit() -> String { "C".to_string() }
-fn default_theme_mode() -> String { "light".to_string() }
+fn default_theme_mode() -> String { "system".to_string() }
 fn default_graph_type() -> String { "ring".to_string() }
 fn default_use_custom_position() -> bool { true }
 
@@ -420,7 +420,7 @@ impl Default for OverlaySettings {
         OverlaySettings {
             is_dark_theme: false,
             is_meter_light: false,
-            theme_mode: "light".to_string(),
+            theme_mode: "system".to_string(),
             temperature_unit: "C".to_string(),
             is_horizontal: true,
             use_custom_position: true,
