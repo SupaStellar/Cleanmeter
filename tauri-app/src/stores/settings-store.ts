@@ -499,8 +499,22 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   },
 
   clearSettings: async () => {
-    await tauri.clearSettings();
-    set({ settings: { ...DEFAULT_SETTINGS } });
+    // A pending edit must never overwrite the reset after the debounce fires.
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = null;
+    const settings = structuredClone(DEFAULT_SETTINGS);
+    const preferences = { adminConsent: false, startMinimized: false };
+    set({ settings, preferences, gpuSilence: NO_GPU_SILENCE });
+    // Use the normal save path to persist and broadcast the same defaults,
+    // including re-registering the default global shortcuts.
+    await Promise.all([
+      tauri.saveSettings(settings),
+      tauri.savePreferences(preferences),
+      tauri.setAutoStart(false),
+      tauri.setPollingRate(settings.pollingRate),
+      tauri.setOverlayOpacity(settings.opacity),
+      tauri.selectPresentMonApp(settings.sensors.framerate.targetAppName || "Auto"),
+    ]);
   },
 
   loadPreferences: async () => {
