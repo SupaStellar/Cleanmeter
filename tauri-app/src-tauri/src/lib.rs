@@ -1,4 +1,6 @@
 mod commands;
+mod feedback_attachment;
+mod feedback_diagnostics;
 mod pipe_client;
 mod pipe_input;
 mod shortcuts;
