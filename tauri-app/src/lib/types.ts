@@ -1,3 +1,5 @@
+import { PIXEL_SHIFT_DEFAULT_DISTANCE, PIXEL_SHIFT_DEFAULT_INTERVAL } from "./pixel-shift";
+
 export enum HardwareType {
   Motherboard = 0,
   SuperIO = 1,
@@ -248,8 +250,8 @@ export const DEFAULT_SETTINGS: OverlaySettings = {
   pollingRate: 500,
   isLoggingEnabled: false,
   pixelShift: false,
-  pixelShiftDistance: 6,
-  pixelShiftInterval: 3,
+  pixelShiftDistance: PIXEL_SHIFT_DEFAULT_DISTANCE,
+  pixelShiftInterval: PIXEL_SHIFT_DEFAULT_INTERVAL,
   selectedGpuId: "",
   recordingShortcut: RECORDING_SHORTCUT_DEFAULT,
   overlayShortcut: OVERLAY_SHORTCUT_DEFAULT,

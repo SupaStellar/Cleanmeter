@@ -1,31 +1,65 @@
-import { Input } from "@/components/shadcn/input";
+import { Select, SelectContent, SelectItem, SelectValue } from "@/components/shadcn/select";
+import { SelectFieldTrigger } from "@/components/ui/SelectField";
 import { useSettingsStore } from "@/stores/settings-store";
-import { boundedInteger, pixelShiftOptions } from "@/lib/pixel-shift";
+import {
+  PIXEL_SHIFT_DISTANCES,
+  PIXEL_SHIFT_INTERVALS,
+  pixelShiftOptions,
+} from "@/lib/pixel-shift";
+import { InfoIcon } from "./icons";
 
+const FIELDS = [
+  {
+    key: "pixelShiftDistance",
+    label: "Shift by",
+    options: PIXEL_SHIFT_DISTANCES,
+    format: (px: number) => `${px}px`,
+  },
+  {
+    key: "pixelShiftInterval",
+    label: "Frequency",
+    options: PIXEL_SHIFT_INTERVALS,
+    format: (seconds: number) => `${seconds / 60}min`,
+  },
+] as const;
+
+/** Figma 3041:6501: the sunken panel under the Pixel Shift row. */
 export function PixelShiftControls() {
   const settings = useSettingsStore((s) => s.settings);
   const update = useSettingsStore((s) => s.updateSettings);
   const { distance, interval } = pixelShiftOptions(settings);
+  const values = { pixelShiftDistance: distance, pixelShiftInterval: interval };
+
   return (
-    <fieldset disabled={!settings.pixelShift} className="flex flex-col gap-[var(--spacingS)] disabled:opacity-50">
-      <legend className="sr-only">Pixel Shift controls</legend>
-      {([
-        ["pixelShiftDistance", "Maximum shift (px)", distance, 20],
-        ["pixelShiftInterval", "Move every (seconds)", interval, 60],
-      ] as const).map(([key, label, value, max]) => (
-        <label key={key} className="flex items-center justify-between gap-[var(--spacingS)] text-body-sm-medium text-[var(--textHeading)]">
-          {label}
-          <Input key={value} type="number" min={1} max={max} step={1} defaultValue={value}
-            className="w-24 focus-visible:shadow-focus-default" aria-label={label}
-            onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
-            onBlur={(event) => {
-              const next = boundedInteger(event.currentTarget.valueAsNumber, 1, max, value);
-              event.currentTarget.value = String(next);
-              update({ [key]: next });
-            }} />
-        </label>
-      ))}
-      <p className="text-body-sm-regular text-[var(--textParagraph1)]">Up to {distance}px in each direction, taking a small step every {interval}s. Your saved overlay position stays unchanged.</p>
-    </fieldset>
+    <div className="flex flex-col gap-[var(--spacingS)] rounded-[var(--cornerL)] bg-[var(--bgSurfaceSunkenSubtler)] p-[var(--spacingM)]">
+      <div className="flex items-center gap-[var(--spacingS)]">
+        {FIELDS.map(({ key, label, options, format }) => (
+          <div key={key} className="flex w-[260px] flex-col gap-[var(--spacingXs)]">
+            <span id={`${key}-label`} className="text-[14px] font-medium leading-[17px] text-[var(--textHeading)]">
+              {label}
+            </span>
+            <Select
+              value={String(values[key])}
+              onValueChange={(v) => update({ [key]: parseInt(v, 10) })}
+            >
+              <SelectFieldTrigger aria-labelledby={`${key}-label`}>
+                <SelectValue />
+              </SelectFieldTrigger>
+              <SelectContent>
+                {options.map((option) => (
+                  <SelectItem key={option} value={String(option)}>
+                    {format(option)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center gap-[var(--spacingXxxs)] text-[12px] font-medium leading-[15px] text-[var(--textParagraph1)]">
+        <InfoIcon className="size-[16px] shrink-0" />
+        <span>Recommended is 3px every 2mins.</span>
+      </div>
+    </div>
   );
 }

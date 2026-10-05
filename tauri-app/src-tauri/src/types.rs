@@ -519,13 +519,13 @@ mod tests {
         value.as_object_mut().unwrap().remove("pixelShiftDistance");
         value.as_object_mut().unwrap().remove("pixelShiftInterval");
         let mut loaded: OverlaySettings = serde_json::from_value(value).unwrap();
-        assert_eq!(loaded.pixel_shift_distance, 6);
-        assert_eq!(loaded.pixel_shift_interval, 3);
-        loaded.pixel_shift_distance = 12;
-        loaded.pixel_shift_interval = 30;
+        assert_eq!(loaded.pixel_shift_distance, 3);
+        assert_eq!(loaded.pixel_shift_interval, 120);
+        loaded.pixel_shift_distance = 4;
+        loaded.pixel_shift_interval = 300;
         let restored: OverlaySettings = serde_json::from_str(&serde_json::to_string(&loaded).unwrap()).unwrap();
-        assert_eq!(restored.pixel_shift_distance, 12);
-        assert_eq!(restored.pixel_shift_interval, 30);
+        assert_eq!(restored.pixel_shift_distance, 4);
+        assert_eq!(restored.pixel_shift_interval, 300);
     }
 
     /// The settings file is written by deserialising the app's JSON into
@@ -587,5 +587,5 @@ pub enum HardwareState {
     Delayed,
     Failed,
 }
-fn default_pixel_shift_distance() -> u32 { 6 }
-fn default_pixel_shift_interval() -> u32 { 3 }
+fn default_pixel_shift_distance() -> u32 { 3 }
+fn default_pixel_shift_interval() -> u32 { 120 }

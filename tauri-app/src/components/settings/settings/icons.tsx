@@ -91,13 +91,8 @@ export function BrowserUpdatedIcon({ className }: IconProps) {
   );
 }
 
-// Computer / monitor icon — Figma node 2524:5178 (Pixel Shift row). 20px,
-// 1.5 stroke in currentColor. Geometry copied verbatim from the Figma export
-// (viewBox kept at the source 18.1667 units so paths stay exact).
-// Computer glyph, exported from Figma 2524:5178. A 20 box holding a 16.67
-// glyph, so it is centred by its own 1.67 inset and needs no nudging. The
-// previous version drew the same paths into an 18.1667 viewBox, which scaled
-// the glyph up by 1.1 and lost that inset.
+// desktop_windows glyph, exported from Figma 3041:7137 (Pixel Shift row). A
+// 16.67x15 glyph inside a 20 box, so the box centres it with no nudging.
 export function ComputerIcon({ className }: IconProps) {
   return (
     <svg
@@ -108,22 +103,10 @@ export function ComputerIcon({ className }: IconProps) {
       className={className}
       aria-hidden
     >
-      <g stroke="currentColor" strokeWidth="1.5">
-        <path
-          d="M11.666 1.66663H8.33268C5.59999 1.66663 4.23365 1.66663 3.2651 2.34481C2.90677 2.59571 2.5951 2.90738 2.3442 3.26571C1.66602 4.23426 1.66602 5.6006 1.66602 8.33329C1.66602 11.066 1.66602 12.4323 2.3442 13.4009C2.5951 13.7592 2.90677 14.0709 3.2651 14.3218C4.23365 15 5.59999 15 8.33268 15H11.666C14.3987 15 15.7651 15 16.7336 14.3218C17.0919 14.0709 17.4036 13.7592 17.6545 13.4009C18.3327 12.4323 18.3327 11.066 18.3327 8.33329C18.3327 5.6006 18.3327 4.23426 17.6545 3.26571C17.4036 2.90738 17.0919 2.59571 16.7336 2.34481C15.7651 1.66663 14.3987 1.66663 11.666 1.66663Z"
-          strokeLinecap="round"
-        />
-        <path
-          d="M9.16602 12.5H10.8327"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M12.0827 18.3333L11.8198 17.9843C11.2271 17.1974 11.0801 15.9953 11.455 15M7.91602 18.3333L8.17893 17.9843C8.77163 17.1974 8.91856 15.9953 8.54371 15"
-          strokeLinecap="round"
-        />
-        <path d="M5.83398 18.3334H14.1673" strokeLinecap="round" />
-      </g>
+      <path
+        fill="currentColor"
+        d="M8.33268 15.8333V14.1667H3.33268C2.87435 14.1667 2.48199 14.0035 2.1556 13.6771C1.82921 13.3507 1.66602 12.9583 1.66602 12.5V4.16667C1.66602 3.70833 1.82921 3.31597 2.1556 2.98958C2.48199 2.66319 2.87435 2.5 3.33268 2.5H16.666C17.1243 2.5 17.5167 2.66319 17.8431 2.98958C18.1695 3.31597 18.3327 3.70833 18.3327 4.16667V12.5C18.3327 12.9583 18.1695 13.3507 17.8431 13.6771C17.5167 14.0035 17.1243 14.1667 16.666 14.1667H11.666V15.8333H12.4993C12.7355 15.8333 12.9334 15.9132 13.0931 16.0729C13.2528 16.2326 13.3327 16.4306 13.3327 16.6667C13.3327 16.9028 13.2528 17.1007 13.0931 17.2604C12.9334 17.4201 12.7355 17.5 12.4993 17.5H7.49935C7.26324 17.5 7.06532 17.4201 6.9056 17.2604C6.74588 17.1007 6.66602 16.9028 6.66602 16.6667C6.66602 16.4306 6.74588 16.2326 6.9056 16.0729C7.06532 15.9132 7.26324 15.8333 7.49935 15.8333H8.33268ZM3.33268 12.5H16.666V4.16667H3.33268V12.5Z"
+      />
     </svg>
   );
 }

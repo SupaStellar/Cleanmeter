@@ -1,13 +1,25 @@
 import type { OverlaySettings } from "./types";
 
-export function boundedInteger(value: number, min: number, max: number, fallback: number) {
-  return Number.isFinite(value) ? Math.min(max, Math.max(min, Math.round(value))) : fallback;
+// Figma 3041:6502: "Shift by" 1–4px and "Frequency" 1, 2, 3 or 5 minutes,
+// recommended 3px every 2 minutes. Frequency is stored in seconds.
+export const PIXEL_SHIFT_DISTANCES = [1, 2, 3, 4] as const;
+export const PIXEL_SHIFT_INTERVALS = [60, 120, 180, 300] as const;
+export const PIXEL_SHIFT_DEFAULT_DISTANCE = 3;
+export const PIXEL_SHIFT_DEFAULT_INTERVAL = 120;
+
+// Snap a saved value onto the nearest offered option, so a hand-edited or
+// older settings file still lands on something the dropdown can show.
+function nearestOption(value: number, options: readonly number[], fallback: number) {
+  if (!Number.isFinite(value)) return fallback;
+  return options.reduce((best, option) =>
+    Math.abs(option - value) < Math.abs(best - value) ? option : best,
+  );
 }
 
 export function pixelShiftOptions(settings: Pick<OverlaySettings, "pixelShiftDistance" | "pixelShiftInterval">) {
   return {
-    distance: boundedInteger(settings.pixelShiftDistance, 1, 20, 6),
-    interval: boundedInteger(settings.pixelShiftInterval, 1, 60, 3),
+    distance: nearestOption(settings.pixelShiftDistance, PIXEL_SHIFT_DISTANCES, PIXEL_SHIFT_DEFAULT_DISTANCE),
+    interval: nearestOption(settings.pixelShiftInterval, PIXEL_SHIFT_INTERVALS, PIXEL_SHIFT_DEFAULT_INTERVAL),
   };
 }
 
