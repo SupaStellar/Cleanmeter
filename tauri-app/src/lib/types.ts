@@ -245,7 +245,7 @@ export const DEFAULT_SETTINGS: OverlaySettings = {
   numberLabelFontSize: 10,
   fontWeight: 500,
   labelFontWeight: 500,
-  pollingRate: 500,
+  pollingRate: 1000,
   isLoggingEnabled: false,
   pixelShift: false,
   selectedGpuId: "",

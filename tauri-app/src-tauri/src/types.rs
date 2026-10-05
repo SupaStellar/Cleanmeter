@@ -438,7 +438,7 @@ impl Default for OverlaySettings {
             number_label_font_size: 10.0,
             font_weight: 500,
             label_font_weight: 500,
-            polling_rate: 500,
+            polling_rate: 1000,
             is_logging_enabled: false,
             pixel_shift: false,
             selected_gpu_id: String::new(),

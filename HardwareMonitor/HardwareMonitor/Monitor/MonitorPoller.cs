@@ -49,7 +49,7 @@ public class MonitorPoller : BackgroundService
     private readonly PipeHost _socketHost;
     private readonly PresentMonPoller _presentMonPoller;
 
-    private short _pollingRate = 500;
+    private short _pollingRate = 1000;
     private const short MinimalPollingRate = 33;
 
     // How many times a change to the active sensor set is worth logging.
