@@ -318,7 +318,9 @@ fn default_number_font_size() -> f32 { 14.0 }
 fn default_number_label_font_size() -> f32 { 10.0 }
 fn default_font_weight() -> u16 { 500 }
 fn default_temperature_unit() -> String { "C".to_string() }
-fn default_theme_mode() -> String { "light".to_string() }
+// Empty, not "system": a file without themeMode predates the field, and the app
+// seeds it from that file's isDarkTheme. New installs get "system" from Default.
+fn default_theme_mode() -> String { String::new() }
 fn default_graph_type() -> String { "ring".to_string() }
 fn default_use_custom_position() -> bool { true }
 
@@ -424,7 +426,7 @@ impl Default for OverlaySettings {
         OverlaySettings {
             is_dark_theme: false,
             is_meter_light: false,
-            theme_mode: "light".to_string(),
+            theme_mode: "system".to_string(),
             temperature_unit: "C".to_string(),
             is_horizontal: true,
             use_custom_position: true,
@@ -442,7 +444,7 @@ impl Default for OverlaySettings {
             number_label_font_size: 10.0,
             font_weight: 500,
             label_font_weight: 500,
-            polling_rate: 500,
+            polling_rate: 1000,
             is_logging_enabled: false,
             pixel_shift: false,
             pixel_shift_distance: default_pixel_shift_distance(),
@@ -569,6 +571,21 @@ mod tests {
 
         let restored: OverlaySettings = serde_json::from_str(&json).expect("deserialise");
         assert_eq!(restored.selected_gpu_id, "/gpu-nvidia/0");
+    }
+
+    /// A file from before themeMode existed must come through with it empty, so
+    /// the app keeps that user's light/dark choice instead of the "system"
+    /// default that only new installs and Reset should get.
+    #[test]
+    fn a_settings_file_written_before_theme_mode_keeps_its_theme() {
+        let mut without = serde_json::to_value(OverlaySettings::default()).expect("to value");
+        without.as_object_mut().expect("object").remove("themeMode");
+        without["isDarkTheme"] = serde_json::Value::Bool(true);
+
+        let loaded: OverlaySettings = serde_json::from_value(without).expect("deserialise");
+        assert_eq!(loaded.theme_mode, "");
+        assert!(loaded.is_dark_theme);
+        assert_eq!(OverlaySettings::default().theme_mode, "system");
     }
 
     /// Every settings file written before this field existed lacks the key.

@@ -301,6 +301,15 @@ interface SettingsStore {
 // index.html set from the persisted localStorage mirror. This makes the first
 // React render (and App's data-theme effect) match what the splash already
 // painted, so the theme doesn't flip when the async loadSettings() resolves.
+/** Whether the OS is in dark mode; what "system" theme mode resolves to. */
+export function systemPrefersDark(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    !!window.matchMedia &&
+    window.matchMedia("(prefers-color-scheme: dark)").matches
+  );
+}
+
 const prehydratedDark =
   typeof document !== "undefined" &&
   document.documentElement.getAttribute("data-theme") === "dark";
@@ -347,8 +356,13 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       // resolve to DEFAULT_SETTINGS.themeMode ("light") after merge,
       // showing the Light card highlighted while the app is actually dark.
       // Seed themeMode from isDarkTheme on first load.
-      if (!saved?.themeMode) {
+      // Only legacy save files: a first run has no save and keeps the
+      // "system" default.
+      if (saved && !saved.themeMode) {
         settings.themeMode = settings.isDarkTheme ? "dark" : "light";
+      }
+      if (settings.themeMode === "system") {
+        settings.isDarkTheme = systemPrefersDark();
       }
       // Migrate older builds that wrote the chosen PresentMon app into
       // framerate.customReadingId. customReadingId is now strictly a sensor
@@ -499,8 +513,23 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   },
 
   clearSettings: async () => {
-    await tauri.clearSettings();
-    set({ settings: { ...DEFAULT_SETTINGS } });
+    // A pending edit must never overwrite the reset after the debounce fires.
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = null;
+    const settings = structuredClone(DEFAULT_SETTINGS);
+    settings.isDarkTheme = systemPrefersDark();
+    const preferences = { adminConsent: false, startMinimized: false };
+    set({ settings, preferences, gpuSilence: NO_GPU_SILENCE });
+    // Use the normal save path to persist and broadcast the same defaults,
+    // including re-registering the default global shortcuts.
+    await Promise.all([
+      tauri.saveSettings(settings),
+      tauri.savePreferences(preferences),
+      tauri.setAutoStart(false),
+      tauri.setPollingRate(settings.pollingRate),
+      tauri.setOverlayOpacity(settings.opacity),
+      tauri.selectPresentMonApp(settings.sensors.framerate.targetAppName || "Auto"),
+    ]);
   },
 
   loadPreferences: async () => {

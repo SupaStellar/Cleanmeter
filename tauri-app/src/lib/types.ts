@@ -227,7 +227,7 @@ export const POLLING_RATES = [100, 250, 500, 1000] as const;
 export const DEFAULT_SETTINGS: OverlaySettings = {
   isDarkTheme: false,
   isMeterLight: false,
-  themeMode: "light",
+  themeMode: "system",
   temperatureUnit: "C",
   isHorizontal: true,
   useCustomPosition: true,
@@ -249,7 +249,7 @@ export const DEFAULT_SETTINGS: OverlaySettings = {
   numberLabelFontSize: 10,
   fontWeight: 500,
   labelFontWeight: 500,
-  pollingRate: 500,
+  pollingRate: 1000,
   isLoggingEnabled: false,
   pixelShift: false,
   pixelShiftDistance: PIXEL_SHIFT_DEFAULT_DISTANCE,

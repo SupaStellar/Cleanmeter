@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { submitFeedback, pickImageAttachment } from "@/lib/tauri";
 
 // Close icon — Figma 2488:5953 (20×20, #61646C → iconBolderActive).
-function CloseIcon({ className }: { className?: string }) {
+export function CloseIcon({ className }: { className?: string }) {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
       <path
