@@ -1,3 +1,5 @@
+import { PIXEL_SHIFT_DEFAULT_DISTANCE, PIXEL_SHIFT_DEFAULT_INTERVAL } from "./pixel-shift";
+
 export enum HardwareType {
   Motherboard = 0,
   SuperIO = 1,
@@ -112,6 +114,8 @@ export interface OverlaySettings {
   // When true, the overlay is nudged a few pixels on a slow cycle to spread
   // OLED wear (burn-in mitigation). See pixel-shift logic in OverlayApp.
   pixelShift: boolean;
+  pixelShiftDistance: number;
+  pixelShiftInterval: number;
   /**
    * Hardware identifier of the GPU every GPU reading is taken from, e.g.
    * "/gpu-nvidia/0". Empty means "not chosen yet".
@@ -248,6 +252,8 @@ export const DEFAULT_SETTINGS: OverlaySettings = {
   pollingRate: 500,
   isLoggingEnabled: false,
   pixelShift: false,
+  pixelShiftDistance: PIXEL_SHIFT_DEFAULT_DISTANCE,
+  pixelShiftInterval: PIXEL_SHIFT_DEFAULT_INTERVAL,
   selectedGpuId: "",
   recordingShortcut: RECORDING_SHORTCUT_DEFAULT,
   overlayShortcut: OVERLAY_SHORTCUT_DEFAULT,

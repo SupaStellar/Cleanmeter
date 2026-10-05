@@ -51,12 +51,16 @@ function ChevronIcon({ className }: { className?: string }) {
   );
 }
 
-function PillBody({ label, children }: { label: string; children: React.ReactNode }) {
+// Pixel Shift's fields (Figma 3041:6486) carry their label above the pill
+// rather than inside it, so the inline label is optional.
+function PillBody({ label, children }: { label?: string; children: React.ReactNode }) {
   return (
     <>
-      <span className="shrink-0 text-[14px] font-normal text-[var(--textParagraph1)]">
-        {label}
-      </span>
+      {label && (
+        <span className="shrink-0 text-[14px] font-normal text-[var(--textParagraph1)]">
+          {label}
+        </span>
+      )}
       <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-[var(--textHeading)]">
         {children}
       </span>
@@ -86,7 +90,7 @@ export function SelectFieldButton({
 
 type SelectFieldTriggerProps = React.ComponentProps<typeof SelectPrimitive.Trigger> & {
   /** The label inside the field, e.g. "Selected:". */
-  label: string;
+  label?: string;
 };
 
 /**

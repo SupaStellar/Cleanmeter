@@ -1,3 +1,4 @@
+import { pixelShiftOptions, pixelShiftPosition, shiftAxis } from "@/lib/pixel-shift";
 import { useEffect, useRef, useState } from "react";
 import { OverlayHud } from "@/components/overlay/OverlayHud";
 import { useSensorData } from "@/hooks/useSensorData";
@@ -154,14 +155,14 @@ export default function OverlayApp() {
         x = p.x;
         y = p.y;
       }
-      // Pixel Shift nudge. Re-clamp after offsetting so a shifted HUD can never
-      // leave the monitor — at a corner anchor the outward side simply clips,
-      // which keeps the motion biased inward.
+      // Pixel Shift nudge. A shifted HUD can never leave the monitor: at an
+      // edge the offset is mirrored inward, so every step still moves it.
       const off = pixelShiftOffset.current;
       if (off.x !== 0 || off.y !== 0) {
-        const shifted = clampToMonitor(x + off.x, y + off.y, hudW, hudH, monitor);
-        x = shifted.x;
-        y = shifted.y;
+        const maxX = monitor.x + Math.max(0, monitor.width - hudW);
+        const maxY = monitor.y + Math.max(0, monitor.height - hudH);
+        x = shiftAxis(x, off.x, monitor.x, maxX);
+        y = shiftAxis(y, off.y, monitor.y, maxY);
       }
       setOverlayPosition(x, y);
     };
@@ -183,10 +184,8 @@ export default function OverlayApp() {
     monitors,
   ]);
 
-  // Pixel Shift — slowly nudge the HUD a few pixels to spread OLED wear. The
-  // offset follows a Lissajous path (incommensurate X/Y frequencies) so it
-  // fills a small box over time rather than cycling the same handful of points.
-  // Each tick moves <=1px, which is imperceptible; the offset is applied only
+  // Pixel Shift — nudge the HUD 1px every interval to spread OLED wear, within
+  // the chosen distance (see pixelShiftPosition). The offset is applied only
   // through apply()/applyPositionRef, so the persisted position never changes.
   useEffect(() => {
     const resetOffset = () => {
@@ -199,25 +198,21 @@ export default function OverlayApp() {
       resetOffset();
       return;
     }
-    const AMPLITUDE = 6; // logical px per axis (12px span), scaled by DPI below
-    const TICK_MS = 3000; // one small step every 3s
-    const D_PHASE = 0.1; // keeps each step <=1px at this amplitude
-    const RATIO = Math.SQRT2; // incommensurate -> path fills the box over time
-    let phase = 0;
+    resetOffset();
+    const { distance, interval } = pixelShiftOptions({ pixelShiftDistance: settings.pixelShiftDistance, pixelShiftInterval: settings.pixelShiftInterval });
+    let tick = 0;
     const id = setInterval(() => {
       // Never fight an in-progress drag (apply() also early-returns then).
       if (dragStart.current) return;
-      phase += D_PHASE;
-      const dpr = window.devicePixelRatio || 1;
-      const nx = Math.round(AMPLITUDE * Math.sin(phase) * dpr);
-      const ny = Math.round(AMPLITUDE * Math.sin(phase * RATIO) * dpr);
+      tick += 1;
+      const { x: nx, y: ny } = pixelShiftPosition(tick, distance, window.devicePixelRatio || 1);
       if (nx !== pixelShiftOffset.current.x || ny !== pixelShiftOffset.current.y) {
         pixelShiftOffset.current = { x: nx, y: ny };
         applyPositionRef.current();
       }
-    }, TICK_MS);
+    }, interval * 1000);
     return () => clearInterval(id);
-  }, [settings.pixelShift]);
+  }, [settings.pixelShift, settings.pixelShiftDistance, settings.pixelShiftInterval]);
 
   // Manual drag. startDragging() needed an async dynamic import that lost the
   // button-down window on Windows before WM_NCLBUTTONDOWN could post, so drag

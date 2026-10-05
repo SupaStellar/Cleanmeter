@@ -27,6 +27,7 @@ import {
   ThemePreviewSystem,
 } from "./icons";
 import { ShortcutField } from "@/components/ui/ShortcutField";
+import { PixelShiftControls } from "./PixelShiftControls";
 import { OVERLAY_SHORTCUT_DEFAULT, RECORDING_SHORTCUT_DEFAULT } from "@/lib/types";
 
 function SectionCard({
@@ -98,25 +99,29 @@ function GeneralSection() {
         </label>
       </div>
       <div className="h-px w-full shrink-0 bg-[var(--borderSubtle)]" />
-      <div className="flex items-center gap-[var(--spacingS)]">
-        <div className="flex size-[40px] shrink-0 items-center justify-center rounded-[var(--cornerRound)] border border-[var(--borderBold)] bg-[var(--bgSurfaceRaised)]">
-          {/* No optical nudge: the exported glyph carries Figma's own 1.67
-              inset inside a 20 box, so centring the box centres the glyph. */}
-          <ComputerIcon className="size-[20px] text-[var(--textParagraph1)]" />
+      {/* Figma 3041:6524: the row and its settings panel sit 16 apart. */}
+      <div className="flex flex-col gap-[var(--spacingM)]">
+        <div className="flex items-center gap-[var(--spacingS)]">
+          <div className="flex size-[40px] shrink-0 items-center justify-center rounded-[var(--cornerRound)] border border-[var(--borderBold)] bg-[var(--bgSurfaceRaised)]">
+            {/* No optical nudge: the exported glyph carries Figma's own 1.67
+                inset inside a 20 box, so centring the box centres the glyph. */}
+            <ComputerIcon className="size-[20px] text-[var(--iconSubtler)]" />
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col gap-[6px]">
+            <span className="text-[14px] font-medium leading-[17px] text-[var(--textHeading)]">
+              Pixel Shift
+            </span>
+            <span className="text-[14px] font-normal leading-[17px] text-[var(--textParagraph1)]">
+              Shifts the overlay periodically to avoid OLED burn-in.
+            </span>
+          </div>
+          <Switch
+            checked={pixelShift}
+            onCheckedChange={(v) => updateSettings({ pixelShift: v })}
+            aria-label="Pixel Shift"
+          />
         </div>
-        <div className="flex min-w-0 flex-1 flex-col gap-[6px]">
-          <span className="text-[14px] font-medium leading-[17px] text-[var(--textHeading)]">
-            Pixel Shift
-          </span>
-          <span className="text-[14px] font-normal leading-[17px] text-[var(--textParagraph1)]">
-            Shifts the overlay periodically to avoid OLED burn-in.
-          </span>
-        </div>
-        <Switch
-          checked={pixelShift}
-          onCheckedChange={(v) => updateSettings({ pixelShift: v })}
-          aria-label="Pixel Shift"
-        />
+        {pixelShift && <PixelShiftControls />}
       </div>
     </SectionCard>
   );
