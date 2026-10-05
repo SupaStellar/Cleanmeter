@@ -59,12 +59,7 @@ pub fn collect(resource_dir: Option<&Path>) -> Diagnostics {
 
 // Ok(None) means the log exists but holds nothing worth sending.
 fn read_tail(path: &Path, limit: usize) -> std::io::Result<Option<String>> {
-    // The app runs elevated: never follow a link planted at a log path into a
-    // file the user could not otherwise read.
-    if std::fs::symlink_metadata(path)?.file_type().is_symlink() {
-        return Err(std::io::Error::other("log path is a symbolic link"));
-    }
-    let mut file = std::fs::File::open(path)?;
+    let mut file = open_no_follow(path)?;
     let len = file.metadata()?.len();
     let start = len.saturating_sub(limit as u64);
     file.seek(SeekFrom::Start(start))?;
@@ -89,6 +84,33 @@ fn read_tail(path: &Path, limit: usize) -> std::io::Result<Option<String>> {
         text.drain(..cut);
     }
     Ok(if text.trim().is_empty() { None } else { Some(text) })
+}
+
+// The app runs elevated: never follow a link planted at a log path into a file
+// the user could not otherwise read. The link itself is opened (not its
+// target) and rejected through the same handle, so it can't be swapped in
+// between a check and the open.
+#[cfg(windows)]
+fn open_no_follow(path: &Path) -> std::io::Result<std::fs::File> {
+    use std::os::windows::fs::OpenOptionsExt;
+    const FILE_FLAG_OPEN_REPARSE_POINT: u32 = 0x0020_0000;
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT)
+        .open(path)?;
+    if file.metadata()?.file_type().is_symlink() {
+        return Err(std::io::Error::other("log path is a symbolic link"));
+    }
+    Ok(file)
+}
+
+// Non-Windows builds are not shipped; a plain pre-check is enough there.
+#[cfg(not(windows))]
+fn open_no_follow(path: &Path) -> std::io::Result<std::fs::File> {
+    if std::fs::symlink_metadata(path)?.file_type().is_symlink() {
+        return Err(std::io::Error::other("log path is a symbolic link"));
+    }
+    std::fs::File::open(path)
 }
 
 fn latest_sidecar_log(base: &Path) -> Option<PathBuf> {
