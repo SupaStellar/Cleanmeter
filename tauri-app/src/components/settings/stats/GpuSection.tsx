@@ -25,7 +25,7 @@ export function GpuSection({ sensors, hardwares }: Props) {
   const updateSensor = useSettingsStore((s) => s.updateSensor);
   const updateBoundary = useSettingsStore((s) => s.updateBoundary);
   const selectGpu = useSettingsStore((s) => s.selectGpu);
-  const { gpuUsage, gpuTemp, gpuConsumption, vramUsage } = settings.sensors;
+  const { gpuUsage, gpuTemp, gpuConsumption, gpuClock, vramUsage } = settings.sensors;
 
   const gpus = listGpus(hardwares);
   // Every row below draws from one GPU. Scoping the option lists is what makes
@@ -47,12 +47,15 @@ export function GpuSection({ sensors, hardwares }: Props) {
     gpuUsage.isEnabled ||
     gpuTemp.isEnabled ||
     gpuConsumption.isEnabled ||
-    vramUsage.isEnabled;
+    vramUsage.isEnabled || gpuClock.isEnabled;
+
+  const gpuClockSensors = gpuSensors.filter((s) => s.sensorType === SensorType.Clock);
 
   const prevState = useRef<{
     gpuUsage: boolean;
     gpuTemp: boolean;
     gpuConsumption: boolean;
+    gpuClock: boolean;
     vramUsage: boolean;
   } | null>(null);
 
@@ -62,11 +65,13 @@ export function GpuSection({ sensors, hardwares }: Props) {
         gpuUsage: gpuUsage.isEnabled,
         gpuTemp: gpuTemp.isEnabled,
         gpuConsumption: gpuConsumption.isEnabled,
+        gpuClock: gpuClock.isEnabled,
         vramUsage: vramUsage.isEnabled,
       };
       updateSensor("gpuUsage", { isEnabled: false });
       updateSensor("gpuTemp", { isEnabled: false });
       updateSensor("gpuConsumption", { isEnabled: false });
+      updateSensor("gpuClock", { isEnabled: false });
       updateSensor("vramUsage", { isEnabled: false });
       // totalVramUsed (the VRAM GB reading) rides along with vramUsage so the
       // overlay's GB cluster stays in sync — they're one "VRAM" control.
@@ -76,6 +81,7 @@ export function GpuSection({ sensors, hardwares }: Props) {
       updateSensor("gpuUsage", { isEnabled: prev ? prev.gpuUsage : true });
       updateSensor("gpuTemp", { isEnabled: prev ? prev.gpuTemp : true });
       updateSensor("gpuConsumption", { isEnabled: prev ? prev.gpuConsumption : true });
+      updateSensor("gpuClock", { isEnabled: prev ? prev.gpuClock : false });
       updateSensor("vramUsage", { isEnabled: prev ? prev.vramUsage : true });
       updateSensor("totalVramUsed", { isEnabled: prev ? prev.vramUsage : true });
     }
@@ -194,6 +200,17 @@ export function GpuSection({ sensors, hardwares }: Props) {
             boundaries={vramUsage.boundaries}
             onChange={(b) => updateBoundary("vramUsage", b)}
           />
+        </SubCollapsible>
+        <SubCollapsible
+          label="GPU Clock"
+          checked={gpuClock.isEnabled}
+          onCheckedChange={(v) => updateSensor("gpuClock", { isEnabled: v })}
+        >
+          {gpuClockSensors.length > 0 ? (
+            <SensorSelect label="GPU Clock" value={gpuClock.customReadingId}
+              options={gpuClockSensors} onChange={(v) => updateSensor("gpuClock", { customReadingId: v })} />
+          ) : <p className="text-body-sm-regular text-[var(--textParagraph1)]">No clock sensor is available yet.</p>}
+          <p className="text-body-sm-regular text-[var(--textParagraph1)]">Clock speed in MHz.</p>
         </SubCollapsible>
       </div>
     </SectionCard>

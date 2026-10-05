@@ -15,9 +15,9 @@ export function CpuSection({ sensors, hardwares }: Props) {
   const settings = useSettingsStore((s) => s.settings);
   const updateSensor = useSettingsStore((s) => s.updateSensor);
   const updateBoundary = useSettingsStore((s) => s.updateBoundary);
-  const { cpuUsage, cpuTemp, cpuConsumption } = settings.sensors;
+  const { cpuUsage, cpuTemp, cpuConsumption, cpuClock } = settings.sensors;
   const anyEnabled =
-    cpuUsage.isEnabled || cpuTemp.isEnabled || cpuConsumption.isEnabled;
+    cpuUsage.isEnabled || cpuTemp.isEnabled || cpuConsumption.isEnabled || cpuClock.isEnabled;
 
   const cpuHwIds = new Set(
     hardwares.filter((h) => h.hardwareType === HardwareType.Cpu).map((h) => h.identifier),
@@ -32,10 +32,13 @@ export function CpuSection({ sensors, hardwares }: Props) {
     (s) => cpuHwIds.has(s.hardwareIdentifier) && s.sensorType === SensorType.Power,
   );
 
+  const cpuClockSensors = sensors.filter((s) => cpuHwIds.has(s.hardwareIdentifier) && s.sensorType === SensorType.Clock);
+
   const prevState = useRef<{
     cpuUsage: boolean;
     cpuTemp: boolean;
     cpuConsumption: boolean;
+    cpuClock: boolean;
   } | null>(null);
 
   const handleMaster = (enabled: boolean) => {
@@ -44,15 +47,18 @@ export function CpuSection({ sensors, hardwares }: Props) {
         cpuUsage: cpuUsage.isEnabled,
         cpuTemp: cpuTemp.isEnabled,
         cpuConsumption: cpuConsumption.isEnabled,
+        cpuClock: cpuClock.isEnabled,
       };
       updateSensor("cpuUsage", { isEnabled: false });
       updateSensor("cpuTemp", { isEnabled: false });
       updateSensor("cpuConsumption", { isEnabled: false });
+      updateSensor("cpuClock", { isEnabled: false });
     } else {
       const prev = prevState.current;
       updateSensor("cpuUsage", { isEnabled: prev ? prev.cpuUsage : true });
       updateSensor("cpuTemp", { isEnabled: prev ? prev.cpuTemp : true });
       updateSensor("cpuConsumption", { isEnabled: prev ? prev.cpuConsumption : true });
+      updateSensor("cpuClock", { isEnabled: prev ? prev.cpuClock : false });
     }
   };
 
@@ -115,6 +121,17 @@ export function CpuSection({ sensors, hardwares }: Props) {
               }
             />
           )}
+        </SubCollapsible>
+        <SubCollapsible
+          label="CPU Clock"
+          checked={cpuClock.isEnabled}
+          onCheckedChange={(v) => updateSensor("cpuClock", { isEnabled: v })}
+        >
+          {cpuClockSensors.length > 0 ? (
+            <SensorSelect label="CPU Clock" value={cpuClock.customReadingId}
+              options={cpuClockSensors} onChange={(v) => updateSensor("cpuClock", { customReadingId: v })} />
+          ) : <p className="text-body-sm-regular text-[var(--textParagraph1)]">No clock sensor is available yet.</p>}
+          <p className="text-body-sm-regular text-[var(--textParagraph1)]">Clock speed in MHz; choose the CPU core to display.</p>
         </SubCollapsible>
       </div>
     </SectionCard>

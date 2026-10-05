@@ -82,6 +82,23 @@ export function formatNetworkRate(bytesPerSec: number): string {
   return `${value} ${unit}`;
 }
 
+/**
+ * Render a clock sensor as whole MHz, or an em dash when there is no reading.
+ *
+ * The dash covers both ways a clock can be missing, which are not the same
+ * thing. The sensor can be absent from the frame entirely (an unsupported CPU
+ * exposes no Clock sensors at all, and a modern AMD GPU reports none until
+ * ADL's PMLog block has been updated once), or it can be present and reading
+ * nothing. The second case arrives as 0, because the sidecar coalesces a null
+ * or NaN sensor value to 0f in MapSensor, so 0 has to be treated as "no
+ * reading" rather than as a value: no CPU or GPU runs at 0 MHz while it is
+ * reporting. Hence "> 0" and not ">= 0".
+ */
+export function formatClockLabel(clock: Sensor | undefined): string {
+  if (!clock || !Number.isFinite(clock.value) || clock.value <= 0) return "—";
+  return formatValue(clock.value);
+}
+
 export function findSensorByTypeAndHardware(
   sensors: Sensor[],
   sensorType: SensorType,

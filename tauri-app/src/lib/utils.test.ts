@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { getBoundaryColor, formatValue } from "./utils";
+import { getBoundaryColor, formatValue, formatClockLabel } from "./utils";
+import type { Sensor } from "./types";
+import { SensorType } from "./types";
 
 const GREEN = "var(--green500)";
 const YELLOW = "var(--yellow300)";
@@ -44,5 +46,41 @@ describe("getBoundaryColor", () => {
 
     expect(formatValue(40.4)).toBe("40");
     expect(getBoundaryColor(40.4, B)).toBe(RED);
+  });
+});
+
+describe("formatClockLabel", () => {
+  const clock = (value: number): Sensor => ({
+    name: "Cores _Average_",
+    identifier: "/amdcpu/0/clock/1",
+    hardwareIdentifier: "/amdcpu/0",
+    sensorType: SensorType.Clock,
+    value,
+  });
+
+  it("prints whole MHz for a real reading", () => {
+    expect(formatClockLabel(clock(4347))).toBe("4347");
+    // GPU memory clocks arrive fractional off the wire (5001.99 on an
+    // RTX 4080 SUPER); the pill shows integer MHz.
+    expect(formatClockLabel(clock(5001.99))).toBe("5002");
+  });
+
+  it("dashes when the sensor is absent from the frame", () => {
+    // An unsupported CPU exposes no Clock sensors, and a modern AMD GPU
+    // reports none until ADL's PMLog block has updated once.
+    expect(formatClockLabel(undefined)).toBe("—");
+  });
+
+  it("dashes on 0, which is how a failed read arrives", () => {
+    // The sidecar coalesces a null or NaN sensor value to 0f in MapSensor, so
+    // 0 means "no reading". Nothing reports 0 MHz while it is running, and a
+    // ">= 0" guard here would print "0 MHz" on a dead sensor instead.
+    expect(formatClockLabel(clock(0))).toBe("—");
+  });
+
+  it("dashes on values that cannot be rendered", () => {
+    expect(formatClockLabel(clock(NaN))).toBe("—");
+    expect(formatClockLabel(clock(Infinity))).toBe("—");
+    expect(formatClockLabel(clock(-1))).toBe("—");
   });
 });
