@@ -23,13 +23,31 @@ export function pixelShiftOptions(settings: Pick<OverlaySettings, "pixelShiftDis
   };
 }
 
-// Keep the same path as the old 6px/3s option. Larger distances take more
-// steps, rather than making each movement an abrupt jump. Output is physical
-// pixels; the user's distance is in logical pixels, like the rest of the UI.
+// The offset (logical px) after `tick` intervals. Walks a snake over every
+// point within +/-distance on both axes, out and back, starting from the
+// centre: each tick moves exactly 1px on one axis, so every interval moves
+// the overlay and it never strays further than the chosen distance. Output is
+// physical pixels; the distance is logical, like the rest of the UI.
 export function pixelShiftPosition(tick: number, distance: number, dpr: number) {
-  const phase = tick * Math.min(0.1, 0.6 / distance);
-  return {
-    x: Math.round(distance * Math.sin(phase) * dpr),
-    y: Math.round(distance * Math.sin(phase * Math.SQRT2) * dpr),
-  };
+  const side = 2 * distance + 1;
+  const points = side * side;
+  const period = 2 * (points - 1);
+  const centre = 2 * distance * (distance + 1);
+  const i = (centre + tick) % period;
+  const index = i < points ? i : period - i;
+  const row = Math.floor(index / side);
+  const col = index % side;
+  const x = row % 2 === 0 ? col - distance : distance - col;
+  const y = row - distance;
+  return { x: Math.round(x * dpr), y: Math.round(y * dpr) };
+}
+
+// Add an offset to one axis of the overlay's position, keeping it within
+// [min, max]. An overlay parked against a screen edge would otherwise lose
+// every step that points off-screen, so the path is reflected off the edge
+// instead: steps that were 1px apart stay 1px apart.
+export function shiftAxis(base: number, offset: number, min: number, max: number) {
+  const shifted = base + offset;
+  const value = shifted < min ? 2 * min - shifted : shifted > max ? 2 * max - shifted : shifted;
+  return Math.min(Math.max(value, min), max);
 }
