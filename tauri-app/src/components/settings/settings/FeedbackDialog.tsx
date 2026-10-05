@@ -80,7 +80,11 @@ export function FeedbackDialog({
   const handlePick = async () => {
     try {
       const picked = await pickAttachment();
-      if (picked) { setAttachment(picked); setStatus("idle"); setError(""); }
+      if (picked) {
+        setAttachment(picked);
+        setStatus("idle");
+        setError("");
+      }
     } catch (err) {
       setError(`Couldn’t select an attachment: ${String(err)}`);
       setStatus("error");
@@ -102,7 +106,7 @@ export function FeedbackDialog({
       // Surface the underlying Rust error (e.g. "request failed", "portal
       // returned 401") so failures are diagnosable instead of opaque.
       console.error("submit_feedback failed:", err);
-      setError(String(err));
+      setError(`Couldn’t send feedback: ${String(err)}`);
       setStatus("error");
     }
   };
@@ -114,14 +118,14 @@ export function FeedbackDialog({
         <DialogContent
           aria-describedby={undefined}
           className={cn(
-            "left-1/2 top-[77px] -translate-x-1/2 translate-y-0",
-            "grid w-[calc(100%-48px)] max-w-[603px] grid-rows-[auto_1fr] gap-0 overflow-hidden",
+            "left-1/2 top-[76px] -translate-x-1/2 translate-y-0",
+            "grid max-h-[calc(100dvh-100px)] w-[calc(100%-48px)] max-w-[603px] grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden",
             "rounded-[12px] bg-[var(--bgSurfaceRaised)] shadow-lg",
             "data-[state=open]:slide-in-from-top-2 data-[state=closed]:slide-out-to-top-2",
           )}
         >
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-[var(--borderSubtle)] p-5">
+          <div className="flex h-[60px] items-center justify-between border-b border-[var(--borderSubtle)] p-5">
             <DialogTitle>Give feedback</DialogTitle>
             <DialogClose
               aria-label="Close"
@@ -138,13 +142,15 @@ export function FeedbackDialog({
           </div>
 
           {/* Body */}
-          <div className="flex flex-col gap-5 p-5">
+          <div className="flex min-h-0 flex-col gap-5 overflow-y-auto p-5 [&>*]:shrink-0">
             <div className="flex flex-col gap-2">
               <Label className="text-body-sm-medium text-[var(--textHeading)]" htmlFor="fb-name">
                 Name
               </Label>
               <Input
                 id="fb-name"
+                className="h-10"
+                disabled={status === "submitting"}
                 placeholder="Ex: Leon Kennedy"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -157,6 +163,8 @@ export function FeedbackDialog({
               </Label>
               <Textarea
                 id="fb-message"
+                className="h-[198px] min-h-0"
+                disabled={status === "submitting"}
                 placeholder="Your feedback here..."
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
@@ -189,7 +197,7 @@ export function FeedbackDialog({
                 className={cn(
                   "flex h-10 w-full items-center justify-center gap-2 rounded-[var(--cornerL)] border border-dashed border-[var(--borderBolder)]",
                   "text-body-sm-medium text-[var(--textHeading)]",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--borderBrand)] focus-visible:ring-offset-2",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
                   "disabled:cursor-not-allowed disabled:opacity-50",
                 )}
               >
@@ -203,10 +211,11 @@ export function FeedbackDialog({
               onCheckedChange={setIncludeDiagnostics}
               disabled={status === "submitting"}
               label="Include system specs and app logs"
+              className="w-full rounded-[4px] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
             />
             {status === "error" && (
               <p role="alert" className="text-body-sm-regular text-[var(--iconDanger)]">
-                Couldn’t complete feedback: {error || "Please try again."}
+                {error || "Couldn’t send feedback. Please try again."}
               </p>
             )}
 
