@@ -4,7 +4,8 @@ import { FaqSection } from "./FaqSection";
 import { AboutSection } from "./AboutSection";
 import { FeedbackDialog } from "../settings/FeedbackDialog";
 import { useSettingsStore } from "@/stores/settings-store";
-import { useToastStore } from "@/stores/toast-store";
+import { Dialog, DialogTrigger } from "@/components/shadcn/dialog";
+import { ResetSettingsDialog } from "./ResetSettingsDialog";
 
 const helpButtonClassName = cn(
   "shrink-0 rounded-[var(--cornerRound)] border border-[var(--borderBolder)]/50 bg-[var(--bgSurfaceRaised)] px-5 py-3",
@@ -17,40 +18,55 @@ function ResetSettingsPrompt() {
   const clearSettings = useSettingsStore((s) => s.clearSettings);
   const [pending, setPending] = React.useState(false);
   const [complete, setComplete] = React.useState(false);
+  const [open, setOpen] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
   const reset = async () => {
     if (pending) return;
     setPending(true);
     setComplete(false);
+    setError(null);
     try {
       await clearSettings();
       setComplete(true);
+      setOpen(false);
     } catch (error) {
       console.error("Reset settings failed:", error);
-      useToastStore.getState().showToast("Couldn't reset all settings. Please try again.");
+      setError("Couldn't reset all settings. Please try again.");
     } finally {
       setPending(false);
     }
   };
 
   return (
-    <section className="flex w-full items-center justify-between gap-5 rounded-[12px] bg-[var(--bgSurfaceRaised)] p-5">
-      <span className="text-body-sm-medium text-[var(--textHeading)]">
-        Reset all settings to defaults
-      </span>
-      <button
-        type="button"
-        onClick={reset}
-        disabled={pending}
-        aria-busy={pending}
-        className={cn(helpButtonClassName, "flex h-10 items-center text-[var(--borderDanger)]")}
-      >
-        Reset
-      </button>
-      <span role="status" className="sr-only">
-        {complete ? "All settings reset to defaults." : ""}
-      </span>
-    </section>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (pending) return;
+        setOpen(nextOpen);
+        setError(null);
+      }}
+    >
+      <section className="flex w-full items-center justify-between gap-5 rounded-[12px] bg-[var(--bgSurfaceRaised)] p-5">
+        <span className="text-body-sm-medium text-[var(--textHeading)]">
+          Reset all settings to defaults
+        </span>
+        <DialogTrigger asChild>
+          <button
+            type="button"
+            disabled={pending}
+            aria-busy={pending}
+            className={cn(helpButtonClassName, "flex h-10 items-center text-[var(--borderDanger)]")}
+          >
+            Reset
+          </button>
+        </DialogTrigger>
+        <span role="status" className="sr-only">
+          {complete ? "All settings reset to defaults." : ""}
+        </span>
+      </section>
+      <ResetSettingsDialog pending={pending} error={error} onConfirm={reset} />
+    </Dialog>
   );
 }
 
