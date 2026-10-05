@@ -14,22 +14,34 @@ import { Button } from "@/app/components/Button";
 import { Checkbox } from "@/app/components/Checkbox";
 import { cn } from "@/lib/utils";
 import { submitFeedback, pickFeedbackAttachment } from "@/lib/tauri";
-import closeIcon from "@/assets/feedback/close.svg";
-import addIcon from "@/assets/feedback/add.svg";
 
-// Close icon — Figma 2488:5953 (20×20, #61646C → iconBolderActive).
+// Close icon — Figma 2488:5953 (20×20, #61646C → iconBolderActive), exported path.
 export function CloseIcon({ className }: { className?: string }) {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
       <path
-        d="M10.0007 11.1673L5.91732 15.2507C5.76454 15.4034 5.5701 15.4798 5.33398 15.4798C5.09787 15.4798 4.90343 15.4034 4.75065 15.2507C4.59787 15.0979 4.52148 14.9034 4.52148 14.6673C4.52148 14.4312 4.59787 14.2368 4.75065 14.084L8.83398 10.0007L4.75065 5.91732C4.59787 5.76454 4.52148 5.5701 4.52148 5.33398C4.52148 5.09787 4.59787 4.90343 4.75065 4.75065C4.90343 4.59787 5.09787 4.52148 5.33398 4.52148C5.5701 4.52148 5.76454 4.59787 5.91732 4.75065L10.0007 8.83398L14.084 4.75065C14.2368 4.59787 14.4312 4.52148 14.6673 4.52148C14.9034 4.52148 15.0979 4.59787 15.2507 4.75065C15.4034 4.90343 15.4798 5.09787 15.4798 5.33398C15.4798 5.5701 15.4034 5.76454 15.2507 5.91732L11.1673 10.0007L15.2507 14.084C15.4034 14.2368 15.4798 14.4312 15.4798 14.6673C15.4798 14.9034 15.4034 15.0979 15.2507 15.2507C15.0979 15.4034 14.9034 15.4798 14.6673 15.4798C14.4312 15.4798 14.2368 15.4034 14.084 15.2507L10.0007 11.1673Z"
+        d="M10 11.1673L5.91671 15.2507C5.76393 15.4034 5.56949 15.4798 5.33337 15.4798C5.09726 15.4798 4.90282 15.4034 4.75004 15.2507C4.59726 15.0979 4.52087 14.9034 4.52087 14.6673C4.52087 14.4312 4.59726 14.2368 4.75004 14.084L8.83337 10.0007L4.75004 5.91732C4.59726 5.76454 4.52087 5.5701 4.52087 5.33398C4.52087 5.09787 4.59726 4.90343 4.75004 4.75065C4.90282 4.59787 5.09726 4.52148 5.33337 4.52148C5.56949 4.52148 5.76393 4.59787 5.91671 4.75065L10 8.83398L14.0834 4.75065C14.2362 4.59787 14.4306 4.52148 14.6667 4.52148C14.9028 4.52148 15.0973 4.59787 15.25 4.75065C15.4028 4.90343 15.4792 5.09787 15.4792 5.33398C15.4792 5.5701 15.4028 5.76454 15.25 5.91732L11.1667 10.0007L15.25 14.084C15.4028 14.2368 15.4792 14.4312 15.4792 14.6673C15.4792 14.9034 15.4028 15.0979 15.25 15.2507C15.0973 15.4034 14.9028 15.4798 14.6667 15.4798C14.4306 15.4798 14.2362 15.4034 14.0834 15.2507L10 11.1673Z"
         fill="currentColor"
       />
     </svg>
   );
 }
 
-// File icon — Figma 2488:6236 (Material "description", 20×20, #1C1B1F — no token).
+// Add icon — Figma 2488:6010 (Material "add", 20×20), exported path. Its #1C1B1F
+// has no token, so it renders in textHeading to follow the dark theme.
+function AddIcon({ className }: { className?: string }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
+      <path
+        d="M9.40625 17.2604C9.24653 17.1007 9.16667 16.9028 9.16667 16.6667V10.8333H3.33333C3.09722 10.8333 2.89931 10.7535 2.73958 10.5938C2.57986 10.434 2.5 10.2361 2.5 10C2.5 9.76389 2.57986 9.56597 2.73958 9.40625C2.89931 9.24653 3.09722 9.16667 3.33333 9.16667H9.16667V3.33333C9.16667 3.09722 9.24653 2.89931 9.40625 2.73958C9.56597 2.57986 9.76389 2.5 10 2.5C10.2361 2.5 10.434 2.57986 10.5938 2.73958C10.7535 2.89931 10.8333 3.09722 10.8333 3.33333V9.16667H16.6667C16.9028 9.16667 17.1007 9.24653 17.2604 9.40625C17.4201 9.56597 17.5 9.76389 17.5 10C17.5 10.2361 17.4201 10.434 17.2604 10.5938C17.1007 10.7535 16.9028 10.8333 16.6667 10.8333H10.8333V16.6667C10.8333 16.9028 10.7535 17.1007 10.5938 17.2604C10.434 17.4201 10.2361 17.5 10 17.5C9.76389 17.5 9.56597 17.4201 9.40625 17.2604Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+// File icon — Figma 2488:6236 (Material "description", 20×20). Its #1C1B1F has
+// no token, so it renders in textHeading to follow the dark theme.
 function DescriptionIcon({ className }: { className?: string }) {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
@@ -42,6 +54,9 @@ function DescriptionIcon({ className }: { className?: string }) {
 }
 
 type Attachment = { path: string; name: string };
+
+// Tauri rejects with the Rust error string, the browser preview with an Error.
+const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err));
 type Status = "idle" | "submitting" | "error";
 
 export interface FeedbackDialogProps {
@@ -62,6 +77,13 @@ export function FeedbackDialog({
   const [includeDiagnostics, setIncludeDiagnostics] = React.useState(false);
   const [error, setError] = React.useState("");
   const [status, setStatus] = React.useState<Status>("idle");
+  const submitting = status === "submitting";
+
+  // Picking a file swaps "Add attachment" for the chip and Remove swaps it
+  // back, so focus moves to whichever control replaced the one just pressed.
+  const addRef = React.useRef<HTMLButtonElement>(null);
+  const removeRef = React.useRef<HTMLButtonElement>(null);
+  const focusAfterSwap = React.useRef(false);
 
   // Reset everything whenever the dialog closes.
   React.useEffect(() => {
@@ -75,18 +97,25 @@ export function FeedbackDialog({
     }
   }, [open]);
 
-  const canSubmit = message.trim() !== "" && status !== "submitting";
+  React.useEffect(() => {
+    if (!focusAfterSwap.current) return;
+    focusAfterSwap.current = false;
+    (attachment ? removeRef : addRef).current?.focus();
+  }, [attachment]);
+
+  const canSubmit = message.trim() !== "" && !submitting;
 
   const handlePick = async () => {
     try {
       const picked = await pickAttachment();
       if (picked) {
+        focusAfterSwap.current = true;
         setAttachment(picked);
         setStatus("idle");
         setError("");
       }
     } catch (err) {
-      setError(`Couldn’t select an attachment: ${String(err)}`);
+      setError(`Couldn’t select an attachment: ${errorText(err)}`);
       setStatus("error");
     }
   };
@@ -106,7 +135,7 @@ export function FeedbackDialog({
       // Surface the underlying Rust error (e.g. "request failed", "portal
       // returned 401") so failures are diagnosable instead of opaque.
       console.error("submit_feedback failed:", err);
-      setError(`Couldn’t send feedback: ${String(err)}`);
+      setError(`Couldn’t send feedback: ${errorText(err)}`);
       setStatus("error");
     }
   };
@@ -117,6 +146,10 @@ export function FeedbackDialog({
         <DialogOverlay className="top-[52px]" />
         <DialogContent
           aria-describedby={undefined}
+          // A send in flight can't be abandoned: the form would reset while
+          // the request still resolves into it.
+          onEscapeKeyDown={(e) => { if (submitting) e.preventDefault(); }}
+          onInteractOutside={(e) => { if (submitting) e.preventDefault(); }}
           className={cn(
             "left-1/2 top-[76px] -translate-x-1/2 translate-y-0",
             "grid max-h-[calc(100dvh-100px)] w-[calc(100%-48px)] max-w-[603px] grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden",
@@ -129,15 +162,17 @@ export function FeedbackDialog({
             <DialogTitle>Give feedback</DialogTitle>
             <DialogClose
               aria-label="Close"
+              disabled={submitting}
               className={cn(
                 "relative flex size-5 items-center justify-center text-[var(--iconBolderActive)]",
                 "transition-transform duration-100 active:scale-[0.92] motion-reduce:transition-none",
                 "rounded-[4px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
                 "before:absolute before:inset-[-12px] before:content-['']",
                 "[touch-action:manipulation]",
+                "disabled:cursor-wait disabled:opacity-50",
               )}
             >
-              <img src={closeIcon} alt="" />
+              <CloseIcon className="size-5" />
             </DialogClose>
           </div>
 
@@ -150,7 +185,7 @@ export function FeedbackDialog({
               <Input
                 id="fb-name"
                 className="h-10"
-                disabled={status === "submitting"}
+                disabled={submitting}
                 placeholder="Ex: Leon Kennedy"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -164,7 +199,7 @@ export function FeedbackDialog({
               <Textarea
                 id="fb-message"
                 className="h-[198px] min-h-0"
-                disabled={status === "submitting"}
+                disabled={submitting}
                 placeholder="Your feedback here..."
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
@@ -182,17 +217,22 @@ export function FeedbackDialog({
                 <button
                   type="button"
                   aria-label="Remove attachment"
-                  disabled={status === "submitting"}
-                  onClick={() => setAttachment(null)}
-                  className="flex size-5 shrink-0 items-center justify-center rounded-[4px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  disabled={submitting}
+                  ref={removeRef}
+                  onClick={() => {
+                    focusAfterSwap.current = true;
+                    setAttachment(null);
+                  }}
+                  className="flex size-5 shrink-0 items-center justify-center rounded-[4px] text-[var(--iconBolderActive)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
                 >
-                  <img src={closeIcon} alt="" />
+                  <CloseIcon className="size-5" />
                 </button>
               </div>
             ) : (
               <button
                 type="button"
-                disabled={status === "submitting"}
+                ref={addRef}
+                disabled={submitting}
                 onClick={handlePick}
                 className={cn(
                   "flex h-10 w-full items-center justify-center gap-2 rounded-[var(--cornerL)] border border-dashed border-[var(--borderBolder)]",
@@ -201,7 +241,7 @@ export function FeedbackDialog({
                   "disabled:cursor-not-allowed disabled:opacity-50",
                 )}
               >
-                <img src={addIcon} alt="" />
+                <AddIcon className="size-5" />
                 <span>Add attachment</span>
               </button>
             )}
@@ -209,7 +249,7 @@ export function FeedbackDialog({
             <Checkbox
               checked={includeDiagnostics}
               onCheckedChange={setIncludeDiagnostics}
-              disabled={status === "submitting"}
+              disabled={submitting}
               label="Include system specs and app logs"
               className="w-full rounded-[4px] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
             />

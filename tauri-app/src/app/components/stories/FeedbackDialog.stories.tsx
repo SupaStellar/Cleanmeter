@@ -20,3 +20,15 @@ export const Default: Story = {
     return <FeedbackDialog open={open} onOpenChange={setOpen} pickAttachment={fakePicker} />;
   },
 };
+
+// Click "Add attachment" to see the picker error state.
+const failingPicker = async (): Promise<null> => {
+  throw "The file is open in another program.";
+};
+
+export const PickerError: Story = {
+  render: () => {
+    const [open, setOpen] = useState(true);
+    return <FeedbackDialog open={open} onOpenChange={setOpen} pickAttachment={failingPicker} />;
+  },
+};
