@@ -8,7 +8,7 @@ import { Dialog, DialogTrigger } from "@/components/shadcn/dialog";
 import { ResetSettingsDialog } from "./ResetSettingsDialog";
 
 const helpButtonClassName = cn(
-  "shrink-0 rounded-[var(--cornerRound)] border border-[var(--borderBolder)]/50 bg-[var(--bgSurfaceRaised)] px-5 py-3",
+  "flex h-[var(--spacingXxxl)] shrink-0 items-center rounded-[var(--cornerRound)] border border-[var(--borderBold)] bg-[var(--bgSurfaceRaised)] px-[var(--spacingL)]",
   "text-body-sm-medium transition-colors",
   "hover:border-[var(--borderBolder)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
   "disabled:cursor-wait disabled:opacity-50",
@@ -47,7 +47,7 @@ function ResetSettingsPrompt() {
         setError(null);
       }}
     >
-      <section className="flex w-full items-center justify-between gap-5 rounded-[12px] bg-[var(--bgSurfaceRaised)] p-5">
+      <section className="flex w-full items-center justify-between gap-[var(--spacingL)] rounded-[12px] bg-[var(--bgSurfaceRaised)] p-[var(--spacingL)]">
         <span className="text-body-sm-medium text-[var(--textHeading)]">
           Reset all settings to defaults
         </span>
@@ -56,7 +56,7 @@ function ResetSettingsPrompt() {
             type="button"
             disabled={pending}
             aria-busy={pending}
-            className={cn(helpButtonClassName, "flex h-10 items-center text-[var(--borderDanger)]")}
+            className={cn(helpButtonClassName, "text-[var(--borderDanger)] dark:text-[var(--red400)]")}
           >
             Reset
           </button>
@@ -73,7 +73,7 @@ function ResetSettingsPrompt() {
 function FeedbackPrompt() {
   const [open, setOpen] = React.useState(false);
   return (
-    <section className="flex w-full items-center justify-between gap-3 rounded-[12px] bg-[var(--bgSurfaceRaised)] p-5">
+    <section className="flex w-full items-center justify-between gap-[var(--spacingL)] rounded-[12px] bg-[var(--bgSurfaceRaised)] p-[var(--spacingL)]">
       <div className="flex flex-col gap-[6px]">
         <span className="text-body-sm-medium text-[var(--textHeading)]">
           Have an issue or suggestions? We want to hear!
@@ -96,7 +96,7 @@ function FeedbackPrompt() {
 
 export function HelpTab() {
   return (
-    <div className="flex h-full w-full flex-col gap-4">
+    <div className="flex h-full w-full flex-col gap-[var(--spacingM)]">
       <FaqSection />
       <AboutSection />
       <FeedbackPrompt />
