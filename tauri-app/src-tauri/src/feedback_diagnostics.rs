@@ -59,6 +59,11 @@ pub fn collect(resource_dir: Option<&Path>) -> Diagnostics {
 
 // Ok(None) means the log exists but holds nothing worth sending.
 fn read_tail(path: &Path, limit: usize) -> std::io::Result<Option<String>> {
+    // The app runs elevated: never follow a link planted at a log path into a
+    // file the user could not otherwise read.
+    if std::fs::symlink_metadata(path)?.file_type().is_symlink() {
+        return Err(std::io::Error::other("log path is a symbolic link"));
+    }
     let mut file = std::fs::File::open(path)?;
     let len = file.metadata()?.len();
     let start = len.saturating_sub(limit as u64);
