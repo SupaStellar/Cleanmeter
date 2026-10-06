@@ -206,11 +206,28 @@ export function GpuSection({ sensors, hardwares }: Props) {
           checked={gpuClock.isEnabled}
           onCheckedChange={(v) => updateSensor("gpuClock", { isEnabled: v })}
         >
-          {gpuClockSensors.length > 0 ? (
-            <SensorSelect label="GPU Clock" value={gpuClock.customReadingId}
-              options={gpuClockSensors} onChange={(v) => updateSensor("gpuClock", { customReadingId: v })} />
-          ) : <p className="text-body-sm-regular text-[var(--textParagraph1)]">No clock sensor is available yet.</p>}
-          <p className="text-body-sm-regular text-[var(--textParagraph1)]">Clock speed in MHz.</p>
+          <div className="flex flex-col gap-[var(--spacingS)]">
+            {gpuClockSensors.length > 0 && (
+              <SensorSelect
+                label="GPU Clock"
+                value={gpuClock.customReadingId}
+                options={gpuClockSensors}
+                onChange={(v) => updateSensor("gpuClock", { customReadingId: v })}
+              />
+            )}
+            {/* Only a GPU already sending other readings gets the empty line, so
+                it never shows before the first frame. "yet" is literal: a
+                modern AMD GPU reports no clock until ADL's PMLog block has
+                updated once, then fills within a poll. */}
+            <div className="flex items-center gap-[var(--spacingXxxs)] text-[12px] font-medium leading-[15px] text-[var(--textParagraph1)]">
+              <InfoIcon className="size-[16px] shrink-0" />
+              <span>
+                {gpuClockSensors.length === 0 && gpuSensors.length > 0
+                  ? "This GPU doesn't report clock speed yet."
+                  : "Clock speed drops when idle and rises under load."}
+              </span>
+            </div>
+          </div>
         </SubCollapsible>
       </div>
     </SectionCard>

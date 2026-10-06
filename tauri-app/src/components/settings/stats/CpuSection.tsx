@@ -1,7 +1,9 @@
 import { useRef } from "react";
 import type { Hardware, Sensor } from "@/lib/types";
 import { HardwareType, SensorType } from "@/lib/types";
+import { cpuClockOptions } from "@/lib/utils";
 import { useSettingsStore } from "@/stores/settings-store";
+import { InfoIcon } from "../settings/icons";
 import { SectionCard, SubCollapsible } from "./SectionCard";
 import { SensorSelect } from "./SensorSelect";
 import { TempRangeControl } from "./TempRangeControl";
@@ -32,7 +34,17 @@ export function CpuSection({ sensors, hardwares }: Props) {
     (s) => cpuHwIds.has(s.hardwareIdentifier) && s.sensorType === SensorType.Power,
   );
 
-  const cpuClockSensors = sensors.filter((s) => cpuHwIds.has(s.hardwareIdentifier) && s.sensorType === SensorType.Clock);
+  const cpuClockSensors = cpuClockOptions(
+    sensors.filter(
+      (s) => cpuHwIds.has(s.hardwareIdentifier) && s.sensorType === SensorType.Clock,
+    ),
+    cpuClock.customReadingId,
+  );
+
+  // Before the first frame, or while the sidecar is down, there are no CPU
+  // sensors at all; only a CPU that reports other readings but no clock has
+  // earned the "doesn't report" line.
+  const cpuReporting = sensors.some((s) => cpuHwIds.has(s.hardwareIdentifier));
 
   const prevState = useRef<{
     cpuUsage: boolean;
@@ -127,11 +139,24 @@ export function CpuSection({ sensors, hardwares }: Props) {
           checked={cpuClock.isEnabled}
           onCheckedChange={(v) => updateSensor("cpuClock", { isEnabled: v })}
         >
-          {cpuClockSensors.length > 0 ? (
-            <SensorSelect label="CPU Clock" value={cpuClock.customReadingId}
-              options={cpuClockSensors} onChange={(v) => updateSensor("cpuClock", { customReadingId: v })} />
-          ) : <p className="text-body-sm-regular text-[var(--textParagraph1)]">No clock sensor is available yet.</p>}
-          <p className="text-body-sm-regular text-[var(--textParagraph1)]">Clock speed in MHz; choose the CPU core to display.</p>
+          <div className="flex flex-col gap-[var(--spacingS)]">
+            {cpuClockSensors.length > 0 && (
+              <SensorSelect
+                label="CPU Clock"
+                value={cpuClock.customReadingId}
+                options={cpuClockSensors}
+                onChange={(v) => updateSensor("cpuClock", { customReadingId: v })}
+              />
+            )}
+            <div className="flex items-center gap-[var(--spacingXxxs)] text-[12px] font-medium leading-[15px] text-[var(--textParagraph1)]">
+              <InfoIcon className="size-[16px] shrink-0" />
+              <span>
+                {cpuClockSensors.length === 0 && cpuReporting
+                  ? "This CPU doesn't report clock speed."
+                  : "Clock speed drops when idle and rises under load."}
+              </span>
+            </div>
+          </div>
         </SubCollapsible>
       </div>
     </SectionCard>
