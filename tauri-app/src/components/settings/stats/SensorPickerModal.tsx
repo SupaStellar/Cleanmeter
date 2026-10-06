@@ -8,7 +8,7 @@ import {
   DialogPortal,
   DialogTitle,
 } from "@/components/shadcn/dialog";
-import { cn } from "@/lib/utils";
+import { cn, sensorDisplayName } from "@/lib/utils";
 
 interface Props {
   open: boolean;
@@ -101,7 +101,7 @@ export function SensorPickerModal({
 
   const q = query.trim().toLowerCase();
   const filtered = useMemo(
-    () => (q ? options.filter((o) => o.name.toLowerCase().includes(q)) : options),
+    () => (q ? options.filter((o) => sensorDisplayName(o.name).toLowerCase().includes(q)) : options),
     [options, q],
   );
 
@@ -246,7 +246,7 @@ export function SensorPickerModal({
                     )}
                   >
                     <span className="truncate text-[14px] font-medium text-[var(--textHeading)]">
-                      {s.name}
+                      {sensorDisplayName(s.name)}
                     </span>
                     {selected && (
                       <CheckIcon className="size-5 shrink-0 text-[var(--iconBolderActive)]" />

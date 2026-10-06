@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { Sensor } from "@/lib/types";
 import { SensorPickerModal } from "./SensorPickerModal";
 import { SelectFieldButton } from "@/components/ui/SelectField";
+import { sensorDisplayName } from "@/lib/utils";
 
 interface Props {
   value: string;
@@ -19,8 +20,8 @@ interface Props {
  */
 export function SensorSelect({ value, options, onChange, label }: Props) {
   const [open, setOpen] = useState(false);
-  const currentName =
-    options.find((o) => o.identifier === value)?.name ?? "Select";
+  const selected = options.find((o) => o.identifier === value);
+  const currentName = selected ? sensorDisplayName(selected.name) : "Select";
 
   return (
     <>

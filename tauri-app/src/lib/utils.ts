@@ -99,6 +99,39 @@ export function formatClockLabel(clock: Sensor | undefined): string {
   return formatValue(clock.value);
 }
 
+/**
+ * The CPU clock sensors worth offering in the picker.
+ *
+ * Two kinds are dropped. "Bus Speed" sits at about 100 MHz on every CPU and is
+ * not a core clock. The Zen "Effective" sensors count halted cycles, so at idle
+ * they read 250-930 MHz next to 4300-5150 for the same cores, which looks like
+ * a broken reading. A sensor that is already selected stays in the list, so a
+ * saved choice still shows by name instead of falling back to "Select".
+ */
+export function cpuClockOptions(sensors: Sensor[], selectedId: string): Sensor[] {
+  return sensors.filter(
+    (s) =>
+      s.identifier === selectedId ||
+      !(s.name.includes("Effective") || s.name.startsWith("Bus Speed")),
+  );
+}
+
+/**
+ * Undo the sidecar's name sanitising for display.
+ *
+ * MonitorPoller replaces every run of characters outside [a-zA-Z0-9_ .] with a
+ * single "_", so "Core #1" arrives as "Core _1", "Cores (Average)" as
+ * "Cores _Average_" and "P-Core #3" as "P_Core _3". The original characters are
+ * lost, so only the three shapes that are unambiguous are restored; anything
+ * else (e.g. "Core _Tctl_Tdie_") is shown as it came.
+ */
+export function sensorDisplayName(name: string): string {
+  return name
+    .replace(/^([PE])_Core\b/, "$1-Core")
+    .replace(/ _(\d+)(?= |$)/g, " #$1")
+    .replace(/ _([^_]+)_$/, " ($1)");
+}
+
 export function findSensorByTypeAndHardware(
   sensors: Sensor[],
   sensorType: SensorType,
