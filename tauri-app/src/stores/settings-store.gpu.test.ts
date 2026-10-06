@@ -493,4 +493,16 @@ describe("clock readings", () => {
     useSettingsStore.getState().setSensorData(cpuOnly());
     expect(useSettingsStore.getState().settings.sensors.cpuClock.customReadingId).toBe("");
   });
+
+  it("never falls back to the bus or an effective clock when no core clock matches", () => {
+    // bestOf returns the first sensor of the type when no preferred name
+    // matches, so without filtering the pool a CPU reporting only these would
+    // auto-select one, and the picker keeps a selected sensor visible.
+    seed({});
+    useSettingsStore.getState().setSensorData(cpuOnly(
+      sensor("/cpu", "/cpu/clock/0", "Bus Speed", SensorType.Clock, 100),
+      sensor("/cpu", "/cpu/clock/1", "Average Effective", SensorType.Clock, 285),
+    ));
+    expect(useSettingsStore.getState().settings.sensors.cpuClock.customReadingId).toBe("");
+  });
 });
