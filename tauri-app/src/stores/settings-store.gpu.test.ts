@@ -417,6 +417,31 @@ describe("clock readings", () => {
     expect(useSettingsStore.getState().settings.sensors.gpuClock.customReadingId).toBe("/gpu-intel/0/clock/0");
   });
 
+  it("moves a hand-picked GPU clock onto the newly chosen GPU", () => {
+    const clocks = {
+      ...DATA,
+      sensors: [...DATA.sensors,
+        sensor(NVIDIA.identifier, "/gpu-nvidia/0/clock/0", "GPU Core", SensorType.Clock, 2500),
+        sensor(NVIDIA.identifier, "/gpu-nvidia/0/clock/4", "GPU Memory", SensorType.Clock, 10000),
+        sensor(INTEL.identifier, "/gpu-intel/0/clock/0", "GPU Core", SensorType.Clock, 900),
+      ],
+    };
+    useSettingsStore.getState().setSensorData(clocks);
+    useSettingsStore.getState().updateSensor("gpuClock", { customReadingId: "/gpu-nvidia/0/clock/4" });
+    useSettingsStore.getState().setSensorData(clocks);
+    // A pick on the selected GPU survives the next poll.
+    expect(useSettingsStore.getState().settings.sensors.gpuClock.customReadingId)
+      .toBe("/gpu-nvidia/0/clock/4");
+
+    useSettingsStore.getState().selectGpu(INTEL.identifier);
+    expect(useSettingsStore.getState().settings.sensors.gpuClock.customReadingId)
+      .toBe("/gpu-intel/0/clock/0");
+
+    useSettingsStore.getState().selectGpu(NVIDIA.identifier);
+    expect(useSettingsStore.getState().settings.sensors.gpuClock.customReadingId)
+      .toBe("/gpu-nvidia/0/clock/0");
+  });
+
   /**
    * Sensor names below are written the way the SIDECAR emits them, not the way
    * LibreHardwareMonitor spells them: MonitorPoller.RemoveSpecialCharacters
@@ -466,6 +491,18 @@ describe("clock readings", () => {
     // nothing to select and the HUD falls back to the dash.
     seed({});
     useSettingsStore.getState().setSensorData(cpuOnly());
+    expect(useSettingsStore.getState().settings.sensors.cpuClock.customReadingId).toBe("");
+  });
+
+  it("never falls back to the bus or an effective clock when no core clock matches", () => {
+    // bestOf returns the first sensor of the type when no preferred name
+    // matches, so without filtering the pool a CPU reporting only these would
+    // auto-select one, and the picker keeps a selected sensor visible.
+    seed({});
+    useSettingsStore.getState().setSensorData(cpuOnly(
+      sensor("/cpu", "/cpu/clock/0", "Bus Speed", SensorType.Clock, 100),
+      sensor("/cpu", "/cpu/clock/1", "Average Effective", SensorType.Clock, 285),
+    ));
     expect(useSettingsStore.getState().settings.sensors.cpuClock.customReadingId).toBe("");
   });
 });

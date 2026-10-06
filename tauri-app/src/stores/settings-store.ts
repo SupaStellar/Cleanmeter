@@ -24,6 +24,7 @@ import {
   type GpuSilence,
 } from "@/lib/gpu";
 import * as tauri from "@/lib/tauri";
+import { cpuClockOptions } from "@/lib/utils";
 
 /**
  * Best sensor of a given type out of an already-narrowed list, by keyword
@@ -81,11 +82,12 @@ function autoSelectSensors(
     key: K,
     hwTypes: HardwareType[],
     sType: SensorType,
-    prefer: string[]
+    prefer: string[],
+    pool: Sensor[] = sensors
   ) => {
     const current = settings.sensors[key];
     if (!current.customReadingId) {
-      const id = findBest(sensors, hardwares, hwTypes, sType, prefer);
+      const id = findBest(pool, hardwares, hwTypes, sType, prefer);
       if (id) {
         patch[key] = { ...current, customReadingId: id } as OverlaySettings["sensors"][K];
         changed = true;
@@ -144,7 +146,11 @@ function autoSelectSensors(
   // "Core" hits Zen ("Cores (Average)", which Amd17Cpu activates first) and
   // hybrid Intel ("P-Core #N"). "Bus Speed" contains neither, so the bus clock
   // is never selected.
-  tryFill("cpuClock", cpuHw, SensorType.Clock, ["CPU Core", "Core"]);
+  //
+  // bestOf falls back to the first clock when nothing matches, so the pool is
+  // the picker's own list: a CPU reporting only Bus Speed or Effective clocks
+  // stays empty instead of selecting a sensor the picker hides.
+  tryFill("cpuClock", cpuHw, SensorType.Clock, ["CPU Core", "Core"], cpuClockOptions(sensors, ""));
   tryFill("cpuConsumption", cpuHw, SensorType.Power, ["CPU Package", "CPU"]);
   fillOnGpu("gpuUsage", SensorType.Load, ["GPU Core", "D3D 3D", "GPU"]);
   fillOnGpu("gpuTemp", SensorType.Temperature, ["GPU Core", "GPU"]);

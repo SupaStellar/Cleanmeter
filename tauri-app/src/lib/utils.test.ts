@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { getBoundaryColor, formatValue, formatClockLabel } from "./utils";
+import {
+  getBoundaryColor,
+  formatValue,
+  formatClockLabel,
+  cpuClockOptions,
+  sensorDisplayName,
+} from "./utils";
 import type { Sensor } from "./types";
 import { SensorType } from "./types";
 
@@ -82,5 +88,54 @@ describe("formatClockLabel", () => {
     expect(formatClockLabel(clock(NaN))).toBe("—");
     expect(formatClockLabel(clock(Infinity))).toBe("—");
     expect(formatClockLabel(clock(-1))).toBe("—");
+  });
+});
+
+describe("cpuClockOptions", () => {
+  const sensor = (index: number, name: string): Sensor => ({
+    name,
+    identifier: `/amdcpu/0/clock/${index}`,
+    hardwareIdentifier: "/amdcpu/0",
+    sensorType: SensorType.Clock,
+    value: 4300,
+  });
+  // Zen activation order, as the sidecar emits the names.
+  const zen = [
+    sensor(0, "Bus Speed"),
+    sensor(1, "Cores _Average_"),
+    sensor(2, "Cores _Average Effective_"),
+    sensor(3, "Core _1"),
+    sensor(4, "Core _1 _Effective_"),
+  ];
+
+  it("drops Bus Speed and the Effective clocks", () => {
+    expect(cpuClockOptions(zen, "").map((s) => s.name)).toEqual([
+      "Cores _Average_",
+      "Core _1",
+    ]);
+  });
+
+  it("keeps a hidden sensor that is already selected", () => {
+    expect(cpuClockOptions(zen, "/amdcpu/0/clock/4").map((s) => s.name)).toEqual([
+      "Cores _Average_",
+      "Core _1",
+      "Core _1 _Effective_",
+    ]);
+  });
+});
+
+describe("sensorDisplayName", () => {
+  it("restores the clock names the sidecar sanitised", () => {
+    expect(sensorDisplayName("Cores _Average_")).toBe("Cores (Average)");
+    expect(sensorDisplayName("Core _1 _Effective_")).toBe("Core #1 (Effective)");
+    expect(sensorDisplayName("CPU Core _12")).toBe("CPU Core #12");
+    expect(sensorDisplayName("P_Core _3")).toBe("P-Core #3");
+    expect(sensorDisplayName("E_Core _8")).toBe("E-Core #8");
+  });
+
+  it("leaves names it cannot restore unambiguously", () => {
+    expect(sensorDisplayName("GPU Core")).toBe("GPU Core");
+    expect(sensorDisplayName("Core _Tctl_Tdie_")).toBe("Core _Tctl_Tdie_");
+    expect(sensorDisplayName("Bus Speed")).toBe("Bus Speed");
   });
 });

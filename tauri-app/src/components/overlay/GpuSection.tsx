@@ -4,7 +4,7 @@ import { ProgressBar } from "./ProgressBar";
 import { useSettingsStore } from "@/stores/settings-store";
 import { SensorType } from "@/lib/types";
 import type { Sensor } from "@/lib/types";
-import { findSensorById, formatClockLabel, formatValue, formatTemperature } from "@/lib/utils";
+import { findSensorById, formatClockLabel, formatValue, formatTemperature, sensorDisplayName } from "@/lib/utils";
 
 interface GpuSectionProps {
   isHorizontal: boolean;
@@ -153,7 +153,7 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
         </div>
       )}
       {gpuClock.isEnabled && (
-        <div className="flex items-center gap-1" title={clock?.name ?? "Clock unavailable"}>
+        <div className="flex items-center gap-1" title={clock ? sensorDisplayName(clock.name) : "Clock unavailable"}>
           <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">{clockLabel}</span>
           <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>MHz</span>
         </div>
