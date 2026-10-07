@@ -24,6 +24,7 @@ export function GpuSection({ sensors, hardwares }: Props) {
   const settings = useSettingsStore((s) => s.settings);
   const updateSensor = useSettingsStore((s) => s.updateSensor);
   const updateBoundary = useSettingsStore((s) => s.updateBoundary);
+  const graphEnabled = settings.progressType !== "none";
   const selectGpu = useSettingsStore((s) => s.selectGpu);
   const { gpuUsage, gpuTemp, gpuConsumption, gpuClock, vramUsage } = settings.sensors;
 
@@ -138,10 +139,12 @@ export function GpuSection({ sensors, hardwares }: Props) {
               onChange={(v) => updateSensor("gpuUsage", { customReadingId: v })}
             />
           )}
-          <TempRangeControl
-            boundaries={gpuUsage.boundaries}
-            onChange={(b) => updateBoundary("gpuUsage", b)}
-          />
+          {graphEnabled && (
+            <TempRangeControl
+              boundaries={gpuUsage.boundaries}
+              onChange={(b) => updateBoundary("gpuUsage", b)}
+            />
+          )}
         </SubCollapsible>
 
         <SubCollapsible
@@ -157,12 +160,14 @@ export function GpuSection({ sensors, hardwares }: Props) {
               onChange={(v) => updateSensor("gpuTemp", { customReadingId: v })}
             />
           )}
-          <TempRangeControl
-            boundaries={gpuTemp.boundaries}
-            onChange={(b) => updateBoundary("gpuTemp", b)}
-            isTemperature
-            max={120}
-          />
+          {graphEnabled && (
+            <TempRangeControl
+              boundaries={gpuTemp.boundaries}
+              onChange={(b) => updateBoundary("gpuTemp", b)}
+              isTemperature
+              max={120}
+            />
+          )}
         </SubCollapsible>
 
         <SubCollapsible
@@ -196,10 +201,12 @@ export function GpuSection({ sensors, hardwares }: Props) {
               onChange={(v) => updateSensor("vramUsage", { customReadingId: v })}
             />
           )}
-          <TempRangeControl
-            boundaries={vramUsage.boundaries}
-            onChange={(b) => updateBoundary("vramUsage", b)}
-          />
+          {graphEnabled && (
+            <TempRangeControl
+              boundaries={vramUsage.boundaries}
+              onChange={(b) => updateBoundary("vramUsage", b)}
+            />
+          )}
         </SubCollapsible>
         <SubCollapsible
           label="GPU Clock"

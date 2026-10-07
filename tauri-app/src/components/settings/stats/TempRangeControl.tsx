@@ -30,11 +30,7 @@ export function TempRangeControl({
    *  Fahrenheit mode, display + accept °F while storing °C. */
   isTemperature?: boolean;
 }) {
-  const graphEnabled = useSettingsStore(
-    (s) => s.settings.progressType !== "none",
-  );
   const temperatureUnit = useSettingsStore((s) => s.settings.temperatureUnit);
-  if (!graphEnabled) return null;
 
   // Boundaries are always STORED and compared in °C (the overlay evaluates
   // raw sensor °C against them). In Fahrenheit mode the inputs display and
