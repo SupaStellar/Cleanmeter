@@ -17,6 +17,7 @@ export function CpuSection({ sensors, hardwares }: Props) {
   const settings = useSettingsStore((s) => s.settings);
   const updateSensor = useSettingsStore((s) => s.updateSensor);
   const updateBoundary = useSettingsStore((s) => s.updateBoundary);
+  const graphEnabled = settings.progressType !== "none";
   const { cpuUsage, cpuTemp, cpuConsumption, cpuClock } = settings.sensors;
   const anyEnabled =
     cpuUsage.isEnabled || cpuTemp.isEnabled || cpuConsumption.isEnabled || cpuClock.isEnabled;
@@ -91,10 +92,12 @@ export function CpuSection({ sensors, hardwares }: Props) {
               onChange={(v) => updateSensor("cpuUsage", { customReadingId: v })}
             />
           )}
-          <TempRangeControl
-            boundaries={cpuUsage.boundaries}
-            onChange={(b) => updateBoundary("cpuUsage", b)}
-          />
+          {graphEnabled && (
+            <TempRangeControl
+              boundaries={cpuUsage.boundaries}
+              onChange={(b) => updateBoundary("cpuUsage", b)}
+            />
+          )}
         </SubCollapsible>
 
         <SubCollapsible
@@ -110,12 +113,14 @@ export function CpuSection({ sensors, hardwares }: Props) {
               onChange={(v) => updateSensor("cpuTemp", { customReadingId: v })}
             />
           )}
-          <TempRangeControl
-            boundaries={cpuTemp.boundaries}
-            onChange={(b) => updateBoundary("cpuTemp", b)}
-            isTemperature
-            max={120}
-          />
+          {graphEnabled && (
+            <TempRangeControl
+              boundaries={cpuTemp.boundaries}
+              onChange={(b) => updateBoundary("cpuTemp", b)}
+              isTemperature
+              max={120}
+            />
+          )}
         </SubCollapsible>
 
         <SubCollapsible

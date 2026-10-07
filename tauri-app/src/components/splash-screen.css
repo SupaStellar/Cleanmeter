@@ -3,7 +3,7 @@
    The keyframes are designed as an infinite loop with a fade-out seam at
    95.5–100%; the splash unmounts during its own container fade (~2.7s),
    well before the seam, so a single pass is all that's ever visible. */
-.cm-logo { --cm-loop: 3480ms; --cm-track: #E3E5E4;
+.cm-logo { --cm-loop: 3480ms; --cm-track: var(--borderSubtle);
            display: inline-block; width: 220px; line-height: 0; }
 .cm-logo svg { width: 100%; height: auto; display: block; overflow: visible; }
 

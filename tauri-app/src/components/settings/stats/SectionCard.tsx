@@ -42,7 +42,7 @@ export function SectionCard({
           {title}
         </span>
         {onToggle !== undefined && (
-          <Switch checked={!!enabled} onCheckedChange={onToggle} />
+          <Switch checked={!!enabled} onCheckedChange={onToggle} aria-label={title} />
         )}
       </div>
       {/* When the section has a toggle and it's off, hide the body entirely
@@ -77,7 +77,12 @@ export function SubCollapsible({
   expandable?: boolean;
   children?: React.ReactNode;
 }) {
-  const [open, setOpen] = React.useState(defaultOpen && checked);
+  // toArray drops the falsy children a `cond && <X/>` leaves behind, so a
+  // row whose blocks are all hidden (no sensor picker, graphs off) renders
+  // flat instead of an empty rail behind a chevron.
+  const blocks = React.Children.toArray(children);
+  const canExpand = expandable && blocks.length > 0;
+  const [open, setOpen] = React.useState(defaultOpen && checked && canExpand);
   // Collapse automatically when the sensor is unchecked; the expanded detail
   // is only meaningful when the sensor is active.
   React.useEffect(() => {
@@ -85,10 +90,10 @@ export function SubCollapsible({
   }, [checked, open]);
   // Also collapse if the row becomes non-expandable so state doesn't get stuck.
   React.useEffect(() => {
-    if (!expandable && open) setOpen(false);
-  }, [expandable, open]);
+    if (!canExpand && open) setOpen(false);
+  }, [canExpand, open]);
 
-  if (!expandable) {
+  if (!canExpand) {
     return (
       <div className="flex items-center gap-2">
         <Checkbox
@@ -120,24 +125,20 @@ export function SubCollapsible({
           </button>
         </CollapsibleTrigger>
       </div>
-      {children && (
-        <CollapsibleContent className="overflow-hidden data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up">
-          {/* Figma 2759:12229: a 2px rail 12 in from the left, then the blocks
-              20 across from it, stacked 12 apart. */}
-          <div className="flex gap-[var(--spacingL)] pl-[var(--spacingS)]">
-            <div className="w-[2px] shrink-0 rounded-[var(--cornerRound)] bg-[var(--borderSubtle)]" />
-            <div className="flex min-w-0 flex-1 flex-col gap-[var(--spacingS)]">
-              {/* One card per block, not one card around all of them: the
-                  design separates the sensor picker from the threshold row.
-                  toArray drops the falsy children a `cond && <X/>` leaves
-                  behind, so a hidden block does not leave an empty card. */}
-              {React.Children.toArray(children).map((child, i) => (
-                <SubCard key={i}>{child}</SubCard>
-              ))}
-            </div>
+      <CollapsibleContent className="overflow-hidden data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up">
+        {/* Figma 2759:12229: a 2px rail 12 in from the left, then the blocks
+            20 across from it, stacked 12 apart. */}
+        <div className="flex gap-[var(--spacingL)] pl-[var(--spacingS)]">
+          <div className="w-[2px] shrink-0 rounded-[var(--cornerRound)] bg-[var(--borderSubtle)]" />
+          <div className="flex min-w-0 flex-1 flex-col gap-[var(--spacingS)]">
+            {/* One card per block, not one card around all of them: the
+                design separates the sensor picker from the threshold row. */}
+            {blocks.map((child, i) => (
+              <SubCard key={i}>{child}</SubCard>
+            ))}
           </div>
-        </CollapsibleContent>
-      )}
+        </div>
+      </CollapsibleContent>
     </Collapsible>
   );
 }

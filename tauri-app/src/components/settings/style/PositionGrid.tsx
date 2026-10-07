@@ -68,6 +68,7 @@ export function PositionGrid() {
           <Switch
             checked={useCustomPosition}
             onCheckedChange={(v) => updateSettings({ useCustomPosition: v })}
+            aria-label="Use custom position"
           />
         </div>
 
