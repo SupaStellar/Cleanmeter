@@ -120,7 +120,7 @@ export function GraphTypePicker() {
       title="Show graph"
       open={isEnabled}
       rightControl={
-        <Switch checked={isEnabled} onCheckedChange={handleToggle} />
+        <Switch checked={isEnabled} onCheckedChange={handleToggle} aria-label="Show graph" />
       }
     >
       <div className="flex gap-3">

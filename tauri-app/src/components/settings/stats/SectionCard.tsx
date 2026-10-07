@@ -42,7 +42,7 @@ export function SectionCard({
           {title}
         </span>
         {onToggle !== undefined && (
-          <Switch checked={!!enabled} onCheckedChange={onToggle} />
+          <Switch checked={!!enabled} onCheckedChange={onToggle} aria-label={title} />
         )}
       </div>
       {/* When the section has a toggle and it's off, hide the body entirely
