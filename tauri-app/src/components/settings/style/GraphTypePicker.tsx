@@ -4,9 +4,10 @@ import { cn } from "@/lib/utils";
 import { useSettingsStore } from "@/stores/settings-store";
 import type { GraphType } from "@/lib/types";
 
-// SHOW GRAPH card — Figma 2075:7833. Section title + switch + chevron in
-// header. Body has two large option tiles (Ring / Bar) with a 64×64 muted
-// icon square on the left.
+// SHOW GRAPH card — Figma 2075:7833. Section title + switch in the header;
+// the switch opens and closes the body, so there is no separate chevron.
+// Body has two large option tiles (Ring / Bar) with a 64×64 muted icon square
+// on the left.
 
 function RingPreview() {
   return (
@@ -108,32 +109,34 @@ export function GraphTypePicker() {
     });
   };
 
-  const currentType: GraphType =
-    settings.progressType === "bar" ? "bar" : "ring";
+  // While off, keep the remembered pick selected so the tiles don't swap
+  // highlight as the body collapses.
+  const currentType: GraphType = isEnabled
+    ? settings.progressType === "bar" ? "bar" : "ring"
+    : settings.graphType;
 
   return (
     <CollapsibleCard
       title="Show graph"
+      open={isEnabled}
       rightControl={
         <Switch checked={isEnabled} onCheckedChange={handleToggle} />
       }
     >
-      {isEnabled && (
-        <div className="flex gap-3">
-          <GraphTile
-            selected={currentType === "ring"}
-            onClick={() => setType("ring")}
-            icon={<RingPreview />}
-            label="Ring graph"
-          />
-          <GraphTile
-            selected={currentType === "bar"}
-            onClick={() => setType("bar")}
-            icon={<BarPreview />}
-            label="Bar graph"
-          />
-        </div>
-      )}
+      <div className="flex gap-3">
+        <GraphTile
+          selected={currentType === "ring"}
+          onClick={() => setType("ring")}
+          icon={<RingPreview />}
+          label="Ring graph"
+        />
+        <GraphTile
+          selected={currentType === "bar"}
+          onClick={() => setType("bar")}
+          icon={<BarPreview />}
+          label="Bar graph"
+        />
+      </div>
     </CollapsibleCard>
   );
 }

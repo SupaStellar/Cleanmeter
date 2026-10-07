@@ -15,23 +15,32 @@ const DURATION = 250;
 // transition never replays when a hidden tab is shown again (App keeps every
 // tab mounted and toggles `display`), so returning to a tab keeps the section
 // open with no re-run. Height animates 0 <-> measured px, then settles to
-// `auto` while open so dynamic content is never clipped.
+// `auto` while open so dynamic content is never clipped. Overflow is only
+// hidden while the height is pinned, so an open body never crops edge-flush
+// controls (the opacity thumb at its minimum) or their focus rings.
+//
+// Pass `open` to drive the body from outside (SHOW GRAPH opens with its
+// switch); the chevron is then dropped, since the control already owns it.
 export function CollapsibleCard({
   title,
   defaultOpen = true,
+  open: openProp,
   rightControl,
   children,
   bodyClassName,
 }: {
   title: string;
   defaultOpen?: boolean;
+  open?: boolean;
   rightControl?: React.ReactNode;
   children: React.ReactNode;
   bodyClassName?: string;
 }) {
-  const [open, setOpen] = React.useState(defaultOpen);
+  const controlled = openProp !== undefined;
+  const [openState, setOpen] = React.useState(defaultOpen);
+  const open = controlled ? openProp : openState;
   const [height, setHeight] = React.useState<number | "auto">(
-    defaultOpen ? "auto" : 0,
+    open ? "auto" : 0,
   );
   const contentId = React.useId();
   const bodyRef = React.useRef<HTMLDivElement>(null);
@@ -88,23 +97,25 @@ export function CollapsibleCard({
           {title}
         </span>
         {rightControl}
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          aria-expanded={open}
-          aria-controls={contentId}
-          aria-label={open ? `Collapse ${title}` : `Expand ${title}`}
-          className="flex items-center justify-center text-muted-foreground"
-        >
-          <ChevronDown
-            className={cn(
-              "size-5 transition-transform motion-reduce:transition-none",
-              open && "rotate-180",
-            )}
-            style={{ transitionDuration: `${DURATION}ms`, transitionTimingFunction: EASE }}
-            strokeWidth={2}
-          />
-        </button>
+        {!controlled && (
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            aria-controls={contentId}
+            aria-label={open ? `Collapse ${title}` : `Expand ${title}`}
+            className="flex items-center justify-center text-muted-foreground"
+          >
+            <ChevronDown
+              className={cn(
+                "size-5 transition-transform motion-reduce:transition-none",
+                open && "rotate-180",
+              )}
+              style={{ transitionDuration: `${DURATION}ms`, transitionTimingFunction: EASE }}
+              strokeWidth={2}
+            />
+          </button>
+        )}
       </div>
       <div
         ref={bodyRef}
@@ -115,7 +126,10 @@ export function CollapsibleCard({
           transitionDuration: `${DURATION}ms`,
           transitionTimingFunction: EASE,
         }}
-        className="overflow-hidden transition-[height] motion-reduce:transition-none"
+        className={cn(
+          "transition-[height] motion-reduce:transition-none",
+          height !== "auto" && "overflow-hidden",
+        )}
       >
         <div className={cn("pt-5", bodyClassName)}>{children}</div>
       </div>
