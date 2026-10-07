@@ -98,7 +98,12 @@ export function GraphTypePicker() {
         progressType: settings.graphType === "bar" ? "bar" : "circular",
       });
     } else {
-      updateSettings({ progressType: "none" });
+      // Remember the live type before turning off: settings saved before
+      // graphType existed can hold the default "ring" while showing bars.
+      updateSettings({
+        graphType: settings.progressType === "bar" ? "bar" : "ring",
+        progressType: "none",
+      });
     }
   };
 
