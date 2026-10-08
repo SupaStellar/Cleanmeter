@@ -11,7 +11,7 @@ import {
 } from "@/lib/tauri";
 import type { MonitorInfo } from "@/lib/types";
 
-const EDGE_PADDING = 8;
+const EDGE_PADDING = 4;
 
 // 0=TL, 1=TC, 2=TR, 3=BL, 4=BC, 5=BR — in physical pixels.
 function computePresetPosition(
