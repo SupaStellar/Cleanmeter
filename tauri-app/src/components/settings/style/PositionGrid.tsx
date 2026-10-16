@@ -1,5 +1,7 @@
+import { settingsActions } from "@/lib/settings-actions";
 import { CollapsibleCard } from "./CollapsibleCard";
 import { Switch } from "@/components/shadcn/switch";
+import { Disclosure } from "@/components/ui/Disclosure";
 import { cn } from "@/lib/utils";
 import { useSettingsStore } from "@/stores/settings-store";
 
@@ -44,12 +46,12 @@ function DragPanIcon({ className }: { className?: string }) {
 
 export function PositionGrid() {
   const settings = useSettingsStore((s) => s.settings);
-  const updateSettings = useSettingsStore((s) => s.updateSettings);
+  const updateSettings = settingsActions.updateSettings;
   const { useCustomPosition, positionIndex } = settings;
 
   return (
     <CollapsibleCard title="Position">
-      <div className="flex w-full flex-col gap-5">
+      <div className="flex w-full flex-col">
         <div className="flex items-center gap-3">
           <div
             className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--bgSurfaceRaised)] text-foreground"
@@ -72,8 +74,7 @@ export function PositionGrid() {
           />
         </div>
 
-        {!useCustomPosition && (
-          <>
+        <Disclosure open={!useCustomPosition} variant="panel" className="flex flex-col gap-5 pt-5">
             <div className="h-px w-full bg-divider" aria-hidden />
 
             <div className="grid grid-cols-3 gap-3">
@@ -113,8 +114,7 @@ export function PositionGrid() {
                 );
               })}
             </div>
-          </>
-        )}
+        </Disclosure>
       </div>
     </CollapsibleCard>
   );

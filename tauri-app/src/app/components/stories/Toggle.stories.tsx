@@ -7,6 +7,7 @@ const meta: Meta<typeof Toggle> = {
   component: Toggle,
   parameters: {
     layout: "centered",
+    docs: { description: { component: "Re-exports the live app Switch. Uses transitions.dev double-bounce keyframes; no startup bounce, rapid reversals retarget and reduced motion disables animation." } },
   },
   tags: ["autodocs"],
   argTypes: {
@@ -21,7 +22,7 @@ type Story = StoryObj<typeof Toggle>;
 
 function InteractiveToggle({ defaultChecked = false }: { defaultChecked?: boolean }) {
   const [checked, setChecked] = useState(defaultChecked);
-  return <Toggle checked={checked} onCheckedChange={setChecked} />;
+  return <Toggle checked={checked} onCheckedChange={setChecked} aria-label="Example switch" />;
 }
 
 export const Off: Story = {
@@ -35,8 +36,8 @@ export const On: Story = {
 export const Disabled: Story = {
   render: () => (
     <div style={{ display: "flex", gap: 16 }}>
-      <Toggle checked={false} disabled />
-      <Toggle checked={true} disabled />
+      <Toggle checked={false} disabled aria-label="Disabled off" />
+      <Toggle checked={true} disabled aria-label="Disabled on" />
     </div>
   ),
 };

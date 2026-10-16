@@ -16,8 +16,6 @@ function DialogOverlay({
       data-slot="dialog-overlay"
       className={cn(
         "fixed inset-0 z-50 bg-[var(--bgBrand)]/50",
-        "data-[state=open]:animate-in data-[state=open]:fade-in-0",
-        "data-[state=closed]:animate-out data-[state=closed]:fade-out-0",
         "motion-reduce:transition-none motion-reduce:animate-none",
         className,
       )}
@@ -29,15 +27,28 @@ function DialogOverlay({
 function DialogContent({
   className,
   children,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content>) {
+  const opener = React.useRef<HTMLElement | null>(null);
   return (
     <DialogPrimitive.Content
       data-slot="dialog-content"
+      onOpenAutoFocus={(event) => {
+        opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        onOpenAutoFocus?.(event);
+      }}
+      onCloseAutoFocus={(event) => {
+        onCloseAutoFocus?.(event);
+        const target = opener.current;
+        if (!event.defaultPrevented && target?.isConnected && !target.closest('[inert]')) {
+          event.preventDefault();
+          target.focus();
+        }
+      }}
       className={cn(
         "fixed left-1/2 top-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-[12px] bg-[var(--bgSurfaceRaised)] shadow-lg",
-        "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
-        "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
         "motion-reduce:transition-none motion-reduce:animate-none",
         className,
       )}

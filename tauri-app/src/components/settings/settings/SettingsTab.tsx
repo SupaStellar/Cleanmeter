@@ -1,3 +1,5 @@
+import { settingsActions } from "@/lib/settings-actions";
+import { playSound, beginSoundAction } from "@/lib/sound-effects";
 import * as React from "react";
 import * as RadioGroupPrimitive from "@radix-ui/react-radio-group";
 import { Checkbox } from "@/components/shadcn/checkbox";
@@ -28,6 +30,7 @@ import {
 } from "./icons";
 import { ShortcutField } from "@/components/ui/ShortcutField";
 import { PixelShiftControls } from "./PixelShiftControls";
+import { Disclosure } from "@/components/ui/Disclosure";
 import { OVERLAY_SHORTCUT_DEFAULT, RECORDING_SHORTCUT_DEFAULT } from "@/lib/types";
 
 function SectionCard({
@@ -49,9 +52,11 @@ function SectionCard({
 
 function GeneralSection() {
   const startMinimized = useSettingsStore((s) => s.preferences.startMinimized);
+  const soundEffects = useSettingsStore((s) => s.preferences.soundEffects);
+  const preferencesLoaded = useSettingsStore((s) => s.preferencesLoaded);
   const updatePreferences = useSettingsStore((s) => s.updatePreferences);
   const pixelShift = useSettingsStore((s) => s.settings.pixelShift);
-  const updateSettings = useSettingsStore((s) => s.updateSettings);
+  const updateSettings = settingsActions.updateSettings;
   const [startWithWindows, setStartWithWindows] = React.useState(false);
   // Rapid toggles fire concurrent setAutoStart calls that can resolve out
   // of order, leaving the checkbox out of sync with the OS registry.
@@ -67,9 +72,11 @@ function GeneralSection() {
   }, []);
 
   const handleStartWithWindows = (enabled: boolean) => {
+    const finishSound = beginSoundAction();
     setAutoStartPending(true);
     setStartWithWindows(enabled);
     setAutoStart(enabled)
+      .then(() => finishSound("press"))
       .catch(() => setStartWithWindows(!enabled))
       .finally(() => setAutoStartPending(false));
   };
@@ -91,16 +98,34 @@ function GeneralSection() {
         <label className="flex cursor-pointer items-center gap-[var(--spacingXs)] text-[14px] font-medium text-foreground">
           <Checkbox
             checked={startMinimized}
+            disabled={!preferencesLoaded}
             onCheckedChange={(v) =>
-              updatePreferences({ startMinimized: v === true })
+              { updatePreferences({ startMinimized: v === true }); playSound("press"); }
             }
           />
           Start minimized
         </label>
       </div>
       <div className="h-px w-full shrink-0 bg-[var(--borderSubtle)]" />
+      <div className="flex items-center justify-between gap-[var(--spacingM)]">
+        <div className="flex flex-col gap-[6px]">
+          <span id="sound-effects-label" className="text-[14px] font-medium text-[var(--textHeading)]">Sound effects</span>
+          <span id="sound-effects-description" className="text-[14px] text-[var(--textParagraph1)]">Play subtle sounds when changing settings. Turn off to silence all effects.</span>
+        </div>
+        <Switch
+          checked={soundEffects}
+          disabled={!preferencesLoaded}
+          aria-labelledby="sound-effects-label"
+          aria-describedby="sound-effects-description"
+          onCheckedChange={(value) => {
+            updatePreferences({ soundEffects: value });
+            if (value) playSound("toggle");
+          }}
+        />
+      </div>
+      <div className="h-px w-full shrink-0 bg-[var(--borderSubtle)]" />
       {/* Figma 3041:6524: the row and its settings panel sit 16 apart. */}
-      <div className="flex flex-col gap-[var(--spacingM)]">
+      <div className="flex flex-col">
         <div className="flex items-center gap-[var(--spacingS)]">
           <div className="flex size-[40px] shrink-0 items-center justify-center rounded-[var(--cornerRound)] border border-[var(--borderBold)] bg-[var(--bgSurfaceRaised)]">
             {/* No optical nudge: the exported glyph carries Figma's own 1.67
@@ -121,7 +146,7 @@ function GeneralSection() {
             aria-label="Pixel Shift"
           />
         </div>
-        {pixelShift && <PixelShiftControls />}
+        <Disclosure open={pixelShift} variant="panel" className="pt-[var(--spacingM)]"><PixelShiftControls /></Disclosure>
       </div>
     </SectionCard>
   );
@@ -151,7 +176,7 @@ function GeneralSection() {
  */
 function ShortcutsSection() {
   const settings = useSettingsStore((s) => s.settings);
-  const updateSettings = useSettingsStore((s) => s.updateSettings);
+  const updateSettings = settingsActions.updateSettings;
 
   const overlayAccelerator = settings.overlayShortcut ?? OVERLAY_SHORTCUT_DEFAULT;
   const recordingAccelerator = settings.recordingShortcut ?? RECORDING_SHORTCUT_DEFAULT;
@@ -204,7 +229,7 @@ function FigmaRadio({ value }: { value: string }) {
 
 function TemperatureUnitsSection() {
   const temperatureUnit = useSettingsStore((s) => s.settings.temperatureUnit);
-  const updateSettings = useSettingsStore((s) => s.updateSettings);
+  const updateSettings = settingsActions.updateSettings;
 
   return (
     <SectionCard title="Temperature units">
@@ -230,7 +255,7 @@ function TemperatureUnitsSection() {
 
 function PollingRateSection() {
   const pollingRate = useSettingsStore((s) => s.settings.pollingRate);
-  const updateSettings = useSettingsStore((s) => s.updateSettings);
+  const updateSettings = settingsActions.updateSettings;
 
   return (
     <SectionCard title="Polling rate">
@@ -275,7 +300,7 @@ const THEME_OPTIONS: {
 
 function AppearanceSection() {
   const themeMode = useSettingsStore((s) => s.settings.themeMode);
-  const updateSettings = useSettingsStore((s) => s.updateSettings);
+  const updateSettings = settingsActions.updateSettings;
 
   const handleThemeChange = (value: ThemeChoice) => {
     if (value === "light") {

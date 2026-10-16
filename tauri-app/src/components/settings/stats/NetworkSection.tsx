@@ -1,3 +1,4 @@
+import { settingsActions } from "@/lib/settings-actions";
 import { useRef } from "react";
 import type { Sensor, Hardware } from "@/lib/types";
 import { HardwareType, SensorType } from "@/lib/types";
@@ -20,7 +21,7 @@ interface Props {
 
 export function NetworkSection({ sensors, hardwares }: Props) {
   const settings = useSettingsStore((s) => s.settings);
-  const updateSensor = useSettingsStore((s) => s.updateSensor);
+  const updateSensor = settingsActions.updateSensor;
   const upRate = settings.sensors.upRate;
   const downRate = settings.sensors.downRate;
   const anyEnabled = upRate.isEnabled || downRate.isEnabled;

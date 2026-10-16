@@ -15,6 +15,7 @@ const meta: Meta = {
   component: Select,
   parameters: {
     layout: "centered",
+    docs: { description: { component: "Uses the live app's shared dropdown content and standard/pill triggers. Open/close timing, anchored origin and reduced-motion behavior come from the app stylesheet." } },
   },
   tags: ["autodocs"],
 };

@@ -215,6 +215,7 @@ export interface MonitorInfo {
 export interface AppPreferences {
   adminConsent: boolean;
   startMinimized: boolean;
+  soundEffects: boolean;
 }
 
 export type SensorKey = keyof SensorsConfig;

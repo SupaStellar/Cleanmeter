@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { TopBar } from "@/components/settings/TopBar";
 import { TabNav, type SettingsTab as TabKey } from "@/components/settings/TabNav";
+import { TabPanels } from "@/components/settings/TabPanels";
 import { StatsTab } from "@/components/settings/stats/StatsTab";
 import { StyleTab } from "@/components/settings/style/StyleTab";
 import { SettingsTab } from "@/components/settings/settings/SettingsTab";
@@ -150,7 +151,7 @@ export default function App() {
   // purpose: raising the refusal toast, the same message an in-app clash
   // raises from ShortcutField. From the user's side "the other row has it"
   // and "another app has it" are one fact, so they get one message and the
-  // field itself is left completely unmarked (Saad, 2026-08-28).
+  // field itself is left completely unmarked.
   //
   // Raised here rather than in the field because this is where the status
   // lands, and the failure is only known after the save round-trips through
@@ -247,23 +248,13 @@ export default function App() {
           20 between the tabs and the content. */}
       <div className="flex min-h-0 flex-1 flex-col gap-[var(--spacingL)] p-[var(--spacingXl)]">
         <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          {/* Tabs stay mounted and hide via CSS so local UI state (expanded
-              collapsibles, dropdowns, scroll targets) survives tab switches —
-              conditional rendering reset it all on every switch. */}
-          <div className={activeTab === "stats" ? "h-full" : "hidden"}>
-            <StatsTab />
-          </div>
-          <div className={activeTab === "style" ? "h-full" : "hidden"}>
-            <StyleTab />
-          </div>
-          <div className={activeTab === "settings" ? "h-full" : "hidden"}>
-            <SettingsTab />
-          </div>
-          <div className={activeTab === "help" ? "h-full" : "hidden"}>
-            <HelpTab />
-          </div>
-        </div>
+        {/* Keep panels mounted, with independent scroll positions and state. */}
+        <TabPanels activeTab={activeTab} panels={{
+          stats: <StatsTab />,
+          style: <StyleTab />,
+          settings: <SettingsTab />,
+          help: <HelpTab />,
+        }} />
       </div>
     </div>
   );

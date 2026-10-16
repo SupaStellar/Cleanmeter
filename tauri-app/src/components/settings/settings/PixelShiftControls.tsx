@@ -1,3 +1,4 @@
+import { settingsActions } from "@/lib/settings-actions";
 import { Select, SelectContent, SelectItem, SelectValue } from "@/components/shadcn/select";
 import { SelectFieldTrigger } from "@/components/ui/SelectField";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -26,7 +27,7 @@ const FIELDS = [
 /** Figma 3041:6501: the sunken panel under the Pixel Shift row. */
 export function PixelShiftControls() {
   const settings = useSettingsStore((s) => s.settings);
-  const update = useSettingsStore((s) => s.updateSettings);
+  const update = settingsActions.updateSettings;
   const { distance, interval } = pixelShiftOptions(settings);
   const values = { pixelShiftDistance: distance, pixelShiftInterval: interval };
 

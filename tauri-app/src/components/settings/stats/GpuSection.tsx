@@ -1,3 +1,4 @@
+import { settingsActions } from "@/lib/settings-actions";
 import { useRef } from "react";
 import type { Hardware, Sensor } from "@/lib/types";
 import { SensorType } from "@/lib/types";
@@ -22,10 +23,10 @@ interface Props {
 
 export function GpuSection({ sensors, hardwares }: Props) {
   const settings = useSettingsStore((s) => s.settings);
-  const updateSensor = useSettingsStore((s) => s.updateSensor);
+  const updateSensor = settingsActions.updateSensor;
   const updateBoundary = useSettingsStore((s) => s.updateBoundary);
   const graphEnabled = settings.progressType !== "none";
-  const selectGpu = useSettingsStore((s) => s.selectGpu);
+  const selectGpu = settingsActions.selectGpu;
   const { gpuUsage, gpuTemp, gpuConsumption, gpuClock, vramUsage } = settings.sensors;
 
   const gpus = listGpus(hardwares);

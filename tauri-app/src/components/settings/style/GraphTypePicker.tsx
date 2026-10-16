@@ -1,3 +1,4 @@
+import { settingsActions } from "@/lib/settings-actions";
 import { CollapsibleCard } from "./CollapsibleCard";
 import { Switch } from "@/components/shadcn/switch";
 import { cn } from "@/lib/utils";
@@ -86,7 +87,7 @@ function GraphTile({
 
 export function GraphTypePicker() {
   const settings = useSettingsStore((s) => s.settings);
-  const updateSettings = useSettingsStore((s) => s.updateSettings);
+  const updateSettings = settingsActions.updateSettings;
 
   const isEnabled = settings.progressType !== "none";
 

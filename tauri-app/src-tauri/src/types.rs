@@ -463,13 +463,18 @@ pub struct AppPreferences {
     pub admin_consent: bool,
     #[serde(rename = "startMinimized")]
     pub start_minimized: bool,
+    #[serde(rename = "soundEffects", default = "default_sound_effects")]
+    pub sound_effects: bool,
 }
+
+fn default_sound_effects() -> bool { true }
 
 impl Default for AppPreferences {
     fn default() -> Self {
         AppPreferences {
             admin_consent: false,
             start_minimized: false,
+            sound_effects: true,
         }
     }
 }
@@ -627,3 +632,23 @@ pub enum HardwareState {
 }
 fn default_pixel_shift_distance() -> u32 { 3 }
 fn default_pixel_shift_interval() -> u32 { 120 }
+
+#[cfg(test)]
+mod sound_preferences_tests {
+    use super::AppPreferences;
+
+    #[test]
+    fn old_preferences_keep_existing_values_and_default_sound_on() {
+        let prefs: AppPreferences = serde_json::from_str(r#"{"adminConsent":true,"startMinimized":true}"#).unwrap();
+        assert!(prefs.admin_consent && prefs.start_minimized && prefs.sound_effects);
+    }
+
+    #[test]
+    fn muted_preferences_survive_serialization() {
+        let prefs = AppPreferences { sound_effects: false, ..AppPreferences::default() };
+        let json = serde_json::to_string(&prefs).unwrap();
+        let restored: AppPreferences = serde_json::from_str(&json).unwrap();
+        assert!(!restored.sound_effects);
+        assert!(json.contains("soundEffects"));
+    }
+}

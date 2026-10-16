@@ -10,6 +10,7 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+test-results/
 *.local
 
 # Tauri build artifacts
@@ -26,3 +27,6 @@ src-tauri/gen/schemas/
 *.njsproj
 *.sln
 *.sw?
+
+# Downloaded reference material stays local.
+/transitions/

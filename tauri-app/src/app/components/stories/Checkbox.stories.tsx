@@ -7,6 +7,7 @@ const meta: Meta<typeof Checkbox> = {
   component: Checkbox,
   parameters: {
     layout: "centered",
+    docs: { description: { component: "Uses the live app checkbox: transitions.dev stroke draw, rapid reversal and reduced motion. No sounds are played by the primitive; app action handlers own sound cues." } },
   },
   tags: ["autodocs"],
   argTypes: {
@@ -22,7 +23,7 @@ type Story = StoryObj<typeof Checkbox>;
 
 function InteractiveCheckbox({ defaultChecked = false, label }: { defaultChecked?: boolean; label?: string }) {
   const [checked, setChecked] = useState(defaultChecked);
-  return <Checkbox checked={checked} onCheckedChange={setChecked} label={label} />;
+  return <Checkbox checked={checked} onCheckedChange={setChecked} label={label} aria-label={label ? undefined : "Example checkbox"} />;
 }
 
 export const Unchecked: Story = {
@@ -31,6 +32,10 @@ export const Unchecked: Story = {
 
 export const Checked: Story = {
   render: () => <InteractiveCheckbox defaultChecked />,
+};
+
+export const Mixed: Story = {
+  render: () => <Checkbox checked="indeterminate" label="Some metrics selected" />,
 };
 
 export const WithLabel: Story = {

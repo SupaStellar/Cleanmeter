@@ -1,3 +1,4 @@
+import { settingsActions } from "@/lib/settings-actions";
 import { useEffect, useState } from "react";
 import {
   Select,
@@ -13,7 +14,7 @@ import { SectionCard } from "./SectionCard";
 
 export function MonitorSection() {
   const settings = useSettingsStore((s) => s.settings);
-  const updateSettings = useSettingsStore((s) => s.updateSettings);
+  const updateSettings = settingsActions.updateSettings;
   const [monitors, setMonitors] = useState<MonitorInfo[]>([]);
 
   useEffect(() => {

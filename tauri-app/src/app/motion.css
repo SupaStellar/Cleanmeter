@@ -1,0 +1,138 @@
+/* Restrained adaptations of transitions.dev tabs, toggle and menu demos.
+   Transitions retarget from the current position when input is interrupted. */
+:root {
+  --motion-settle: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-toggle: cubic-bezier(0.34, 1.35, 0.64, 1);
+}
+
+.app-tab-indicator {
+  transition: transform 250ms var(--motion-settle);
+}
+
+/* transitions.dev Page side-by-side: 8px travel, 3px blur, 250ms settle.
+   Inactive pages stay mounted but cannot receive focus or pointer input. */
+.app-tab-panel {
+  opacity: 0;
+  filter: blur(3px);
+  visibility: hidden;
+  pointer-events: none;
+  transition: transform 250ms var(--motion-settle),
+    opacity 250ms var(--motion-settle), filter 250ms var(--motion-settle),
+    visibility 0s 250ms;
+}
+
+.app-tab-panel[data-active="true"] {
+  opacity: 1;
+  filter: blur(0);
+  visibility: visible;
+  pointer-events: auto;
+  transition-delay: 0s;
+}
+
+/* CLI snippets from transitions/; Radix supplies the state attributes. */
+:root {
+  --check-box: 150ms;
+  --check-draw: 350ms;
+  --check-delay: 0ms;
+  --check-uncheck: 150ms;
+  --check-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.t-check-box {
+  transition:
+    background var(--check-box) var(--check-ease),
+    box-shadow var(--check-box) var(--check-ease);
+}
+.t-check svg path {
+  stroke-dasharray: var(--check-len, 15);
+  stroke-dashoffset: var(--check-len, 15);
+  transition: stroke-dashoffset var(--check-uncheck) var(--check-ease);
+}
+.t-check[aria-checked="true"] svg path {
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset var(--check-draw) var(--check-ease) var(--check-delay);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-check, .t-check svg path { transition: none !important; }
+}
+
+:root {
+  --toggle-dur: 350ms;
+  --toggle-travel: 14.66px;
+  --toggle-ov1: 1px;
+  --toggle-ov2: 0px;
+  --toggle-track: 0ms;
+  --toggle-ease: cubic-bezier(0.34, 1.35, 0.64, 1);
+}
+
+.t-toggle { transition: background var(--toggle-track) var(--toggle-ease); }
+.t-toggle-thumb { translate: 0 0;  }
+.t-toggle[data-state="checked"] .t-toggle-thumb { translate: var(--toggle-travel) 0; }
+.t-toggle.is-init[data-state="checked"] .t-toggle-thumb { animation: t-toggle-on var(--toggle-dur) var(--toggle-ease) both; }
+.t-toggle.is-init[data-state="unchecked"] .t-toggle-thumb { animation: t-toggle-off var(--toggle-dur) var(--toggle-ease) both; }
+@keyframes t-toggle-on {
+  0% { translate: var(--toggle-from, 0px) 0; }
+  55% { translate: calc(var(--toggle-travel) + var(--toggle-ov1)) 0; }
+  80% { translate: calc(var(--toggle-travel) - var(--toggle-ov2)) 0; }
+  100% { translate: var(--toggle-travel) 0; }
+}
+@keyframes t-toggle-off {
+  0% { translate: var(--toggle-from, var(--toggle-travel)) 0; }
+  55% { translate: calc(0px - var(--toggle-ov1)) 0; }
+  80% { translate: var(--toggle-ov2) 0; }
+  100% { translate: 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-toggle-thumb { animation: none !important; }
+}
+
+/* Adapt travel to the existing 36x20 track; preserve the reference bounce. */
+.t-toggle { --toggle-travel: 16px; }
+.t-check { --check-len: 15; }
+.app-checkbox-inset { opacity: 1; transition: opacity var(--check-box) var(--check-ease); }
+[data-slot="checkbox"]:not([data-state="unchecked"]) .app-checkbox-inset { opacity: 0; }
+.app-checkbox-mixed { visibility: hidden; }
+[data-slot="checkbox"][data-state="indeterminate"] .app-checkbox-mixed { visibility: visible; }
+[data-slot="checkbox"][data-state="indeterminate"] .app-checkbox-check { visibility: hidden; }
+@media (prefers-reduced-motion: reduce) { .t-check-box { transition: none !important; } }
+
+[data-slot="select-content"] {
+  transform-origin: var(--radix-select-content-transform-origin, center);
+}
+
+[data-slot="select-content"][data-state="open"] {
+  animation: app-select-enter 250ms var(--motion-settle);
+}
+
+[data-slot="select-content"][data-state="closed"] {
+  animation: app-select-exit 150ms var(--motion-settle);
+  pointer-events: none;
+}
+
+@keyframes app-select-enter {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes app-select-exit {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.96); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-tab-indicator,
+  .app-tab-panel,
+  .app-checkbox-draw,
+  .app-checkbox-indicator,
+  .app-checkbox-inset,
+  [data-slot="switch"],
+  [data-slot="switch-thumb"] {
+    transition: none;
+  }
+
+  [data-slot="select-content"][data-state] {
+    animation: none;
+  }
+}

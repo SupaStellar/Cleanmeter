@@ -1,4 +1,5 @@
 import * as React from "react";
+import { beginSoundAction, playSound } from "@/lib/sound-effects";
 import {
   Dialog,
   DialogClose,
@@ -131,6 +132,7 @@ export function FeedbackDialog({
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
+    const finishSound = beginSoundAction();
     setStatus("submitting");
     try {
       await submitFeedback({
@@ -140,10 +142,12 @@ export function FeedbackDialog({
         includeDiagnostics,
       });
       onOpenChange(false);
+      finishSound("success");
     } catch (err) {
       // Surface the underlying Rust error (e.g. "request failed", "portal
       // returned 401") so failures are diagnosable instead of opaque.
       console.error("submit_feedback failed:", err);
+      finishSound("error");
       setError(`Couldn’t send feedback: ${errorText(err)}`);
       setStatus("error");
     }
@@ -257,7 +261,7 @@ export function FeedbackDialog({
 
             <Checkbox
               checked={includeDiagnostics}
-              onCheckedChange={setIncludeDiagnostics}
+              onCheckedChange={(value) => { setIncludeDiagnostics(value); playSound("press"); }}
               disabled={submitting}
               label="Include system specs and app logs"
               className="w-full rounded-[4px] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"

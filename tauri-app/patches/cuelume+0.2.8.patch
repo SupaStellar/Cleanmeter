@@ -1,0 +1,91 @@
+diff --git a/node_modules/cuelume/dist/audio/render.js b/node_modules/cuelume/dist/audio/render.js
+index 7b82d07..7bffaaf 100644
+--- a/node_modules/cuelume/dist/audio/render.js
++++ b/node_modules/cuelume/dist/audio/render.js
+@@ -26,34 +26,38 @@ function envelope(param, layer, startTime) {
+     param.linearRampToValueAtTime(layer.peak, startTime + layer.attack);
+     param.setTargetAtTime(0, startTime + layer.attack, fallTime(layer.decay));
+ }
+-function renderTone(context, destination, layer, startTime) {
++function renderTone(context, destination, layer) {
+     const oscillator = context.createOscillator();
+     oscillator.type = layer.waveform;
+-    glide(oscillator.frequency, layer.frequency, layer, startTime);
+     if (layer.detune)
+         oscillator.detune.value = layer.detune;
+     const gain = context.createGain();
+-    envelope(gain.gain, layer, startTime);
+     oscillator.connect(gain).connect(destination);
++    return (startTime) => {
++    glide(oscillator.frequency, layer.frequency, layer, startTime);
++    envelope(gain.gain, layer, startTime);
+     oscillator.start(startTime);
+     oscillator.stop(startTime + layer.attack + layer.decay + SOURCE_STOP_PADDING);
++    };
+ }
+-function renderNoise(context, bus, destination, layer, startTime) {
++function renderNoise(context, bus, destination, layer) {
+     const duration = layer.attack + layer.decay + SOURCE_STOP_PADDING;
+     const source = context.createBufferSource();
+     source.buffer = getNoise(context, bus);
+     source.loop = true;
+     const filter = context.createBiquadFilter();
+     filter.type = layer.filterType;
+-    glide(filter.frequency, layer.filterFrequency, layer, startTime);
+     if (layer.filterQ !== undefined)
+         filter.Q.value = layer.filterQ;
+     const gain = context.createGain();
+-    envelope(gain.gain, layer, startTime);
+     source.connect(filter).connect(gain).connect(destination);
++    return (startTime) => {
++    glide(filter.frequency, layer.filterFrequency, layer, startTime);
++    envelope(gain.gain, layer, startTime);
+     // a different stretch of the same noise every time
+     source.start(startTime, Math.random() * NOISE_SECONDS);
+     source.stop(startTime + duration);
++    };
+ }
+ function sourceEnd(layers) {
+     return Math.max(...layers.map((layer) => (layer.offset ?? 0) + layer.attack + layer.decay + SOURCE_STOP_PADDING));
+@@ -124,8 +128,10 @@ export function renderRecipe(context, getBus, voices, sound, played, part) {
+     const layers = layersFor(played, part);
+     if (layers.length === 0)
+         return;
+-    const now = context.currentTime;
+     const bus = getBus();
++    // Cold room/noise allocation must finish before scheduling short envelopes.
++    if (layers.some((layer) => layer.kind === "noise"))
++        getNoise(context, bus);
+     const { output, room } = bus;
+     const master = context.createGain();
+     master.gain.value = recipe.masterGain * volume;
+@@ -134,6 +140,11 @@ export function renderRecipe(context, getBus, voices, sound, played, part) {
+     send.gain.value = ROOM_SEND * (recipe.room ?? 1);
+     master.connect(send).connect(room);
+     bus.live.add(master);
++    // Allocate/connect every source before reading the shared playback clock.
++    const schedule = layers.map((layer) => layer.kind === "tone"
++        ? renderTone(context, master, layer)
++        : renderNoise(context, bus, master, layer));
++    const now = context.currentTime + 0.01;
+     // a release rings with its press rather than replacing it
+     if (part !== "release") {
+         const last = voices.get(sound);
+@@ -144,15 +155,9 @@ export function renderRecipe(context, getBus, voices, sound, played, part) {
+         const fade = recipe.layers.some((layer) => layer.note) ? NOTE_HANDOFF_TIME : HANDOFF_TIME;
+         voices.set(sound, { gain: master, fade });
+     }
+-    for (const layer of layers) {
+-        const startTime = now + (layer.offset ?? 0);
+-        if (layer.kind === "tone")
+-            renderTone(context, master, layer, startTime);
+-        else
+-            renderNoise(context, bus, master, layer, startTime);
+-    }
++    layers.forEach((layer, index) => schedule[index](now + (layer.offset ?? 0)));
+     // the room rings on by itself once the last source has fed it
+-    const cleanupAfterMs = (sourceEnd(layers) + CLEANUP_MARGIN) * 1000;
++    const cleanupAfterMs = (0.01 + sourceEnd(layers) + CLEANUP_MARGIN) * 1000;
+     setTimeout(() => {
+         if (voices.get(sound)?.gain === master)
+             voices.delete(sound);

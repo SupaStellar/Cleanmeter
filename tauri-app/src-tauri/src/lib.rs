@@ -580,8 +580,8 @@ pub fn run() {
             // Only reasserts when overlay is currently visible (user hasn't hidden it).
             // The click-through gate is recomputed on the same tick, which is what
             // makes it self-correcting rather than dependent on having seen every
-            // Focused event. Both calls are no-ops at the OS level when nothing
-            // changed (tao's apply_diff early-returns on an empty flag diff).
+            // Focused event. Refresh native Z order: repeating tao's cached
+            // always-on-top setter is a no-op and cannot recover lost stacking.
             {
                 let app_handle_top = app.handle().clone();
                 tauri::async_runtime::spawn(async move {
@@ -589,7 +589,7 @@ pub fn run() {
                         tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
                         if let Some(overlay) = app_handle_top.get_webview_window("overlay") {
                             if overlay.is_visible().unwrap_or(false) {
-                                let _ = overlay.set_always_on_top(true);
+                                commands::refresh_overlay_z_order(&overlay);
                                 commands::sync_overlay_interactive(&app_handle_top);
                             }
                         }

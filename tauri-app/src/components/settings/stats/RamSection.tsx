@@ -1,10 +1,11 @@
+import { settingsActions } from "@/lib/settings-actions";
 import { useSettingsStore } from "@/stores/settings-store";
 import { SectionCard, SubCollapsible } from "./SectionCard";
 import { TempRangeControl } from "./TempRangeControl";
 
 export function RamSection() {
   const settings = useSettingsStore((s) => s.settings);
-  const updateSensor = useSettingsStore((s) => s.updateSensor);
+  const updateSensor = settingsActions.updateSensor;
   const updateBoundary = useSettingsStore((s) => s.updateBoundary);
   const { ramUsage } = settings.sensors;
   // RAM Usage has no sensor selector to fall back on, so when graphs are

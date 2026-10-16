@@ -1,3 +1,4 @@
+import { settingsActions } from "@/lib/settings-actions";
 import { CollapsibleCard } from "./CollapsibleCard";
 import {
   Select,
@@ -109,7 +110,7 @@ function FontRow({
 
 export function FontCard() {
   const settings = useSettingsStore((s) => s.settings);
-  const updateSettings = useSettingsStore((s) => s.updateSettings);
+  const updateSettings = settingsActions.updateSettings;
 
   return (
     <CollapsibleCard title="Font">
