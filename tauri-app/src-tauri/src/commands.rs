@@ -307,7 +307,7 @@ pub fn set_overlay_visible(visible: bool, app: AppHandle) {
     if let Some(overlay) = app.get_webview_window("overlay") {
         if visible {
             let _ = overlay.show();
-            let _ = overlay.set_always_on_top(true);
+            refresh_overlay_z_order(&overlay);
             // The overlay is created hidden and first shown on initial sensor
             // data, which can land after the gate was already decided. Recompute
             // so it never comes up interactive while Settings is unfocused.
@@ -316,6 +316,34 @@ pub fn set_overlay_visible(visible: bool, app: AppHandle) {
             let _ = overlay.hide();
         }
     }
+}
+
+/// Reassert native stacking, not just tao's cached always-on-top flag. Another
+/// topmost window can move above the HUD without changing that cached flag.
+#[cfg(windows)]
+pub fn refresh_overlay_z_order(overlay: &tauri::WebviewWindow) {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::UI::WindowsAndMessaging::{
+        IsWindowVisible, SetWindowPos, HWND_TOPMOST, SWP_ASYNCWINDOWPOS,
+        SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOOWNERZORDER, SWP_NOSIZE,
+    };
+    let Ok(raw) = overlay.hwnd() else { return };
+    let hwnd = HWND(raw.0 as _);
+    unsafe {
+        if !IsWindowVisible(hwnd).as_bool() {
+            return;
+        }
+        // Never activate the HUD, change its geometry, or show a hidden window.
+        let _ = SetWindowPos(
+            hwnd, HWND_TOPMOST, 0, 0, 0, 0,
+            SWP_ASYNCWINDOWPOS | SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE | SWP_NOOWNERZORDER,
+        );
+    }
+}
+
+#[cfg(not(windows))]
+pub fn refresh_overlay_z_order(overlay: &tauri::WebviewWindow) {
+    let _ = overlay.set_always_on_top(true);
 }
 
 #[tauri::command]

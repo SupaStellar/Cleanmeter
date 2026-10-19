@@ -1,4 +1,5 @@
 import * as React from "react";
+import { playSound, beginSoundAction } from "@/lib/sound-effects";
 import { cn } from "@/lib/utils";
 import { FaqSection } from "./FaqSection";
 import { AboutSection } from "./AboutSection";
@@ -23,16 +24,19 @@ function ResetSettingsPrompt() {
 
   const reset = async () => {
     if (pending) return;
+    const finishSound = beginSoundAction();
     setPending(true);
     setComplete(false);
     setError(null);
     try {
       await clearSettings();
+      finishSound("success");
       setComplete(true);
       setOpen(false);
     } catch (error) {
       console.error("Reset settings failed:", error);
       setError("Couldn't reset all settings. Please try again.");
+      finishSound("error");
     } finally {
       setPending(false);
     }
@@ -81,7 +85,7 @@ function FeedbackPrompt() {
       </div>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => { setOpen(true); playSound("open", "forward", { volume: 0.5, emphasis: "subtle" }); }}
         className={cn(
           helpButtonClassName,
           "text-[var(--textHeading)]",

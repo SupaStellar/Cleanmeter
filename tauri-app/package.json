@@ -17,7 +17,8 @@
     "tauri:build": "tauri build",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "deploy-storybook": "node scripts/deploy-storybook.cjs"
+    "deploy-storybook": "node scripts/deploy-storybook.cjs",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@fluentui/react-components": "^9.73.4",
@@ -43,6 +44,8 @@
     "@tauri-apps/plugin-updater": "^2.10.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cuelume": "0.2.8",
+    "cuelume-legacy": "npm:cuelume@0.2.2",
     "lucide-react": "^1.8.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
@@ -73,6 +76,7 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "eslint-plugin-storybook": "^10.3.5",
     "globals": "^17.4.0",
+    "patch-package": "^8.0.1",
     "playwright": "^1.59.1",
     "storybook": "^10.3.5",
     "style-dictionary": "^5.5.1",

@@ -2,55 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { useToastStore } from "@/stores/toast-store";
 import { ErrorIcon } from "./shortcut-icons";
 
-/**
- * The settings window's transient error toast, Figma 2819:9753.
- *
- * Measured off the frame: HUG pill at radius 100 on Bg/Brand, padding 6 left
- * and 6/6 vertical against 20 on the right (the badge supplies the optical
- * inset on its side, so the text is the end that needs the room), gap 12. The
- * Bg/Brand fill inverts with the theme for free — #0C111D in light, #FAFAFA
- * in dark — with Text/Inverse tracking it the other way. The 40x40 badge is
- * Bg/Warning Bold holding the 20px `error` glyph in Icon/Warning Bold. Both
- * invert with the theme, so the chip reads as a tint of the pill in either one
- * (1.35:1 against it on light, 1.25:1 on dark). It was Yellow/950 with
- * Bg/Warning Active, whose light values these match exactly — but Yellow/950
- * is a primitive with no dark mode, so on dark the chip stayed a hard dark
- * disc (13.4:1) punched into the near-white pill.
- *
- * Position is the frame's too: x 175 in a 651-wide window is dead centre, at
- * y 76 down from the window's top edge.
- *
- * ## Motion
- *
- *   Beats:   fades up 16px above its mark -> settles onto it -> holds ->
- *            fades out rising the same 16px
- *   Trigger: a shortcut capture refused because the combo is already bound.
- *            An event, not a state, which is what makes a toast the right
- *            shape for it rather than a line of text under the field.
- *   Timing:  in 300ms (fade 260ms), hold 4000ms, out 220ms (fade 180ms)
- *   Feel:    in  = critically-damped spring sampled to linear(), zero
- *                  overshoot: covers most of the drop early, then settles
- *                  onto its mark instead of stopping dead
- *            out = cubic-bezier(0.32, 0.72, 0, 1), which builds speed so it
- *                  leaves rather than creeping
- *
- * The fade is the entrance here, not a coat on one. An earlier version parked
- * the pill 104px up behind the title bar and slid it out, treating the opaque
- * bar as a mask — but a mask cuts, it does not soften, and the pill arrived at
- * the bar's edge already 84% opaque with a hard flat top where the chrome had
- * clipped it. It now stays clear of the bar entirely. See .cm-toast in
- * globals.css for the geometry.
- *
- * Occasional-tier by frequency: you only see this when a binding is refused,
- * so it earns a standard entrance rather than the near-imperceptible
- * treatment a many-times-a-day control would get.
- *
- * CSS transitions, NOT keyframes — see .cm-toast in globals.css.
- */
+/** Uses the transitions.dev toast motion; repeat/exit lifecycle remains event-driven. */
 /** Time the toast stays fully up, between the entrance and the exit. */
 const HOLD_MS = 4000;
-/** Must be at or over the exit duration in .cm-toast[data-state="closed"]. */
-const EXIT_MS = 240;
+/** Must be at or over --toast-close (250ms) in disclosure-motion.css. */
+const EXIT_MS = 300;
 
 export function Toast() {
   const message = useToastStore((s) => s.message);
@@ -138,7 +94,7 @@ function ToastPill({ message, open }: { message: string; open: boolean }) {
         // warrant that.
         aria-hidden="true"
         className={
-          "cm-toast flex items-center gap-[var(--spacingS)] rounded-[var(--cornerRound)] " +
+          (open ? "t-toast is-open " : "t-toast ") + "flex items-center gap-[var(--spacingS)] rounded-[var(--cornerRound)] " +
           "bg-[var(--bgBrand)] py-[var(--spacingXxs)] pl-[var(--spacingXxs)] pr-[var(--spacingL)] " +
           // Not in the frame, which draws one message and hugs it. The window
           // is 651 wide with 24 of padding, so a longer string than the

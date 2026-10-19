@@ -7,24 +7,39 @@ import { cn } from "@/lib/utils";
 
 function Switch({
   className,
+  onCheckedChange,
   ...props
 }: React.ComponentProps<typeof SwitchPrimitive.Root>) {
+  const thumbRef = React.useRef<HTMLSpanElement>(null);
+  const [interacted, setInteracted] = React.useState(false);
   return (
     <SwitchPrimitive.Root
       data-slot="switch"
       className={cn(
-        "peer inline-flex h-[20px] w-[36px] shrink-0 items-center rounded-full p-[2px] outline-none transition-colors",
+        "t-toggle peer inline-flex h-[20px] w-[36px] shrink-0 items-center rounded-full p-[2px] outline-none",
+        interacted && "is-init",
         "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50",
         "data-[state=checked]:bg-success data-[state=unchecked]:bg-[var(--bgSurfaceSunken)]",
         className,
       )}
       {...props}
+      onCheckedChange={(checked) => {
+        const thumb = thumbRef.current;
+        if (thumb) {
+          // Retarget the snippet from the visible position on rapid reversals.
+          const current = parseFloat(getComputedStyle(thumb).translate) || 0;
+          thumb.style.setProperty("--toggle-from", `${current}px`);
+        }
+        setInteracted(true);
+        onCheckedChange?.(checked);
+      }}
     >
       <SwitchPrimitive.Thumb
         data-slot="switch-thumb"
+        ref={thumbRef}
+        onAnimationEnd={(event) => event.currentTarget.style.removeProperty("--toggle-from")}
         className={cn(
-          "pointer-events-none block size-[16px] rounded-full bg-white shadow-sm transition-transform",
-          "data-[state=checked]:translate-x-[16px] data-[state=unchecked]:translate-x-0",
+          "t-toggle-thumb pointer-events-none block size-[16px] rounded-full bg-white shadow-sm",
         )}
       />
     </SwitchPrimitive.Root>

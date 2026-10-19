@@ -1,6 +1,7 @@
 import { Minus, X } from "lucide-react";
 import { isBrowser } from "@/lib/tauri";
 import { cn } from "@/lib/utils";
+import { TooltipHint } from "@/components/shadcn/tooltip";
 
 const DEFAULT_HEIGHT = 900;
 
@@ -65,10 +66,10 @@ function ChromeButton({
   children: React.ReactNode;
 }) {
   return (
-    <button
+    <TooltipHint text={title}><button
       type="button"
       onClick={onClick}
-      title={title}
+      aria-label={title}
       className={cn(
         "flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors",
         "hover:bg-secondary hover:text-foreground",
@@ -76,7 +77,7 @@ function ChromeButton({
       )}
     >
       {children}
-    </button>
+    </button></TooltipHint>
   );
 }
 

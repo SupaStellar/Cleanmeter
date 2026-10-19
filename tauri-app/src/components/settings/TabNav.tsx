@@ -4,6 +4,7 @@ import { StatsIcon, StyleIcon, SettingsIcon, HelpIcon } from "./tab-icons";
 export type SettingsTab = "stats" | "style" | "settings" | "help";
 
 interface TabNavProps {
+  idPrefix?: string;
   activeTab: SettingsTab;
   onTabChange: (tab: SettingsTab) => void;
 }
@@ -19,7 +20,7 @@ const TABS: {
   { value: "help", label: "Help", Icon: HelpIcon },
 ];
 
-export function TabNav({ activeTab, onTabChange }: TabNavProps) {
+export function TabNav({ activeTab, onTabChange, idPrefix = "" }: TabNavProps) {
   const activeIndex = TABS.findIndex((t) => t.value === activeTab);
 
   return (
@@ -32,7 +33,7 @@ export function TabNav({ activeTab, onTabChange }: TabNavProps) {
         className={cn(
           "pointer-events-none absolute left-1 top-1 bottom-1 rounded-full bg-card",
           "shadow-[0_4px_4px_0_rgba(0,0,0,0.02)]",
-          "transition-transform duration-300 ease-out motion-reduce:transition-none",
+          "app-tab-indicator",
         )}
         style={{
           width: `calc((100% - 0.5rem) / ${TABS.length})`,
@@ -45,6 +46,8 @@ export function TabNav({ activeTab, onTabChange }: TabNavProps) {
           <button
             key={value}
             role="tab"
+            id={`${idPrefix}tab-${value}`}
+            aria-controls={`${idPrefix}panel-${value}`}
             aria-selected={active}
             onClick={() => onTabChange(value)}
             className={cn(

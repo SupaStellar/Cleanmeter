@@ -1,0 +1,145 @@
+diff --git a/node_modules/cuelume-legacy/dist/audio/engine.js b/node_modules/cuelume-legacy/dist/audio/engine.js
+index 4b33883..a0611f4 100644
+--- a/node_modules/cuelume-legacy/dist/audio/engine.js
++++ b/node_modules/cuelume-legacy/dist/audio/engine.js
+@@ -9,9 +9,12 @@ const SOURCE_STOP_PADDING = 0.05;
+ const CLEANUP_MARGIN = 0.05;
+ const INAUDIBLE_GAIN = 0.001;
+ const OUTPUT_GAIN = 4;
+-function renderTone(context, destination, layer, startTime) {
++function renderTone(context, destination, layer) {
+     const oscillator = context.createOscillator();
+     oscillator.type = layer.waveform;
++    const gain = context.createGain();
++    oscillator.connect(gain).connect(destination);
++    return (startTime) => {
+     oscillator.frequency.setValueAtTime(layer.frequency, startTime);
+     if (layer.detune)
+         oscillator.detune.value = layer.detune;
+@@ -19,15 +22,14 @@ function renderTone(context, destination, layer, startTime) {
+         const glideTime = layer.glideTime ?? layer.attack + layer.decay;
+         oscillator.frequency.exponentialRampToValueAtTime(layer.glideTo, startTime + glideTime);
+     }
+-    const gain = context.createGain();
+     gain.gain.setValueAtTime(0.0001, startTime);
+     gain.gain.exponentialRampToValueAtTime(layer.peak, startTime + layer.attack);
+     gain.gain.exponentialRampToValueAtTime(0.0001, startTime + layer.attack + layer.decay);
+-    oscillator.connect(gain).connect(destination);
+     oscillator.start(startTime);
+     oscillator.stop(startTime + layer.attack + layer.decay + SOURCE_STOP_PADDING);
++    };
+ }
+-function renderNoise(context, destination, layer, startTime) {
++function renderNoise(context, destination, layer) {
+     const duration = layer.attack + layer.decay + SOURCE_STOP_PADDING;
+     const length = Math.max(1, Math.floor(duration * context.sampleRate));
+     const buffer = context.createBuffer(1, length, context.sampleRate);
+@@ -42,12 +44,14 @@ function renderNoise(context, destination, layer, startTime) {
+     if (layer.filterQ !== undefined)
+         filter.Q.value = layer.filterQ;
+     const gain = context.createGain();
++    source.connect(filter).connect(gain).connect(destination);
++    return (startTime) => {
+     gain.gain.setValueAtTime(0.0001, startTime);
+     gain.gain.exponentialRampToValueAtTime(layer.peak, startTime + layer.attack);
+     gain.gain.exponentialRampToValueAtTime(0.0001, startTime + layer.attack + layer.decay);
+-    source.connect(filter).connect(gain).connect(destination);
+     source.start(startTime);
+     source.stop(startTime + duration);
++    };
+ }
+ /** Wires a soft echo/shimmer send off `source`, feeding back into `destination`. */
+ function attachShimmer(context, source, destination, shimmer) {
+@@ -83,7 +87,7 @@ function getOutput(context) {
+     if (sharedOutput)
+         return sharedOutput;
+     const output = context.createGain();
+-    output.gain.value = OUTPUT_GAIN;
++    output.gain.value = enabled ? OUTPUT_GAIN : 0;
+     const limiter = context.createDynamicsCompressor();
+     limiter.threshold.value = -8;
+     limiter.knee.value = 6;
+@@ -95,7 +99,6 @@ function getOutput(context) {
+     return output;
+ }
+ function renderRecipe(context, recipe, volume) {
+-    const now = context.currentTime;
+     const output = getOutput(context);
+     const master = context.createGain();
+     master.gain.value = recipe.masterGain * volume;
+@@ -103,22 +106,27 @@ function renderRecipe(context, recipe, volume) {
+     const shimmerNodes = recipe.shimmer
+         ? attachShimmer(context, master, output, recipe.shimmer)
+         : [];
+-    for (const layer of recipe.layers) {
+-        const startTime = now + (layer.offset ?? 0);
+-        if (layer.kind === "tone")
+-            renderTone(context, master, layer, startTime);
+-        else
+-            renderNoise(context, master, layer, startTime);
+-    }
+-    const cleanupAfterMs = (sourceEnd(recipe) + shimmerTail(recipe.shimmer) + CLEANUP_MARGIN) * 1000;
+-    setTimeout(() => {
++    // Preserve recipes while preparing all nodes before scheduling short cues.
++    const schedule = recipe.layers.map((layer) => layer.kind === "tone"
++        ? renderTone(context, master, layer)
++        : renderNoise(context, master, layer));
++    const now = context.currentTime + 0.01;
++    recipe.layers.forEach((layer, i) => schedule[i](now + (layer.offset ?? 0)));
++    const stopVoice = () => {
+         master.disconnect();
+-        for (const node of shimmerNodes)
+-            node.disconnect();
++        for (const node of shimmerNodes) node.disconnect();
++    };
++    liveVoices.add(stopVoice);
++    const cleanupAfterMs = (0.01 + sourceEnd(recipe) + shimmerTail(recipe.shimmer) + CLEANUP_MARGIN) * 1000;
++    setTimeout(() => {
++        liveVoices.delete(stopVoice);
++        stopVoice();
+     }, cleanupAfterMs);
+ }
+ let sharedContext = null;
+ let enabled = true;
++let generation = 0;
++const liveVoices = new Set();
+ let globalVolume = 1;
+ function normalizeVolume(value, fallback) {
+     return typeof value === "number" && Number.isFinite(value)
+@@ -127,8 +135,18 @@ function normalizeVolume(value, fallback) {
+ }
+ /** Enables or disables future playback. Preference storage stays with the app. */
+ export function setEnabled(value) {
+-    if (typeof value === "boolean")
+-        enabled = value;
++    if (typeof value !== "boolean") return;
++    enabled = value;
++    if (!enabled) {
++        generation++;
++        for (const stopVoice of liveVoices) stopVoice();
++        liveVoices.clear();
++    }
++    // The output gate also silences existing shimmer tails.
++    if (sharedOutput && sharedContext) {
++        sharedOutput.gain.cancelScheduledValues(sharedContext.currentTime);
++        sharedOutput.gain.setValueAtTime(enabled ? OUTPUT_GAIN : 0, sharedContext.currentTime);
++    }
+ }
+ /** Sets the volume multiplier for future playback. Preference storage stays with the app. */
+ export function setVolume(value) {
+@@ -169,13 +187,14 @@ export function play(sound = "chime", options) {
+     if (!context)
+         return;
+     const recipe = RECIPES[sound];
++    const startedGeneration = generation;
+     if (context.state === "running") {
+         renderRecipe(context, recipe, playVolume);
+     }
+     else {
+         try {
+             void context.resume().then(() => {
+-                if (enabled && context.state === "running")
++                if (enabled && generation === startedGeneration && context.state === "running")
+                     renderRecipe(context, recipe, playVolume);
+             }, () => { });
+         }

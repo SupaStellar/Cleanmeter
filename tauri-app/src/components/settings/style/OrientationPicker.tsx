@@ -1,3 +1,4 @@
+import { settingsActions } from "@/lib/settings-actions";
 import { CollapsibleCard } from "./CollapsibleCard";
 import { cn } from "@/lib/utils";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -150,7 +151,7 @@ function OrientationTile({
 
 export function OrientationPicker() {
   const settings = useSettingsStore((s) => s.settings);
-  const updateSettings = useSettingsStore((s) => s.updateSettings);
+  const updateSettings = settingsActions.updateSettings;
 
   return (
     <CollapsibleCard title="Orientation">

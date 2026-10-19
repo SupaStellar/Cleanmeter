@@ -1,3 +1,4 @@
+import { settingsActions } from "@/lib/settings-actions";
 import { useRef } from "react";
 import { Checkbox } from "@/components/shadcn/checkbox";
 import {
@@ -26,7 +27,7 @@ type FpsReading = (typeof FPS_READINGS)[number];
 
 export function FpsSection() {
   const settings = useSettingsStore((s) => s.settings);
-  const updateSensor = useSettingsStore((s) => s.updateSensor);
+  const updateSensor = settingsActions.updateSensor;
   const presentMonApps = useSettingsStore((s) => s.presentMonApps);
   const { framerate, frametime, onePercentLow, zeroPointOnePercentLow } = settings.sensors;
   const anyEnabled = FPS_READINGS.some((key) => settings.sensors[key].isEnabled);

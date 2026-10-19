@@ -1,3 +1,4 @@
+import { settingsActions } from "@/lib/settings-actions";
 import { useRef } from "react";
 import type { Hardware, Sensor } from "@/lib/types";
 import { HardwareType, SensorType } from "@/lib/types";
@@ -15,7 +16,7 @@ interface Props {
 
 export function CpuSection({ sensors, hardwares }: Props) {
   const settings = useSettingsStore((s) => s.settings);
-  const updateSensor = useSettingsStore((s) => s.updateSensor);
+  const updateSensor = settingsActions.updateSensor;
   const updateBoundary = useSettingsStore((s) => s.updateBoundary);
   const graphEnabled = settings.progressType !== "none";
   const { cpuUsage, cpuTemp, cpuConsumption, cpuClock } = settings.sensors;

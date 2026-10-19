@@ -1,0 +1,153 @@
+/* Motion tokens from the CLI snippets retained in transitions/. */
+:root {
+  --acc-expand: 250ms;
+  --acc-collapse: 250ms;
+  --acc-chevron: 250ms;
+  --acc-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Flip the chevron vertically to turn the "v" into a "^".
+   scaleY(-1) about the centre passes through a flat line at
+   the midpoint (same look as a `d:` path morph) but animates
+   in every browser, unlike CSS `d:` morphing (Chromium only).
+   The chevron path is symmetric about the 16x16 viewBox
+   centre, so the flip lands exactly on the "^"; non-scaling
+   -stroke keeps the stroke width constant through the flip. */
+.t-acc-chevron {
+  display: inline-flex;
+  transform: scaleY(1);
+  transform-origin: center;
+  transition: transform var(--acc-chevron) var(--acc-ease);
+}
+.t-acc-chevron path { vector-effect: non-scaling-stroke; }
+.t-acc[data-open="true"] .t-acc-chevron {
+  transform: scaleY(-1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-acc-chevron {
+    transition: none !important;
+  }
+}
+
+:root {
+  --panel-open-dur: 400ms;
+  --panel-close-dur: 350ms;
+  --panel-translate-y: 100px;
+  --panel-blur: 2px;
+  --panel-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.t-panel-slide {
+  transform: translateY(var(--panel-translate-y));
+  opacity: 0;
+  filter: blur(var(--panel-blur));
+  pointer-events: none;
+  transition:
+    transform var(--panel-close-dur) var(--panel-ease),
+    opacity   var(--panel-close-dur) var(--panel-ease),
+    filter    var(--panel-close-dur) var(--panel-ease);
+
+}
+.t-panel-slide[data-open="true"] {
+  transform: translateY(0);
+  opacity: 1;
+  filter: blur(0);
+  pointer-events: auto;
+  transition:
+    transform var(--panel-open-dur) var(--panel-ease),
+    opacity   var(--panel-open-dur) var(--panel-ease),
+    filter    var(--panel-open-dur) var(--panel-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-panel-slide { transition: none !important; }
+}
+
+:root {
+  --resize-dur: 300ms;
+  --resize-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:root {
+  --modal-open-dur: 250ms;
+  --modal-close-dur: 150ms;
+  --modal-scale: 0.96;
+  --modal-scale-close: 0.96;
+  --modal-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:root {
+  --toast-open: 350ms;
+  --toast-close: 250ms;
+  --toast-distance: 16px;
+  --toast-blur: 2px;
+  --toast-scale: 0.97;
+  --toast-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.t-toast {
+  opacity: 0;
+  transform: translateY(var(--toast-distance)) scale(var(--toast-scale));
+  filter: blur(var(--toast-blur));
+
+  transition:
+    opacity var(--toast-close) var(--toast-ease),
+    transform var(--toast-close) var(--toast-ease),
+    filter var(--toast-close) var(--toast-ease);
+}
+.t-toast.is-open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
+  transition:
+    opacity var(--toast-open) var(--toast-ease),
+    transform var(--toast-open) var(--toast-ease),
+    filter var(--toast-open) var(--toast-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-toast { transition: none !important; }
+}
+
+:root {
+  --tt-in-dur: 150ms;
+  --tt-out-dur: 50ms;
+  --tt-scale: 0.98;
+  --tt-delay: 80ms;
+  --tt-in-ease: ease-out;
+  --tt-out-ease: ease-out;
+}
+
+
+/* Keep existing measured-height behavior so open controls/focus rings aren't clipped.
+   Card resize supplies the height timing for feature panels, accordion for disclosures. */
+.app-disclosure { transition: height var(--acc-collapse) var(--acc-ease); }
+.app-disclosure[data-open="true"] { transition-duration: var(--acc-expand); }
+.app-disclosure[data-motion="panel"] { transition: height var(--resize-dur) var(--resize-ease); }
+.app-accordion-body { opacity: 0; filter: blur(2px); transition: opacity var(--acc-collapse) var(--acc-ease), filter var(--acc-collapse) var(--acc-ease); }
+.app-disclosure[data-open="true"] > .app-accordion-body { opacity: 1; filter: blur(0); transition-duration: var(--acc-expand); }
+/* Compact in-card disclosures use a short travel; no desktop window movement. */
+.app-panel-body { --panel-translate-y: 8px; }
+/* Radix presence uses keyframes for exit lifetime; geometry/tokens match the snippet.
+   CSS transform is independent of the centering translate utility. */
+[data-slot="dialog-content"] { transform-origin: center; }
+[data-slot="dialog-content"][data-state="open"] { animation: app-modal-enter var(--modal-open-dur) var(--modal-ease); }
+[data-slot="dialog-content"][data-state="closed"] { animation: app-modal-exit var(--modal-close-dur) var(--modal-ease); pointer-events: none; }
+[data-slot="dialog-overlay"][data-state="open"] { animation: app-backdrop-enter var(--modal-open-dur) var(--modal-ease); }
+[data-slot="dialog-overlay"][data-state="closed"] { animation: app-backdrop-exit var(--modal-close-dur) var(--modal-ease); }
+@keyframes app-modal-enter { from { opacity: 0; transform: scale(var(--modal-scale)); } to { opacity: 1; transform: scale(1); } }
+@keyframes app-modal-exit { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(var(--modal-scale-close)); } }
+@keyframes app-backdrop-enter { from { opacity: 0; } to { opacity: 1; } }
+@keyframes app-backdrop-exit { from { opacity: 1; } to { opacity: 0; } }
+[data-slot="tooltip-content"] { transform-origin: var(--radix-tooltip-content-transform-origin); }
+[data-slot="tooltip-content"][data-state="delayed-open"],
+[data-slot="tooltip-content"][data-state="instant-open"] { animation: app-tooltip-enter var(--tt-in-dur) var(--tt-in-ease); }
+[data-slot="tooltip-content"][data-state="closed"] { animation: app-tooltip-exit var(--tt-out-dur) var(--tt-out-ease); }
+@keyframes app-tooltip-enter { from { opacity: 0; transform: scale(var(--tt-scale)); } to { opacity: 1; transform: scale(1); } }
+@keyframes app-tooltip-exit { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(var(--tt-scale)); } }
+@media (prefers-reduced-motion: reduce) {
+ .app-disclosure, .app-accordion-body, .t-panel-slide, .t-toast { transition: none !important; }
+ .app-accordion-body, .t-panel-slide, .t-toast { filter: none; transform: none; }
+ [data-slot="dialog-content"][data-state], [data-slot="dialog-overlay"][data-state], [data-slot="tooltip-content"][data-state] { animation: none !important; }
+}

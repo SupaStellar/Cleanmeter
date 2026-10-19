@@ -18,7 +18,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   useSettingsStore.setState({
     settings: structuredClone(DEFAULT_SETTINGS),
-    preferences: { adminConsent: true, startMinimized: true },
+    preferences: { adminConsent: true, startMinimized: true, soundEffects: false },
     sensorData: null,
   });
 });
@@ -41,9 +41,9 @@ describe("reset all settings", () => {
 
     expect(useSettingsStore.getState().settings).toEqual(DEFAULT_SETTINGS);
     expect(useSettingsStore.getState().settings.sensors).not.toBe(DEFAULT_SETTINGS.sensors);
-    expect(useSettingsStore.getState().preferences).toEqual({ adminConsent: false, startMinimized: false });
+    expect(useSettingsStore.getState().preferences).toEqual({ adminConsent: false, startMinimized: false, soundEffects: true });
     expect(tauri.saveSettings).toHaveBeenCalledExactlyOnceWith(DEFAULT_SETTINGS);
-    expect(tauri.savePreferences).toHaveBeenCalledExactlyOnceWith({ adminConsent: false, startMinimized: false });
+    expect(tauri.savePreferences).toHaveBeenCalledExactlyOnceWith({ adminConsent: false, startMinimized: false, soundEffects: true });
     expect(tauri.setAutoStart).toHaveBeenCalledExactlyOnceWith(false);
     expect(tauri.setPollingRate).toHaveBeenCalledExactlyOnceWith(DEFAULT_SETTINGS.pollingRate);
     expect(tauri.setOverlayOpacity).toHaveBeenCalledExactlyOnceWith(DEFAULT_SETTINGS.opacity);

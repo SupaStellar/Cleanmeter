@@ -1,8 +1,10 @@
 import * as React from "react";
+import { playSound } from "@/lib/sound-effects";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/shadcn/switch";
 import { Checkbox } from "@/components/shadcn/checkbox";
+import { Disclosure } from "@/components/ui/Disclosure";
 import {
   Collapsible,
   CollapsibleContent,
@@ -33,7 +35,7 @@ export function SectionCard({
   return (
     <section
       className={cn(
-        "flex w-full flex-col gap-[var(--spacingL)] rounded-[var(--cornerXl)] bg-[var(--bgSurfaceRaised)] p-[var(--spacingL)]",
+        "flex w-full flex-col rounded-[var(--cornerXl)] bg-[var(--bgSurfaceRaised)] p-[var(--spacingL)]",
         className,
       )}
     >
@@ -42,13 +44,16 @@ export function SectionCard({
           {title}
         </span>
         {onToggle !== undefined && (
-          <Switch checked={!!enabled} onCheckedChange={onToggle} aria-label={title} />
+          <Switch checked={!!enabled} onCheckedChange={(value) => {
+            if (value !== !!enabled) playSound("toggle");
+            onToggle(value);
+          }} aria-label={title} />
         )}
       </div>
       {/* When the section has a toggle and it's off, hide the body entirely
           to match Figma "Stats / Off" — header row only. Sections without a
           toggle (Monitor) always show their content. */}
-      {(onToggle === undefined || enabled) && children}
+      <Disclosure open={onToggle === undefined || !!enabled} variant="panel" className="flex flex-col gap-[var(--spacingL)] pt-[var(--spacingL)]">{children}</Disclosure>
     </section>
   );
 }
@@ -98,6 +103,7 @@ export function SubCollapsible({
       <div className="flex items-center gap-2">
         <Checkbox
           checked={checked}
+          aria-label={label}
           onCheckedChange={(v) => onCheckedChange(v === true)}
         />
         <span className="text-[14px] font-medium text-foreground">{label}</span>
@@ -106,10 +112,11 @@ export function SubCollapsible({
   }
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="flex flex-col gap-[var(--spacingXs)]">
+    <Collapsible open={open} onOpenChange={setOpen} className="flex flex-col">
       <div className="flex items-center gap-2">
         <Checkbox
           checked={checked}
+          aria-label={label}
           onCheckedChange={(v) => onCheckedChange(v === true)}
         />
         <span className="text-[14px] font-medium text-foreground">{label}</span>
@@ -118,14 +125,14 @@ export function SubCollapsible({
               same 200ms (paired elements move as a unit). */}
           <button
             type="button"
-            className="ml-auto flex size-5 items-center justify-center text-muted-foreground transition-transform duration-200 ease-[cubic-bezier(0.165,0.84,0.44,1)] motion-reduce:transition-none data-[state=open]:rotate-180"
-            aria-label={open ? "Collapse" : "Expand"}
+            className="ml-auto flex size-5 items-center justify-center rounded-sm text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={open ? `Collapse ${label}` : `Expand ${label}`}
           >
-            <ChevronDown className="size-[18px]" strokeWidth={2} />
+            <ChevronDown className="t-acc-chevron size-[18px]" strokeWidth={2} />
           </button>
         </CollapsibleTrigger>
       </div>
-      <CollapsibleContent className="overflow-hidden data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up">
+      <CollapsibleContent className="pt-[var(--spacingXs)]">
         {/* Figma 2759:12229: a 2px rail 12 in from the left, then the blocks
             20 across from it, stacked 12 apart. */}
         <div className="flex gap-[var(--spacingL)] pl-[var(--spacingS)]">

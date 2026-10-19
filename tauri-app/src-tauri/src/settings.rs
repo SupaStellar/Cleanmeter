@@ -228,6 +228,21 @@ mod tests {
     }
 
     #[test]
+    fn sound_mute_survives_a_manager_restart() {
+        let dir = scratch("sound-mute");
+        let manager = SettingsManager::new(dir.clone());
+        manager.save_preferences(AppPreferences {
+            sound_effects: false,
+            start_minimized: true,
+            ..AppPreferences::default()
+        });
+        drop(manager);
+        let reloaded = SettingsManager::new(dir);
+        assert!(!reloaded.get_preferences().sound_effects);
+        assert!(reloaded.get_preferences().start_minimized);
+    }
+
+    #[test]
     fn reads_a_file_that_starts_with_a_utf8_bom() {
         let path = scratch("bom").join("settings.json");
         std::fs::write(&path, "\u{feff}{\"value\":7}").unwrap();

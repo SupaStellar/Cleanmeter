@@ -25,6 +25,7 @@ import {
 } from "@/lib/gpu";
 import * as tauri from "@/lib/tauri";
 import { cpuClockOptions } from "@/lib/utils";
+import { useToastStore } from "./toast-store";
 
 /**
  * Best sensor of a given type out of an already-narrowed list, by keyword
@@ -238,6 +239,14 @@ function autoSelectSensors(
 let sawSidecarEvent = false;
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
+// Preserve the order of rapid mute/unmute and other preference edits. Native
+// invocations may otherwise finish out of order and persist an older value.
+let preferencesSaveQueue: Promise<void> = Promise.resolve();
+function persistPreferences(preferences: AppPreferences) {
+  const save = preferencesSaveQueue.then(async () => { await tauri.savePreferences(preferences); });
+  preferencesSaveQueue = save.catch(() => {});
+  return save;
+}
 function debouncedSave(settings: OverlaySettings) {
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => tauri.saveSettings(settings), 300);
@@ -247,6 +256,7 @@ interface SettingsStore {
   // State
   settings: OverlaySettings;
   preferences: AppPreferences;
+  preferencesLoaded: boolean;
   sensorData: HardwareMonitorData | null;
   presentMonApps: string[];
   pipeStatus: PipeStatus;
@@ -322,7 +332,8 @@ const prehydratedDark =
 
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
   settings: { ...DEFAULT_SETTINGS, isDarkTheme: prehydratedDark },
-  preferences: { adminConsent: false, startMinimized: false },
+  preferences: { adminConsent: false, startMinimized: false, soundEffects: true },
+  preferencesLoaded: false,
   sensorData: null,
   presentMonApps: [],
   pipeStatus: { connected: false },
@@ -524,13 +535,13 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     saveTimer = null;
     const settings = structuredClone(DEFAULT_SETTINGS);
     settings.isDarkTheme = systemPrefersDark();
-    const preferences = { adminConsent: false, startMinimized: false };
+    const preferences = { adminConsent: false, startMinimized: false, soundEffects: true };
     set({ settings, preferences, gpuSilence: NO_GPU_SILENCE });
     // Use the normal save path to persist and broadcast the same defaults,
     // including re-registering the default global shortcuts.
     await Promise.all([
       tauri.saveSettings(settings),
-      tauri.savePreferences(preferences),
+      persistPreferences(preferences),
       tauri.setAutoStart(false),
       tauri.setPollingRate(settings.pollingRate),
       tauri.setOverlayOpacity(settings.opacity),
@@ -539,18 +550,25 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   },
 
   loadPreferences: async () => {
+    set({ preferencesLoaded: false });
     try {
       const preferences = await tauri.getPreferences();
-      if (preferences) set({ preferences });
+      if (preferences) set({ preferences: { ...preferences, soundEffects: preferences.soundEffects ?? true } });
+      set({ preferencesLoaded: true });
     } catch {
-      // Use defaults
+      // If loading fails, do not risk playing over a saved mute preference.
+      set((state) => ({ preferences: { ...state.preferences, soundEffects: false } }));
     }
   },
 
   updatePreferences: (patch) => {
+    // A failed read leaves unknown saved values; do not overwrite them with defaults.
+    if (!get().preferencesLoaded) return;
     const newPrefs = { ...get().preferences, ...patch };
     set({ preferences: newPrefs });
-    tauri.savePreferences(newPrefs);
+    void persistPreferences(newPrefs).catch(() => {
+      useToastStore.getState().showToast("Couldn't save preferences. Your changes may not survive a restart.");
+    });
   },
 
   setSensorData: (data) => {
