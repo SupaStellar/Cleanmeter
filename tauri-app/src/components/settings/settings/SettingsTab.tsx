@@ -181,7 +181,7 @@ function ShortcutsSection() {
 
   return (
     <SectionCard title="Shortcuts">
-      <div className="flex flex-col gap-[var(--spacingS)]">
+      <fieldset disabled={pending} className="flex min-w-0 flex-col gap-[var(--spacingS)]">
         <ShortcutField
           label="Show/hide overlay"
           accelerator={overlayAccelerator}
@@ -201,7 +201,7 @@ function ShortcutsSection() {
               Launch when closed
             </label>
             <p className="text-[12px] text-muted-foreground">
-              Use Ctrl+Alt with a letter, number, Space, or F1–F11. Windows launches Cleanmeter with this shortcut, even after Quit. An administrator prompt may appear. Does not enable startup with Windows.
+              Use the Show/hide overlay shortcut above to open Cleanmeter after Quit. This does not enable startup with Windows.
             </p>
             {launchError && <p role="alert" className="text-[12px] text-destructive">{launchError}</p>}
           </div>
@@ -214,7 +214,7 @@ function ShortcutsSection() {
           conflictsWith={{ "Show/hide overlay": overlayAccelerator }}
           className="gap-[var(--spacingL)]"
         />
-      </div>
+      </fieldset>
     </SectionCard>
   );
 }

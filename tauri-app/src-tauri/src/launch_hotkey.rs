@@ -1,8 +1,33 @@
 //! Explorer owns the optional launch hotkey. No monitoring process is needed
-//! while Cleanmeter is closed. This deliberately does not bypass UAC.
+//! while Cleanmeter is closed. The already-elevated app explicitly installs
+//! an on-demand task so subsequent toggles do not prompt for elevation.
 use std::sync::Mutex;
 
 pub const TOGGLE_ARG: &str = "--toggle-overlay";
+pub const LAUNCH_TASK: &str = "Cleanmeter Overlay Hotkey";
+
+fn task_xml(exe: &str, user: &str) -> String {
+    fn escape(value: &str) -> String {
+        value
+            .replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
+            .replace('"', "&quot;")
+            .replace('\'', "&apos;")
+    }
+    format!(
+        r#"<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <Triggers />
+  <Principals><Principal id="User"><UserId>{}</UserId><LogonType>InteractiveToken</LogonType><RunLevel>HighestAvailable</RunLevel></Principal></Principals>
+  <Settings><MultipleInstancesPolicy>Parallel</MultipleInstancesPolicy><DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries><StopIfGoingOnBatteries>false</StopIfGoingOnBatteries><AllowStartOnDemand>true</AllowStartOnDemand><ExecutionTimeLimit>PT0S</ExecutionTimeLimit></Settings>
+  <Actions Context="User"><Exec><Command>{}</Command><Arguments>{}</Arguments></Exec></Actions>
+</Task>"#,
+        escape(user),
+        escape(exe),
+        TOGGLE_ARG
+    )
+}
 pub fn is_overlay_launch(args: &[String]) -> bool {
     args.iter().skip(1).any(|arg| arg == TOGGLE_ARG)
 }
@@ -75,6 +100,89 @@ mod windows_link {
     };
 
     struct Apartment;
+
+    fn scheduler(args: &[&str]) -> Result<std::process::Output, String> {
+        use std::os::windows::process::CommandExt;
+        std::process::Command::new(scheduler_path()?)
+            .args(args)
+            .creation_flags(0x08000000)
+            .output()
+            .map_err(|e| e.to_string())
+    }
+
+    fn scheduler_path() -> Result<PathBuf, String> {
+        Ok(
+            PathBuf::from(std::env::var_os("SystemRoot").ok_or("Windows directory unavailable")?)
+                .join("System32")
+                .join("schtasks.exe"),
+        )
+    }
+
+    fn register_task(exe: &Path) -> Result<(), String> {
+        use std::io::Write;
+        use std::os::windows::fs::OpenOptionsExt;
+        use std::os::windows::process::CommandExt;
+        let identity = std::process::Command::new(scheduler_path()?.with_file_name("whoami.exe"))
+            .args(["/user", "/fo", "csv", "/nh"])
+            .creation_flags(0x08000000)
+            .output()
+            .map_err(|e| e.to_string())?;
+        if !identity.status.success() {
+            return Err("Could not identify the current Windows user".into());
+        }
+        // The SID is ASCII even when the account name uses the OEM code page.
+        let identity = String::from_utf8_lossy(&identity.stdout);
+        let user = identity
+            .trim()
+            .rsplit(',')
+            .next()
+            .unwrap_or("")
+            .trim_matches('"');
+        if !user.starts_with("S-1-") {
+            return Err("Could not identify the current Windows user".into());
+        }
+        let xml = super::task_xml(&exe.to_string_lossy(), user);
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(|e| e.to_string())?
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "cleanmeter-launch-{}-{nonce}.xml",
+            std::process::id()
+        ));
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .share_mode(1)
+            .open(&path)
+            .map_err(|e| e.to_string())?;
+        let result = (|| {
+            let bytes: Vec<u8> = std::iter::once(0xfeffu16)
+                .chain(xml.encode_utf16())
+                .flat_map(u16::to_le_bytes)
+                .collect();
+            file.write_all(&bytes).map_err(|e| e.to_string())?;
+            file.flush().map_err(|e| e.to_string())?;
+            let output = scheduler(&[
+                "/Create",
+                "/TN",
+                super::LAUNCH_TASK,
+                "/XML",
+                &path.to_string_lossy(),
+                "/F",
+            ])?;
+            if !output.status.success() {
+                return Err(format!(
+                    "Could not create the launch task: {}",
+                    String::from_utf8_lossy(&output.stderr).trim()
+                ));
+            }
+            Ok(())
+        })();
+        drop(file);
+        let _ = std::fs::remove_file(path);
+        result
+    }
     impl Drop for Apartment {
         fn drop(&mut self) {
             unsafe {
@@ -105,8 +213,11 @@ mod windows_link {
             if let Some(ref accelerator) = accelerator {
                 let hotkey = super::shell_hotkey(&accelerator)?;
                 let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+                register_task(&exe)?;
                 write_link(&link, &exe, hotkey).map_err(|e| e.to_string())?;
             } else {
+                // This task has no logon trigger and is independent of autostart.
+                let _ = scheduler(&["/Delete", "/TN", super::LAUNCH_TASK, "/F"]);
                 match std::fs::remove_file(&link) {
                     Ok(()) => {}
                     Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
@@ -138,8 +249,13 @@ mod windows_link {
     pub(super) fn write_link(path: &Path, exe: &Path, hotkey: u16) -> windows::core::Result<()> {
         unsafe {
             let link: IShellLinkW = CoCreateInstance(&ShellLink, None, CLSCTX_INPROC_SERVER)?;
-            link.SetPath(&HSTRING::from(exe.as_os_str()))?;
-            link.SetArguments(&HSTRING::from(super::TOGGLE_ARG))?;
+            let scheduler = scheduler_path().map_err(|_| windows::core::Error::from_win32())?;
+            link.SetPath(&HSTRING::from(scheduler.as_os_str()))?;
+            link.SetArguments(&HSTRING::from(format!(
+                "/Run /TN \"{}\"",
+                super::LAUNCH_TASK
+            )))?;
+            link.SetShowCmd(windows::Win32::UI::WindowsAndMessaging::SW_HIDE)?;
             if let Some(parent) = exe.parent() {
                 link.SetWorkingDirectory(&HSTRING::from(parent.as_os_str()))?;
             }
@@ -182,12 +298,16 @@ mod windows_link {
                 let end = arguments.iter().position(|&c| c == 0).unwrap();
                 assert_eq!(
                     String::from_utf16_lossy(&arguments[..end]),
-                    super::super::TOGGLE_ARG
+                    format!("/Run /TN \"{}\"", super::super::LAUNCH_TASK)
                 );
                 let mut target = [0u16; 1024];
                 link.GetPath(&mut target, std::ptr::null_mut(), 0).unwrap();
                 let end = target.iter().position(|&c| c == 0).unwrap();
-                assert_eq!(PathBuf::from(String::from_utf16_lossy(&target[..end])), exe);
+                assert_eq!(
+                    std::fs::canonicalize(PathBuf::from(String::from_utf16_lossy(&target[..end])))
+                        .unwrap(),
+                    std::fs::canonicalize(scheduler_path().unwrap()).unwrap()
+                );
             }
             std::fs::remove_file(path).unwrap();
             std::fs::remove_dir(directory).unwrap();
@@ -198,6 +318,16 @@ mod windows_link {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn launch_task_is_on_demand_parallel_and_preserves_quoted_paths() {
+        let xml = task_xml(r#"C:\Apps & Tools\Cleanmeter.exe"#, r"PC\User");
+        assert!(xml.contains("<Triggers />"));
+        assert!(xml.contains("<MultipleInstancesPolicy>Parallel</MultipleInstancesPolicy>"));
+        assert!(xml.contains("<LogonType>InteractiveToken</LogonType>"));
+        assert!(xml.contains("<ExecutionTimeLimit>PT0S</ExecutionTimeLimit>"));
+        assert!(xml.contains(r"C:\Apps &amp; Tools\Cleanmeter.exe"));
+        assert!(xml.contains("<Arguments>--toggle-overlay</Arguments>"));
+    }
     #[test]
     fn encodes_shell_modifiers_not_register_hotkey_modifiers() {
         assert_eq!(shell_hotkey("Ctrl+Alt+Space").unwrap(), 0x0620);
