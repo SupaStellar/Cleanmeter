@@ -36,6 +36,7 @@ try {
       assert.equal(await cpu.getAttribute('aria-checked'), 'false');
       assert.equal(await thumb.evaluate(el => getComputedStyle(el).translate), '0px');
     }
+    await page.locator('#panel-stats').evaluate((el, top) => { el.scrollTop = top; }, savedScroll);
 
     for (const name of ["Help", "Style", "Stats", "Settings"]) {
       // DOM clicks deliberately interrupt the transition without Playwright's stability wait.
