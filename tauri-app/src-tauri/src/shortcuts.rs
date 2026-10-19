@@ -46,6 +46,7 @@
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::atomic::AtomicBool;
 use std::sync::Mutex;
 
 use log::{info, warn};
@@ -121,6 +122,7 @@ impl LowsMode {
 /// registered for each action. Named Registry, not State, because
 /// `ShortcutState` is the plugin's own press/release enum.
 pub struct ShortcutRegistry {
+    capturing: AtomicBool,
     /// The sidecar's current lows mode, as a `LowsMode` discriminant. Starts
     /// Live, which is the sidecar's own startup default — the two have to
     /// agree without anything being sent, because nothing is sent until the
@@ -134,6 +136,7 @@ pub struct ShortcutRegistry {
 impl ShortcutRegistry {
     pub fn new() -> Self {
         ShortcutRegistry {
+            capturing: AtomicBool::new(false),
             lows_mode: AtomicU8::new(LowsMode::Live.wire()),
             registered: Mutex::new(HashMap::new()),
         }
@@ -213,11 +216,22 @@ pub fn toggle_recording(app: &AppHandle) {
 /// reset to defaults — so there is one place that knows the mapping from
 /// settings field to action.
 pub fn apply_all(app: &AppHandle, settings: &OverlaySettings) {
+    if app.state::<ShortcutRegistry>().capturing.load(Ordering::Relaxed) { return; }
+    let shell = settings.launch_with_hotkey && !settings.overlay_shortcut.is_empty();
+    // Hand ownership to Explorer before saving the link. Registering the same
+    // combo here as well would leave one owner silently stealing the other's key.
+    if shell { let _ = apply(app, ShortcutAction::ToggleOverlay, ""); }
+    let shell_result = crate::launch_hotkey::sync(if shell { Some(&settings.overlay_shortcut) } else { None });
+    if let Err(ref error) = shell_result {
+        warn!("Launch shortcut: {error}");
+        let _ = app.emit("launch-hotkey-error", error);
+    }
     let mut unavailable = HashMap::<&'static str, String>::new();
     for (action, accelerator) in [
         (ShortcutAction::ToggleOverlay, &settings.overlay_shortcut),
         (ShortcutAction::ToggleRecording, &settings.recording_shortcut),
     ] {
+        if action == ShortcutAction::ToggleOverlay && shell && shell_result.is_ok() { continue; }
         if let Err(accel) = apply(app, action, accelerator) {
             unavailable.insert(action.settings_key(), accel);
         }
@@ -321,9 +335,16 @@ pub fn apply(
 /// overlay holds Alt+F1/F2/F3/F9/F10 by default) still never reaches us, and
 /// nothing here can change that.
 pub fn set_capturing(app: &AppHandle, capturing: bool, settings: &OverlaySettings) {
+    if let Some(state) = app.try_state::<ShortcutRegistry>() {
+        state.capturing.store(capturing, Ordering::Relaxed);
+    }
     if !capturing {
         apply_all(app, settings);
         return;
+    }
+    // Explorer's accelerator must also be released while editing a shortcut.
+    if let Err(error) = crate::launch_hotkey::sync(None) {
+        warn!("Could not release launch shortcut for capture: {error}");
     }
     let Some(state) = app.try_state::<ShortcutRegistry>() else {
         return;
@@ -339,9 +360,56 @@ pub fn set_capturing(app: &AppHandle, capturing: bool, settings: &OverlaySetting
     info!("Global shortcuts released for capture");
 }
 
+#[derive(Default)]
+pub struct OverlayLaunchRequests(pub Mutex<OverlayLaunchState>);
+
+#[derive(Default)]
+pub struct OverlayLaunchState {
+    ready: bool,
+    pending: bool,
+}
+
+impl OverlayLaunchState {
+    fn request(&mut self) -> bool {
+        if self.ready { return true; }
+        self.pending = !self.pending;
+        false
+    }
+
+    pub fn ready(&mut self) -> bool {
+        self.ready = true;
+        std::mem::take(&mut self.pending)
+    }
+}
+
+pub fn request_overlay_toggle(app: &AppHandle) {
+    let state = app.state::<OverlayLaunchRequests>();
+    let mut requests = state.0.lock().unwrap();
+    if requests.request() {
+        let _ = app.emit("hotkey", "toggle-overlay");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn overlay_launch_requests_wait_for_startup_then_drain_once() {
+        let mut requests = OverlayLaunchState::default();
+        assert!(!requests.request());
+        assert!(requests.ready());
+        assert!(!requests.ready());
+        assert!(requests.request());
+    }
+
+    #[test]
+    fn two_launch_requests_during_startup_cancel_each_other() {
+        let mut requests = OverlayLaunchState::default();
+        assert!(!requests.request());
+        assert!(!requests.request());
+        assert!(!requests.ready());
+    }
 
     /// The hotkey is one key covering three states, so the cycle order IS the
     /// feature: a live reading you can start a run from, a run you can stop and

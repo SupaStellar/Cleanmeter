@@ -243,6 +243,12 @@ function debouncedSave(settings: OverlaySettings) {
   saveTimer = setTimeout(() => tauri.saveSettings(settings), 300);
 }
 
+/** Commit pending edits before changing the OS-owned launch shortcut. */
+export async function flushSettingsSave() {
+  if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+  await tauri.saveSettings(useSettingsStore.getState().settings);
+}
+
 interface SettingsStore {
   // State
   settings: OverlaySettings;
@@ -524,6 +530,10 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     saveTimer = null;
     const settings = structuredClone(DEFAULT_SETTINGS);
     settings.isDarkTheme = systemPrefersDark();
+    // Remove Explorer's shortcut before persisting the normal defaults.
+    if (get().settings.launchWithHotkey) {
+      await tauri.configureLaunchHotkey(false, settings.overlayShortcut);
+    }
     const preferences = { adminConsent: false, startMinimized: false };
     set({ settings, preferences, gpuSilence: NO_GPU_SILENCE });
     // Use the normal save path to persist and broadcast the same defaults,
