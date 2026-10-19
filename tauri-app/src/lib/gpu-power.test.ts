@@ -25,6 +25,10 @@ describe("GPU wattage", () => {
     expect(readGpuPower({ ...power, value: 65, sensorType: SensorType.Load }, power.hardwareIdentifier)).toBeNull();
     expect(readGpuPower({ ...power, value: 65 }, "/gpu-amd/0")).toBeNull();
   });
+  it("rejects power readings until a GPU is selected", () => {
+    expect(readGpuPower({ ...power, value: 65 }, "")).toBeNull();
+    expect(readGpuPower({ ...power, value: 65, hardwareIdentifier: "/cpu/0" }, "")).toBeNull();
+  });
   it("renders N/A for the reported sample and recovers on the next valid sample", () => {
       fixture.state = { settings: {
         ...DEFAULT_SETTINGS, selectedGpuId: power.hardwareIdentifier,

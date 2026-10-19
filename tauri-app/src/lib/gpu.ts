@@ -42,7 +42,7 @@ export function sensorsOnGpu(sensors: Sensor[], gpuId: string): Sensor[] {
  */
 export function readGpuPower(sensor: Sensor | undefined, gpuId: string): number | null {
   if (!sensor || sensor.sensorType !== SensorType.Power) return null;
-  if (gpuId && sensor.hardwareIdentifier !== gpuId) return null;
+  if (!gpuId || sensor.hardwareIdentifier !== gpuId) return null;
   const watts = sensor.value;
   return Number.isFinite(watts) && watts >= 0 && watts <= 2000 ? watts : null;
 }
