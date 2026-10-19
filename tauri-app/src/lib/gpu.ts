@@ -36,6 +36,17 @@ export function sensorsOnGpu(sensors: Sensor[], gpuId: string): Sensor[] {
   return sensors.filter((s) => s.hardwareIdentifier === gpuId);
 }
 
+/** Power sensors arrive in watts. Never guess a unit conversion for a corrupt
+ * driver sample (the reported laptop showed 65,413 W), or substitute another
+ * GPU's reading. The generous 2 kW ceiling is a corruption guard, not a TDP cap.
+ */
+export function readGpuPower(sensor: Sensor | undefined, gpuId: string): number | null {
+  if (!sensor || sensor.sensorType !== SensorType.Power) return null;
+  if (!gpuId || sensor.hardwareIdentifier !== gpuId) return null;
+  const watts = sensor.value;
+  return Number.isFinite(watts) && watts >= 0 && watts <= 2000 ? watts : null;
+}
+
 /**
  * Dedicated video memory a GPU reports, in whatever unit the sensor uses.
  * Only ever compared against another GPU's, so the unit does not matter.
