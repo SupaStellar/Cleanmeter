@@ -10,6 +10,7 @@ import {
   setOverlaySize,
 } from "@/lib/tauri";
 import type { MonitorInfo } from "@/lib/types";
+import { watchOverlayDisplays } from "@/lib/overlay-displays";
 
 const EDGE_PADDING = 4;
 
@@ -75,6 +76,7 @@ export default function OverlayApp() {
     } | null
   >(null);
   const [monitors, setMonitors] = useState<MonitorInfo[]>([]);
+  const [settingsReady, setSettingsReady] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   // Pixel Shift: current nudge offset (physical px) and a handle to re-run the
   // positioning pass. The offset is folded into apply() only — never persisted —
@@ -85,8 +87,10 @@ export default function OverlayApp() {
   useEffect(() => {
     document.documentElement.style.background = "transparent";
     document.body.style.background = "transparent";
-    loadSettings();
-    getMonitors().then((m) => m && setMonitors(m));
+    let mounted = true;
+    void loadSettings().then(() => { if (mounted) setSettingsReady(true); });
+    const stop = watchOverlayDisplays(getMonitors, setMonitors);
+    return () => { mounted = false; stop(); };
   }, [loadSettings]);
 
   useEffect(() => {
@@ -116,7 +120,7 @@ export default function OverlayApp() {
   // HUD pixels — never freezes the rest of the desktop.
   useEffect(() => {
     const el = hudRef.current;
-    if (!el || monitors.length === 0) return;
+    if (!el || !settingsReady || monitors.length === 0) return;
     const monitor = monitors[settings.selectedDisplayIndex] ?? monitors[0];
 
     const apply = () => {
@@ -171,7 +175,23 @@ export default function OverlayApp() {
     apply();
     const ro = new ResizeObserver(apply);
     ro.observe(el);
-    return () => ro.disconnect();
+    // A DPI change can leave CSS dimensions unchanged, so ResizeObserver
+    // alone does not necessarily recalculate the physical window dimensions.
+    let dpiQuery: MediaQueryList;
+    const onDpiChange = () => { watchDpi(); apply(); };
+    const watchDpi = () => {
+      dpiQuery?.removeEventListener("change", onDpiChange);
+      dpiQuery = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+      dpiQuery.addEventListener("change", onDpiChange);
+    };
+    watchDpi();
+    window.addEventListener("resize", apply);
+    return () => {
+      ro.disconnect();
+      dpiQuery.removeEventListener("change", onDpiChange);
+      window.removeEventListener("resize", apply);
+      applyPositionRef.current = () => {};
+    };
     // Only re-fire the IPC moves/sizes when a position-relevant field
     // changes — not on every settings update (font sizes, sensor toggles,
     // etc. would otherwise round-trip a no-op setOverlayPosition).
@@ -182,6 +202,7 @@ export default function OverlayApp() {
     settings.positionY,
     settings.positionIndex,
     monitors,
+    settingsReady,
   ]);
 
   // Pixel Shift — nudge the HUD 1px every interval to spread OLED wear, within
