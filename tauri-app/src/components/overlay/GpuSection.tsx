@@ -4,6 +4,7 @@ import { ProgressBar } from "./ProgressBar";
 import { useSettingsStore } from "@/stores/settings-store";
 import { SensorType } from "@/lib/types";
 import type { Sensor } from "@/lib/types";
+import { readGpuPower } from "@/lib/gpu";
 import { findSensorById, formatClockLabel, formatValue, formatTemperature, sensorDisplayName } from "@/lib/utils";
 
 interface GpuSectionProps {
@@ -39,7 +40,9 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
 
   const gpuTempVal = findSensorById(sensors, gpuTemp.customReadingId)?.value ?? 0;
   const gpuUsageVal = findSensorById(sensors, gpuUsage.customReadingId)?.value ?? 0;
-  const gpuPowerVal = findSensorById(sensors, gpuConsumption.customReadingId)?.value ?? 0;
+  const gpuPowerVal = readGpuPower(
+    findSensorById(sensors, gpuConsumption.customReadingId), settings.selectedGpuId,
+  );
 
   // LibreHardwareMonitor's "GPU Memory *" readings are SmallData (MB); a
   // Data-typed sensor the user picked manually is already in GB.
@@ -147,7 +150,7 @@ export function GpuSection({ isHorizontal }: GpuSectionProps) {
       {gpuConsumption.isEnabled && (
         <div className="flex items-center gap-1">
           <span style={{ fontSize: valueFontSize, fontWeight: valueFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "-0.02em" }} className="tabular-nums">
-            {formatValue(gpuPowerVal)}
+            {gpuPowerVal === null ? "N/A" : formatValue(gpuPowerVal)}
           </span>
           <span style={{ fontSize: labelFontSize, fontWeight: labelFontWeight, color: "var(--overlay-text)", fontFamily: "Inter", letterSpacing: "0.04em" }}>W</span>
         </div>
