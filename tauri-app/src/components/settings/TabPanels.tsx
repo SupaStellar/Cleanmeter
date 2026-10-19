@@ -3,7 +3,8 @@ import type { SettingsTab } from "./TabNav";
 
 const ORDER: SettingsTab[] = ["stats", "style", "settings", "help"];
 
-export function TabPanels({ activeTab, panels }: {
+export function TabPanels({ activeTab, panels, idPrefix = "" }: {
+  idPrefix?: string;
   activeTab: SettingsTab;
   panels: Record<SettingsTab, ReactNode>;
 }) {
@@ -13,9 +14,9 @@ export function TabPanels({ activeTab, panels }: {
       {ORDER.map((tab, index) => (
         <div
           key={tab}
-          id={`panel-${tab}`}
+          id={`${idPrefix}panel-${tab}`}
           role="tabpanel"
-          aria-labelledby={`tab-${tab}`}
+          aria-labelledby={`${idPrefix}tab-${tab}`}
           aria-hidden={tab !== activeTab}
           inert={tab !== activeTab}
           data-active={tab === activeTab}

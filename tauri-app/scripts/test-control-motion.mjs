@@ -22,6 +22,20 @@ try {
     const checked = await cpu.getAttribute("aria-checked") === "true";
     assert.equal(await thumb.evaluate(el => getComputedStyle(el).translate), checked ? "16px" : "0px");
     assert.equal(await thumb.evaluate(el => getComputedStyle(el).animationDuration), reducedMotion === "reduce" ? "0s" : "0.35s");
+    if (reducedMotion === "no-preference") {
+      if (!checked) await cpu.click();
+      await page.waitForTimeout(400);
+      assert.equal(await thumb.evaluate(el => el.style.getPropertyValue('--toggle-from')), '', 'Finished interaction must not leave a stale animation origin');
+      await page.evaluate(async () => {
+        const { useSettingsStore } = await import('/src/stores/settings-store.ts');
+        for (const key of Object.keys(useSettingsStore.getState().settings.sensors).filter(key => key.startsWith('cpu'))) {
+          useSettingsStore.getState().updateSensor(key, { isEnabled: false });
+        }
+      });
+      await page.waitForTimeout(400);
+      assert.equal(await cpu.getAttribute('aria-checked'), 'false');
+      assert.equal(await thumb.evaluate(el => getComputedStyle(el).translate), '0px');
+    }
 
     for (const name of ["Help", "Style", "Stats", "Settings"]) {
       // DOM clicks deliberately interrupt the transition without Playwright's stability wait.

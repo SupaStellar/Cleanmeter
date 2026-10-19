@@ -6,32 +6,6 @@
   --acc-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* grid-template-rows 0fr → 1fr gives a clean height animation
-   with no JS measurement; the inner element clips overflow. */
-.t-acc-panel {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows var(--acc-collapse) var(--acc-ease);
-}
-.t-acc[data-open="true"] .t-acc-panel {
-  grid-template-rows: 1fr;
-  transition: grid-template-rows var(--acc-expand) var(--acc-ease);
-}
-.t-acc-panel-inner {
-  overflow: hidden;
-  opacity: 0;
-  filter: blur(2px);
-  transition:
-    opacity var(--acc-collapse) var(--acc-ease),
-    filter var(--acc-collapse) var(--acc-ease);
-}
-.t-acc[data-open="true"] .t-acc-panel-inner {
-  opacity: 1;
-  filter: blur(0);
-  transition:
-    opacity var(--acc-expand) var(--acc-ease),
-    filter var(--acc-expand) var(--acc-ease);
-}
 /* Flip the chevron vertically to turn the "v" into a "^".
    scaleY(-1) about the centre passes through a flat line at
    the midpoint (same look as a `d:` path morph) but animates
@@ -51,7 +25,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .t-acc-panel, .t-acc-panel-inner, .t-acc-chevron {
+  .t-acc-chevron {
     transition: none !important;
   }
 }
@@ -143,8 +117,6 @@
   --tt-delay: 80ms;
   --tt-in-ease: ease-out;
   --tt-out-ease: ease-out;
-  --tt-bg: #ffffff;
-  --tt-fg: #2f2f2f;
 }
 
 

@@ -1,7 +1,7 @@
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 const browser = await chromium.launch();
-const url = process.env.APP_URL ?? 'http://127.0.0.1:1424/';
+const url = process.env.APP_URL ?? 'http://127.0.0.1:1420/';
 try {
  for (const reducedMotion of ['no-preference','reduce']) {
   const page = await browser.newPage({reducedMotion, viewport:{width:800,height:1000}});

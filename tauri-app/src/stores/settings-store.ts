@@ -550,18 +550,20 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   },
 
   loadPreferences: async () => {
+    set({ preferencesLoaded: false });
     try {
       const preferences = await tauri.getPreferences();
       if (preferences) set({ preferences: { ...preferences, soundEffects: preferences.soundEffects ?? true } });
+      set({ preferencesLoaded: true });
     } catch {
       // If loading fails, do not risk playing over a saved mute preference.
       set((state) => ({ preferences: { ...state.preferences, soundEffects: false } }));
-    } finally {
-      set({ preferencesLoaded: true });
     }
   },
 
   updatePreferences: (patch) => {
+    // A failed read leaves unknown saved values; do not overwrite them with defaults.
+    if (!get().preferencesLoaded) return;
     const newPrefs = { ...get().preferences, ...patch };
     set({ preferences: newPrefs });
     void persistPreferences(newPrefs).catch(() => {

@@ -37,6 +37,7 @@ function Switch({
       <SwitchPrimitive.Thumb
         data-slot="switch-thumb"
         ref={thumbRef}
+        onAnimationEnd={(event) => event.currentTarget.style.removeProperty("--toggle-from")}
         className={cn(
           "t-toggle-thumb pointer-events-none block size-[16px] rounded-full bg-white shadow-sm",
         )}
