@@ -96,11 +96,45 @@ pub fn get_settings(settings_mgr: State<'_, SettingsManager>) -> OverlaySettings
 }
 
 #[tauri::command]
+pub fn take_pending_overlay_launch(app: AppHandle) -> bool {
+    let state = app.state::<crate::shortcuts::OverlayLaunchRequests>();
+    let mut requests = state.0.lock().unwrap();
+    requests.ready()
+}
+
+#[tauri::command]
+pub fn configure_launch_hotkey(enabled: bool, accelerator: String, settings_mgr: State<'_, SettingsManager>, app: AppHandle) -> Result<OverlaySettings, String> {
+    let mut settings = settings_mgr.get_settings();
+    if enabled {
+        crate::launch_hotkey::shell_hotkey(&accelerator)?;
+        if accelerator == settings.recording_shortcut { return Err("This shortcut is already used for recording.".into()); }
+    }
+    crate::shortcuts::apply(&app, crate::shortcuts::ShortcutAction::ToggleOverlay, "")?;
+    if let Err(error) = crate::launch_hotkey::sync(if enabled { Some(&accelerator) } else { None }) {
+        crate::shortcuts::apply_all(&app, &settings);
+        return Err(error);
+    }
+    settings.launch_with_hotkey = enabled;
+    settings.overlay_shortcut = accelerator;
+    settings_mgr.save_settings(settings.clone());
+    crate::shortcuts::apply_all(&app, &settings);
+    let _ = app.emit("settings-changed", &settings);
+    Ok(settings)
+}
+
+#[tauri::command]
 pub fn save_settings(
-    settings: OverlaySettings,
+    mut settings: OverlaySettings,
     settings_mgr: State<'_, SettingsManager>,
     app: AppHandle,
 ) {
+    // Launch ownership changes only through configure_launch_hotkey. A delayed
+    // full-settings save from the other webview must not undo that transaction.
+    let current = settings_mgr.get_settings();
+    settings.launch_with_hotkey = current.launch_with_hotkey;
+    if current.launch_with_hotkey {
+        settings.overlay_shortcut = current.overlay_shortcut;
+    }
     settings_mgr.save_settings(settings.clone());
     // Re-register the global shortcuts from whatever was just saved.
     //

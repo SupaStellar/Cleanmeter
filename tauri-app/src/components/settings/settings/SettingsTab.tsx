@@ -11,8 +11,8 @@ import {
 } from "@/components/shadcn/select";
 import { SelectFieldTrigger } from "@/components/ui/SelectField";
 import { cn } from "@/lib/utils";
-import { getAutoStart, setAutoStart } from "@/lib/tauri";
-import { systemPrefersDark, useSettingsStore } from "@/stores/settings-store";
+import { configureLaunchHotkey, getAutoStart, setAutoStart, onLaunchHotkeyError } from "@/lib/tauri";
+import { flushSettingsSave, systemPrefersDark, useSettingsStore } from "@/stores/settings-store";
 import { useUpdaterStore } from "@/stores/updater-store";
 import { POLLING_RATES } from "@/lib/types";
 import type { TemperatureUnit } from "@/lib/types";
@@ -152,21 +152,60 @@ function GeneralSection() {
 function ShortcutsSection() {
   const settings = useSettingsStore((s) => s.settings);
   const updateSettings = useSettingsStore((s) => s.updateSettings);
+  const [pending, setPending] = React.useState(false);
+  const [launchError, setLaunchError] = React.useState("");
+  React.useEffect(() => {
+    let mounted = true;
+    let unlisten: (() => void) | undefined;
+    void onLaunchHotkeyError(setLaunchError).then((stop) => {
+      if (mounted) unlisten = stop; else stop();
+    });
+    return () => { mounted = false; unlisten?.(); };
+  }, []);
+  const windows = typeof navigator !== "undefined" && /Windows/i.test(navigator.userAgent);
+  const configure = async (enabled: boolean, accelerator: string) => {
+    if (pending) return;
+    setPending(true);
+    setLaunchError("");
+    try {
+      await flushSettingsSave();
+      const saved = await configureLaunchHotkey(enabled, accelerator);
+      if (saved) useSettingsStore.setState({ settings: saved });
+    } catch (error) {
+      setLaunchError(String(error));
+    } finally { setPending(false); }
+  };
 
   const overlayAccelerator = settings.overlayShortcut ?? OVERLAY_SHORTCUT_DEFAULT;
   const recordingAccelerator = settings.recordingShortcut ?? RECORDING_SHORTCUT_DEFAULT;
 
   return (
     <SectionCard title="Shortcuts">
-      <div className="flex flex-col gap-[var(--spacingS)]">
+      <fieldset disabled={pending} className="flex min-w-0 flex-col gap-[var(--spacingS)]">
         <ShortcutField
           label="Show/hide overlay"
           accelerator={overlayAccelerator}
           defaultAccelerator={OVERLAY_SHORTCUT_DEFAULT}
-          onChange={(overlayShortcut) => updateSettings({ overlayShortcut })}
+          onChange={(overlayShortcut) => {
+            if (settings.launchWithHotkey) void configure(!!overlayShortcut, overlayShortcut);
+            else updateSettings({ overlayShortcut });
+          }}
           conflictsWith={{ "Start/stop FPS lows recording": recordingAccelerator }}
           className="gap-[var(--spacingL)]"
         />
+        {windows && (
+          <div className="flex flex-col gap-[var(--spacingXs)]">
+            <label className="flex items-center gap-[var(--spacingXs)] text-[14px]">
+              <Checkbox checked={settings.launchWithHotkey ?? false} disabled={pending || !overlayAccelerator}
+                onCheckedChange={(value) => void configure(value === true, overlayAccelerator)} />
+              Launch when closed
+            </label>
+            <p className="text-[12px] text-muted-foreground">
+              Use the Show/hide overlay shortcut above to open Cleanmeter after Quit. This does not enable startup with Windows.
+            </p>
+            {launchError && <p role="alert" className="text-[12px] text-destructive">{launchError}</p>}
+          </div>
+        )}
         <ShortcutField
           label="Start/stop FPS lows recording"
           accelerator={recordingAccelerator}
@@ -175,7 +214,7 @@ function ShortcutsSection() {
           conflictsWith={{ "Show/hide overlay": overlayAccelerator }}
           className="gap-[var(--spacingL)]"
         />
-      </div>
+      </fieldset>
     </SectionCard>
   );
 }

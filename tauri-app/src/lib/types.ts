@@ -150,6 +150,7 @@ export interface OverlaySettings {
    * what it was; the banner is gone and this card replaced it.
    */
   overlayShortcut: string;
+  launchWithHotkey: boolean;
   sensors: SensorsConfig;
 }
 
@@ -257,6 +258,7 @@ export const DEFAULT_SETTINGS: OverlaySettings = {
   selectedGpuId: "",
   recordingShortcut: RECORDING_SHORTCUT_DEFAULT,
   overlayShortcut: OVERLAY_SHORTCUT_DEFAULT,
+  launchWithHotkey: false,
   sensors: {
     framerate: { isEnabled: true, customReadingId: "", targetAppName: "" },
     frametime: { isEnabled: true, customReadingId: "" },

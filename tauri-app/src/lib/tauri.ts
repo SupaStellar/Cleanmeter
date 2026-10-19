@@ -85,6 +85,11 @@ export const getSettings = () =>
 export const saveSettings = (settings: OverlaySettings) =>
   safeInvoke("save_settings", { settings });
 export const clearSettings = () => safeInvoke("clear_settings");
+export const configureLaunchHotkey = (enabled: boolean, accelerator: string) =>
+  safeInvoke<OverlaySettings>("configure_launch_hotkey", { enabled, accelerator });
+export const takePendingOverlayLaunch = () => safeInvoke<boolean>("take_pending_overlay_launch");
+export const onLaunchHotkeyError = (callback: (message: string) => void) =>
+  safeListen<string>("launch-hotkey-error", (event) => callback(event.payload));
 export const getPreferences = () => safeInvoke<AppPreferences>("get_preferences");
 /** Polled once on mount: events fired before the webview loaded are lost. */
 export const getSidecarStatus = () => safeInvoke<SidecarStatus>("get_sidecar_status");

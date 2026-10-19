@@ -4,6 +4,7 @@ import * as tauri from "@/lib/tauri";
 
 vi.mock("@/lib/tauri", () => ({
   saveSettings: vi.fn().mockResolvedValue(undefined),
+  configureLaunchHotkey: vi.fn().mockResolvedValue(undefined),
   savePreferences: vi.fn().mockResolvedValue(undefined),
   setAutoStart: vi.fn().mockResolvedValue(undefined),
   setPollingRate: vi.fn().mockResolvedValue(undefined),
@@ -11,7 +12,7 @@ vi.mock("@/lib/tauri", () => ({
   selectPresentMonApp: vi.fn().mockResolvedValue(undefined),
 }));
 
-const { useSettingsStore } = await import("./settings-store");
+const { useSettingsStore, flushSettingsSave } = await import("./settings-store");
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -29,6 +30,21 @@ afterEach(() => {
 });
 
 describe("reset all settings", () => {
+  it("flushes pending edits once before configuring a launch shortcut", async () => {
+    useSettingsStore.getState().updateSettings({ overlayShortcut: "Ctrl+Alt+Space" });
+    await flushSettingsSave();
+    await vi.runAllTimersAsync();
+    expect(tauri.saveSettings).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(tauri.saveSettings).mock.calls[0][0].overlayShortcut).toBe("Ctrl+Alt+Space");
+  });
+  it("removes the Windows launch shortcut before saving defaults", async () => {
+    useSettingsStore.setState({ settings: { ...DEFAULT_SETTINGS, launchWithHotkey: true } });
+    await useSettingsStore.getState().clearSettings();
+    expect(tauri.configureLaunchHotkey).toHaveBeenCalledExactlyOnceWith(false, DEFAULT_SETTINGS.overlayShortcut);
+    expect(vi.mocked(tauri.configureLaunchHotkey).mock.invocationCallOrder[0])
+      .toBeLessThan(vi.mocked(tauri.saveSettings).mock.invocationCallOrder[0]);
+    expect(useSettingsStore.getState().settings.launchWithHotkey).toBe(false);
+  });
   it("replaces custom settings, cancels pending edits and applies persisted and runtime defaults", async () => {
     const store = useSettingsStore.getState();
     store.updateSettings({ isDarkTheme: true, themeMode: "dark", pollingRate: 100, positionX: 500 });

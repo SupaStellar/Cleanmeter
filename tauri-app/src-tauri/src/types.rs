@@ -406,6 +406,8 @@ pub struct OverlaySettings {
     // combo rather than empty.
     #[serde(rename = "overlayShortcut", default = "default_overlay_shortcut")]
     pub overlay_shortcut: String,
+    #[serde(rename = "launchWithHotkey", default)]
+    pub launch_with_hotkey: bool,
     pub sensors: SensorsConfig,
 }
 
@@ -452,6 +454,7 @@ impl Default for OverlaySettings {
             selected_gpu_id: String::new(),
             recording_shortcut: default_recording_shortcut(),
             overlay_shortcut: default_overlay_shortcut(),
+            launch_with_hotkey: false,
             sensors: SensorsConfig::default(),
         }
     }

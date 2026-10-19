@@ -4,6 +4,7 @@ mod feedback_diagnostics;
 mod pipe_client;
 mod pipe_input;
 mod shortcuts;
+mod launch_hotkey;
 mod settings;
 mod tray;
 mod types;
@@ -50,12 +51,16 @@ fn relaunch_as_admin() {
     let exe = std::env::current_exe().expect("failed to get exe path");
     let exe_wide: Vec<u16> = exe.to_string_lossy().encode_utf16().chain(std::iter::once(0)).collect();
     let verb: Vec<u16> = "runas\0".encode_utf16().collect();
+    // Preserve the only supported launch action across self-elevation.
+    let args: Vec<String> = std::env::args().collect();
+    let parameters = if launch_hotkey::is_overlay_launch(&args) { "--toggle-overlay\0" } else { "\0" };
+    let parameters: Vec<u16> = parameters.encode_utf16().collect();
     unsafe {
         ShellExecuteW(
             HWND::default(),
             PCWSTR(verb.as_ptr()),
             PCWSTR(exe_wide.as_ptr()),
-            PCWSTR::null(),
+            PCWSTR(parameters.as_ptr()),
             PCWSTR::null(),
             SW_SHOW,
         );
@@ -285,7 +290,12 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        .manage(shortcuts::OverlayLaunchRequests::default())
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            if launch_hotkey::is_overlay_launch(&args) {
+                shortcuts::request_overlay_toggle(app);
+                return;
+            }
             // Focus the existing settings window when a second instance launches
             if let Some(window) = app.get_webview_window("settings") {
                 let _ = window.show();
@@ -304,7 +314,8 @@ pub fn run() {
                 .app_data_dir()
                 .expect("Failed to get app data dir");
             let settings_mgr = SettingsManager::new(app_data_dir);
-            let start_minimized = settings_mgr.get_preferences().start_minimized;
+            let start_minimized = settings_mgr.get_preferences().start_minimized
+                || launch_hotkey::is_overlay_launch(&std::env::args().collect::<Vec<_>>());
             app.manage(settings_mgr);
 
             // One-time autostart migration: older builds registered autostart
@@ -674,6 +685,8 @@ pub fn run() {
             commands::save_settings,
             commands::clear_settings,
             commands::set_shortcut_capturing,
+            commands::configure_launch_hotkey,
+            commands::take_pending_overlay_launch,
             commands::get_sidecar_status,
             commands::get_preferences,
             commands::save_preferences,
