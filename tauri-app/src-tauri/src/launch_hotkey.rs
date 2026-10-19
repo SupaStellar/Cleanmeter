@@ -119,7 +119,7 @@ mod windows_link {
     }
 
     fn register_task(exe: &Path) -> Result<(), String> {
-        use std::io::Write;
+        use std::io::{Read, Write};
         use std::os::windows::fs::OpenOptionsExt;
         use std::os::windows::process::CommandExt;
         let identity = std::process::Command::new(scheduler_path()?.with_file_name("whoami.exe"))
@@ -162,7 +162,19 @@ mod windows_link {
                 .flat_map(u16::to_le_bytes)
                 .collect();
             file.write_all(&bytes).map_err(|e| e.to_string())?;
-            file.flush().map_err(|e| e.to_string())?;
+            drop(file);
+            // schtasks opens with read-only sharing, so release our writer,
+            // then hold a read lock and verify the file before registration.
+            let mut locked = std::fs::OpenOptions::new()
+                .read(true)
+                .share_mode(1)
+                .open(&path)
+                .map_err(|e| e.to_string())?;
+            let mut actual = Vec::new();
+            locked.read_to_end(&mut actual).map_err(|e| e.to_string())?;
+            if actual != bytes {
+                return Err("Launch task file changed before registration".into());
+            }
             let output = scheduler(&[
                 "/Create",
                 "/TN",
@@ -179,7 +191,6 @@ mod windows_link {
             }
             Ok(())
         })();
-        drop(file);
         let _ = std::fs::remove_file(path);
         result
     }
