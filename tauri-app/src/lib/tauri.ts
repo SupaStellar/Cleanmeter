@@ -248,6 +248,7 @@ export const onSetOpacity = (
 
 export const submitFeedback = (input: {
   name: string;
+  email?: string;
   message: string;
   attachmentPath?: string;
   includeDiagnostics?: boolean;

@@ -73,6 +73,8 @@ export function FeedbackDialog({
   pickAttachment = pickFeedbackAttachment,
 }: FeedbackDialogProps) {
   const [name, setName] = React.useState("");
+  const [email, setEmail] = React.useState("");
+  const [emailTouched, setEmailTouched] = React.useState(false);
   const [message, setMessage] = React.useState("");
   const [attachment, setAttachment] = React.useState<Attachment | null>(null);
   const [includeDiagnostics, setIncludeDiagnostics] = React.useState(false);
@@ -90,6 +92,8 @@ export function FeedbackDialog({
   React.useEffect(() => {
     if (!open) {
       setName("");
+      setEmail("");
+      setEmailTouched(false);
       setMessage("");
       setAttachment(null);
       setIncludeDiagnostics(false);
@@ -104,7 +108,10 @@ export function FeedbackDialog({
     (attachment ? removeRef : addRef).current?.focus();
   }, [attachment]);
 
-  const canSubmit = message.trim() !== "" && !submitting;
+  const trimmedEmail = email.trim();
+  const emailValid = trimmedEmail === "" || (trimmedEmail.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail));
+  const emailError = emailTouched && !emailValid;
+  const canSubmit = message.trim() !== "" && emailValid && !submitting;
 
   // Editing the report retires the previous failure message.
   const edit = (set: (value: string) => void) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -137,6 +144,7 @@ export function FeedbackDialog({
     try {
       await submitFeedback({
         name: name.trim(),
+        email: trimmedEmail || undefined,
         message: message.trim(),
         attachmentPath: attachment?.path,
         includeDiagnostics,
@@ -197,12 +205,38 @@ export function FeedbackDialog({
               </Label>
               <Input
                 id="fb-name"
-                className="h-10"
+                className="h-10 [&_input]:h-full [&_input]:min-h-0 [&_input]:py-0"
                 disabled={submitting}
                 placeholder="Ex: Leon Kennedy"
                 value={name}
                 onChange={edit(setName)}
               />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Label className="text-body-sm-medium text-[var(--textHeading)]" htmlFor="fb-email">
+                Email (optional)
+              </Label>
+              <Input
+                id="fb-email"
+                type="email"
+                autoComplete="email"
+                maxLength={254}
+                className="h-10 [&_input]:h-full [&_input]:min-h-0 [&_input]:py-0"
+                disabled={submitting}
+                placeholder="you@example.com"
+                value={email}
+                onChange={edit(setEmail)}
+                onBlur={() => setEmailTouched(true)}
+                error={emailError}
+                aria-invalid={emailError}
+                aria-describedby={emailError ? "fb-email-error" : undefined}
+              />
+              {emailError && (
+                <p id="fb-email-error" role="alert" className="text-body-sm-regular text-[var(--textDanger)] [[data-theme=dark]_&]:text-[var(--red400)]">
+                  Enter a valid email address or leave it blank.
+                </p>
+              )}
             </div>
 
             <div className="flex flex-col gap-2">
@@ -267,7 +301,7 @@ export function FeedbackDialog({
               className="w-full rounded-[4px] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
             />
             {status === "error" && (
-              <p role="alert" className="text-body-sm-regular text-[var(--iconDanger)]">
+              <p role="alert" className="text-body-sm-regular text-[var(--textDanger)] [[data-theme=dark]_&]:text-[var(--red400)]">
                 {error || "Couldn’t send feedback. Please try again."}
               </p>
             )}
