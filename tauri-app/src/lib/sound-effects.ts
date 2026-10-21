@@ -13,8 +13,8 @@ const enabled = () => {
   return state.preferencesLoaded && state.preferences.soundEffects;
 };
 
-setVolume(0.35);
-volumeLegacy(0.35);
+setVolume(0.7);
+volumeLegacy(0.7);
 setEnabled(enabled());
 enableLegacy(enabled());
 const readiness = installAudioReadiness(enabled);

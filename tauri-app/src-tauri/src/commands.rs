@@ -571,11 +571,36 @@ pub fn grant_admin_consent(settings_mgr: State<'_, SettingsManager>) {
 #[derive(serde::Deserialize)]
 pub struct FeedbackInput {
     pub name: String,
+    #[serde(default)]
+    pub email: Option<String>,
     pub message: String,
     #[serde(rename = "attachmentPath")]
     pub attachment_path: Option<String>,
     #[serde(rename = "includeDiagnostics", default)]
     pub include_diagnostics: bool,
+}
+
+#[cfg(test)]
+mod feedback_email_tests {
+    use super::FeedbackInput;
+
+    #[test]
+    fn feedback_rejects_a_non_string_contact_email() {
+        let input = serde_json::json!({ "name": "Test", "message": "Issue", "email": 17 });
+        assert!(serde_json::from_value::<FeedbackInput>(input).is_err());
+    }
+
+    #[test]
+    fn feedback_accepts_old_payloads_without_email() {
+        let input: FeedbackInput = serde_json::from_value(serde_json::json!({ "name": "Test", "message": "Issue" })).unwrap();
+        assert!(input.email.is_none());
+    }
+
+    #[test]
+    fn feedback_keeps_the_supplied_contact_email() {
+        let input: FeedbackInput = serde_json::from_value(serde_json::json!({ "name": "Test", "message": "Issue", "email": "reply@example.com" })).unwrap();
+        assert_eq!(input.email.as_deref(), Some("reply@example.com"));
+    }
 }
 
 // POSTs feedback to the portal. URL + write key are injected at build time via
@@ -603,6 +628,10 @@ pub async fn submit_feedback(input: FeedbackInput, app: AppHandle) -> Result<(),
         .text("message", input.message)
         .text("app_version", env!("CARGO_PKG_VERSION"))
         .text("os", std::env::consts::OS);
+
+    if let Some(email) = input.email.as_deref().map(str::trim).filter(|email| !email.is_empty()) {
+        form = form.text("email", email.to_owned());
+    }
 
     if let Some(path) = input.attachment_path.as_deref() {
         let file_path = std::path::Path::new(path);

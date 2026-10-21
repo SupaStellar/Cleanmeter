@@ -15,7 +15,7 @@ The app and Storybook share the same control implementations. Motion supports re
 | Disable sounds | Silent; cancels active and pending cues |
 | Tabs, hover, accordions, tooltips, continuous sliders, telemetry | Silent |
 
-Both libraries use 35% global volume. A grouped switch produces one cue, even when it changes several sensors. Hydration and programmatic updates remain silent. Sound preferences persist across restarts; asynchronous actions cannot replay a cue cancelled by muting.
+Both libraries use 70% global volume. A grouped switch produces one cue, even when it changes several sensors. Hydration and programmatic updates remain silent. Sound preferences persist across restarts; asynchronous actions cannot replay a cue cancelled by muting.
 
 ## Audio implementation
 
