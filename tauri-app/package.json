@@ -82,7 +82,7 @@
     "style-dictionary": "^5.5.1",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.56.1",
-    "vite": "^8.0.0",
+    "vite": "^8.3.5",
     "vitest": "^4.1.11"
   },
   "overrides": {
