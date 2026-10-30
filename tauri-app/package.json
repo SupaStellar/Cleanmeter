@@ -78,7 +78,7 @@
     "globals": "^17.4.0",
     "patch-package": "^8.0.1",
     "playwright": "^1.59.1",
-    "storybook": "^10.3.5",
+    "storybook": "^10.6.2",
     "style-dictionary": "^5.5.1",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.56.1",
