@@ -1,3 +1,20 @@
+#[cfg(any(target_os = "linux", test))]
+mod linux_shortcut_trigger;
+#[cfg(target_os = "linux")]
+mod linux_shortcuts;
+#[cfg(target_os = "linux")]
+mod linux_overlay;
+#[cfg(any(target_os = "linux", test))]
+mod linux_frame_lows;
+mod platform;
+#[cfg(any(target_os = "linux", test))]
+mod linux_sensors;
+#[cfg(any(target_os = "linux", test))]
+mod linux_fps;
+#[cfg(any(target_os = "linux", test))]
+mod linux_autostart;
+#[cfg(target_os = "linux")]
+mod linux_monitor;
 mod commands;
 mod feedback_attachment;
 mod feedback_diagnostics;
@@ -257,6 +274,13 @@ pub fn run() {
         return;
     }
 
+    // Prefer XWayland on Wayland desktops that provide it: absolute overlay
+    // placement and global shortcuts are X11 capabilities. Respect an explicit
+    // GDK_BACKEND choice and retain a windowed native-Wayland fallback.
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("GDK_BACKEND").is_none() && std::env::var_os("DISPLAY").is_some() {
+        std::env::set_var("GDK_BACKEND", "x11");
+    }
     // A packaged GUI has no console. Persist connection/spawn diagnostics so
     // a report can distinguish "server never opened" from a client failure.
     let mut logger = env_logger::Builder::from_env(
@@ -272,14 +296,20 @@ pub fn run() {
                 let _ = std::fs::rename(&path, dir.join("cleanmeter.previous.log"));
             }
             if let Ok(file) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+                #[cfg(not(target_os = "linux"))]
                 logger.target(env_logger::Target::Pipe(Box::new(file)));
+                #[cfg(target_os = "linux")]
+                logger.target(env_logger::Target::Pipe(Box::new(LinuxLog(file))));
             }
         }
     }
     let _ = logger.try_init();
 
-    tauri::Builder::default()
-        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+    let mut builder = tauri::Builder::default();
+    if !platform::native_wayland() {
+        builder = builder.plugin(tauri_plugin_global_shortcut::Builder::new().build());
+    }
+    builder
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
@@ -295,6 +325,8 @@ pub fn run() {
         .setup(|app| {
             info!("Cleanmeter {} starting (pid {}, executable {:?})",
                 app.package_info().version, std::process::id(), std::env::current_exe());
+            #[cfg(target_os = "linux")]
+            info!("Display backend: {}", platform::get_platform_info().display_backend);
 
             // Initialize the settings manager early so startup can read the
             // start_minimized preference before deciding whether to show the
@@ -368,9 +400,11 @@ pub fn run() {
                 }
                 // Honor "Start minimized": when on, leave the settings window
                 // hidden (config is visible:false) so the app starts to tray.
-                if !start_minimized {
+                if !start_minimized || cfg!(target_os = "linux") {
                     let _ = window.show();
                     commands::bring_to_front(&window);
+                    #[cfg(target_os = "linux")]
+                    if start_minimized {let _=window.minimize();}
                 }
             }
 
@@ -385,17 +419,45 @@ pub fn run() {
             let app_handle = app.handle().clone();
             let running = Arc::new(AtomicBool::new(true));
             let running_clone = running.clone();
+            #[cfg(windows)]
             let running_for_hw = running.clone();
 
+            #[cfg(not(target_os = "linux"))]
             tauri::async_runtime::spawn(async move {
                 pipe_client::run_pipe_client(app_handle, cmd_rx, running_clone).await;
             });
+            #[cfg(target_os = "linux")]
+            {
+                app.manage(SidecarHealth::default());
+                let settings=app.state::<SettingsManager>().get_settings();
+                std::thread::spawn(move || linux_monitor::run(app_handle,cmd_rx,running_clone,settings.polling_rate,settings.sensors.framerate.target_app_name));
+                if platform::native_wayland() && !linux_overlay::setup(app.handle()) {
+                    if let Some(overlay)=app.get_webview_window("overlay") {
+                        let _=overlay.set_decorations(true);
+                        let _=overlay.set_focusable(true);
+                        let _=overlay.set_skip_taskbar(false);
+                        let _=overlay.set_title("Cleanmeter — hardware monitor");
+                        let handle = app.handle().clone();
+                        let monitor = overlay.clone();
+                        overlay.on_window_event(move |event| {
+                            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                                api.prevent_close();
+                                let _ = monitor.hide();
+                                let _ = handle.emit("hotkey", "hide-overlay");
+                            }
+                        });
+                    }
+                }
+            }
 
             // Store running flag for cleanup
             app.manage(running);
 
             // Set up system tray
-            tray::setup_tray(app.handle())?;
+            if let Err(error)=tray::setup_tray(app.handle()) {
+                log::warn!("System tray unavailable: {error}");
+                if let Some(window)=app.get_webview_window("settings") {let _=window.show();}
+            }
 
             // Supervise HardwareMonitor as a child process. Spawning it once was
             // fragile: if a stale instance still held the named pipe at launch
@@ -624,7 +686,10 @@ pub fn run() {
                         tauri::WindowEvent::CloseRequested { api, .. } => {
                             api.prevent_close();
                             if let Some(window) = app_handle3.get_webview_window("settings") {
+                                #[cfg(not(target_os = "linux"))]
                                 let _ = window.hide();
+                                #[cfg(target_os = "linux")]
+                                let _ = window.minimize();
                             }
                             // hide() is not guaranteed to emit Focused(false), so
                             // close the gate explicitly on the hide-to-tray path.
@@ -670,6 +735,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            platform::get_platform_info,
             commands::get_settings,
             commands::save_settings,
             commands::clear_settings,
@@ -715,4 +781,22 @@ pub fn run() {
                 }
             }
         });
+}
+
+/// Print a read-only hardware/FPS snapshot without opening a desktop window.
+#[cfg(target_os = "linux")]
+pub fn linux_diagnostics() -> Result<(), String> {
+    linux_monitor::diagnostics()
+}
+
+#[cfg(target_os = "linux")]
+struct LinuxLog(std::fs::File);
+#[cfg(target_os = "linux")]
+impl std::io::Write for LinuxLog {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        let _ = std::io::stderr().write_all(bytes);
+        self.0.write_all(bytes)?;
+        Ok(bytes.len())
+    }
+    fn flush(&mut self) -> std::io::Result<()> { self.0.flush() }
 }
