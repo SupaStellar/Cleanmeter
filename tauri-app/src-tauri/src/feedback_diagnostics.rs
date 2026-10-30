@@ -104,7 +104,7 @@ fn open_no_follow(path: &Path) -> std::io::Result<std::fs::File> {
     Ok(file)
 }
 
-// Non-Windows builds are not shipped; a plain pre-check is enough there.
+// Linux builds run without elevation; reject linked log paths before reading.
 #[cfg(not(windows))]
 fn open_no_follow(path: &Path) -> std::io::Result<std::fs::File> {
     if std::fs::symlink_metadata(path)?.file_type().is_symlink() {
@@ -136,7 +136,10 @@ fn cpu_name() -> Option<String> {
 
 #[cfg(not(windows))]
 fn cpu_name() -> Option<String> {
-    std::env::var("PROCESSOR_IDENTIFIER").ok()
+    std::fs::read_to_string("/proc/cpuinfo").ok()?.lines().find_map(|line| {
+        let (key, value) = line.split_once(':')?;
+        matches!(key.trim(), "model name" | "Hardware").then(|| value.trim().to_owned())
+    })
 }
 
 // "Windows 11 25H2 (build 26200) x86_64". ProductName still says "Windows 10"
@@ -171,7 +174,10 @@ fn os_name() -> String {
 
 #[cfg(not(windows))]
 fn os_name() -> String {
-    format!("{} {}", std::env::consts::OS, std::env::consts::ARCH)
+    let name = std::fs::read_to_string("/etc/os-release").ok().and_then(|text| {
+        text.lines().find_map(|line| line.strip_prefix("PRETTY_NAME=").map(|v| v.trim_matches('"').to_owned()))
+    }).unwrap_or_else(|| std::env::consts::OS.to_owned());
+    format!("{} {}", name, std::env::consts::ARCH)
 }
 
 #[cfg(test)]

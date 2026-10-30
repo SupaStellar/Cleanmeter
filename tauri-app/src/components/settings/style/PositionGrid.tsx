@@ -1,4 +1,5 @@
 import { settingsActions } from "@/lib/settings-actions";
+import { usePlatformStore } from "@/stores/platform-store";
 import { CollapsibleCard } from "./CollapsibleCard";
 import { Switch } from "@/components/shadcn/switch";
 import { Disclosure } from "@/components/ui/Disclosure";
@@ -49,6 +50,8 @@ export function PositionGrid() {
   const updateSettings = settingsActions.updateSettings;
   const { useCustomPosition, positionIndex } = settings;
 
+  const canPosition = usePlatformStore((s) => s.platform.canPositionOverlay);
+  if (!canPosition) return <CollapsibleCard title="Position"><p className="text-[13px] text-muted-foreground">Your Wayland desktop manages window position. Drag the monitor using its title bar.</p></CollapsibleCard>;
   return (
     <CollapsibleCard title="Position">
       <div className="flex w-full flex-col">

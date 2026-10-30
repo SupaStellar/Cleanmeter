@@ -12,12 +12,11 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
 
     let menu = Menu::with_items(app, &[&show, &toggle, &separator, &quit])?;
 
-    let tray = app.tray_by_id("main").unwrap_or_else(|| {
-        tauri::tray::TrayIconBuilder::with_id("main")
-            .menu(&menu)
-            .build(app)
-            .expect("Failed to build tray icon")
-    });
+    let tray = if let Some(tray)=app.tray_by_id("main") { tray } else {
+        let mut builder=tauri::tray::TrayIconBuilder::with_id("main").menu(&menu);
+        if let Some(icon)=app.default_window_icon() {builder=builder.icon(icon.clone());}
+        builder.build(app)?
+    };
 
     tray.set_menu(Some(menu))?;
 
