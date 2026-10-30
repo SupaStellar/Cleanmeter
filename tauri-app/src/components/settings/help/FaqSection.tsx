@@ -42,7 +42,7 @@ export function FaqSection() {
     },
     {
       question: "What are the current limitations?",
-      answer: "Fullscreen overlay visibility depends on your desktop. Wayland overlay positioning requires layer-shell support; other desktops use a separate monitor window. Global shortcuts require your desktop?s Global Shortcuts portal. Steam Deck Game Mode support is still being validated.",
+      answer: "Fullscreen overlay visibility depends on your desktop. Wayland overlay positioning requires layer-shell support; other desktops use a separate monitor window. Global shortcuts require your desktop's Global Shortcuts portal. Steam Deck Game Mode support is still being validated.",
     },
   ] : FAQ_ITEMS;
   return (

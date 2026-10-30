@@ -53,6 +53,7 @@ function SectionCard({
 }
 
 function GeneralSection() {
+  const canPosition = usePlatformStore((s) => s.platform.canPositionOverlay);
   const linux = usePlatformStore((s) => s.platform.os === "linux");
   const startMinimized = useSettingsStore((s) => s.preferences.startMinimized);
   const soundEffects = useSettingsStore((s) => s.preferences.soundEffects);
@@ -139,17 +140,19 @@ function GeneralSection() {
             <span className="text-[14px] font-medium leading-[17px] text-[var(--textHeading)]">
               Pixel Shift
             </span>
-            <span className="text-[14px] font-normal leading-[17px] text-[var(--textParagraph1)]">
-              Shifts the overlay periodically to avoid OLED burn-in.
+            <span id="pixel-shift-description" className="text-[14px] font-normal leading-[17px] text-[var(--textParagraph1)]">
+              {canPosition ? "Shifts the overlay periodically to avoid OLED burn-in." : "Pixel Shift is unavailable because this desktop cannot position the overlay."}
             </span>
           </div>
           <Switch
-            checked={pixelShift}
-            onCheckedChange={(v) => updateSettings({ pixelShift: v })}
+            checked={canPosition && pixelShift}
+            disabled={!canPosition}
+            onCheckedChange={(v) => { if (canPosition) updateSettings({ pixelShift: v }); }}
             aria-label="Pixel Shift"
+            aria-describedby="pixel-shift-description"
           />
         </div>
-        <Disclosure open={pixelShift} variant="panel" className="pt-[var(--spacingM)]"><PixelShiftControls /></Disclosure>
+        <Disclosure open={canPosition && pixelShift} variant="panel" className="pt-[var(--spacingM)]"><PixelShiftControls /></Disclosure>
       </div>
       <LinuxSupport />
     </SectionCard>
