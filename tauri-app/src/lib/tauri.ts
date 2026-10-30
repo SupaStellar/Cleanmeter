@@ -19,7 +19,7 @@ import {
 // When running via `npm run dev` in a browser (no Tauri runtime),
 // all invoke/listen calls are no-ops so the UI can be previewed.
 
-export const isBrowser = !("__TAURI_INTERNALS__" in window);
+export const isBrowser = typeof window === "undefined" || !("__TAURI_INTERNALS__" in window);
 
 // ─── Browser-preview fixture ────────────────────────────────────
 // The preview has no sidecar, so the sensor listeners below never fire: every
@@ -154,6 +154,8 @@ export type AppUpdate = import("@tauri-apps/plugin-updater").Update;
 // Returns the pending Update when a newer release exists, or null when the app
 // is current (or running in the browser preview, which has no Tauri runtime).
 export const checkForUpdate = async (): Promise<AppUpdate | null> => {
+  const platform = await getPlatformInfo();
+  if (platform.os === "linux" && !platform.canAutoUpdate) return null;
   // The preview reports an update so the download banner has a state to be in.
   if (usePreviewFixture) return previewUpdate();
   if (isBrowser) return null;
@@ -286,3 +288,29 @@ export const onHardwareStatus = (
   callback: (status: HardwareStatus) => void
 ): Promise<UnlistenFn> =>
   safeListen<HardwareStatus>("hardware-status", (event) => callback(event.payload));
+export interface PlatformInfo {
+  os: string;
+  displayBackend: string;
+  canPositionOverlay: boolean;
+  globalShortcuts: boolean;
+  percentileLows: boolean;
+  canAutoUpdate?: boolean;
+  shortcutDescriptions?: Record<string, string>;
+}
+export const getPlatformInfo = () => {
+  if (isBrowser) {
+    const linux = navigator.platform.toLowerCase().includes("linux") || (import.meta.env.DEV && new URLSearchParams(location.search).get("platform") === "linux");
+    const wayland = linux && import.meta.env.DEV && new URLSearchParams(location.search).get("display") === "wayland";
+    return Promise.resolve<PlatformInfo>({ os: linux ? "linux" : "windows", displayBackend: linux ? (wayland ? "wayland" : "x11") : "native", canPositionOverlay: !wayland, globalShortcuts: !wayland, percentileLows: true });
+  }
+  return safeInvoke<PlatformInfo>("get_platform_info");
+};
+
+export const quitApp = async (): Promise<void> => {
+  if (isBrowser) return;
+  const { exit } = await import("@tauri-apps/plugin-process");
+  await exit(0);
+};
+
+export const onPlatformInfo = (callback: (platform: PlatformInfo) => void) =>
+  safeListen<PlatformInfo>("platform-info", (event) => callback(event.payload));

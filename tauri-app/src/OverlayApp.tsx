@@ -1,4 +1,5 @@
 import { pixelShiftOptions, pixelShiftPosition, shiftAxis } from "@/lib/pixel-shift";
+import { usePlatformStore } from "@/stores/platform-store";
 import { useEffect, useRef, useState } from "react";
 import { OverlayHud } from "@/components/overlay/OverlayHud";
 import { useSensorData } from "@/hooks/useSensorData";
@@ -57,6 +58,9 @@ function clampToMonitor(
 }
 
 export default function OverlayApp() {
+  const loadPlatform = usePlatformStore((s) => s.load);
+  const canPosition = usePlatformStore((s) => s.platform.canPositionOverlay);
+  useEffect(() => { void loadPlatform(); }, [loadPlatform]);
   const loadSettings = useSettingsStore((s) => s.loadSettings);
   const updateSettings = useSettingsStore((s) => s.updateSettings);
   const settings = useSettingsStore((s) => s.settings);
@@ -120,7 +124,7 @@ export default function OverlayApp() {
   // HUD pixels — never freezes the rest of the desktop.
   useEffect(() => {
     const el = hudRef.current;
-    if (!el || !settingsReady || monitors.length === 0) return;
+    if (!el || !settingsReady || (canPosition && monitors.length === 0)) return;
     const monitor = monitors[settings.selectedDisplayIndex] ?? monitors[0];
 
     const apply = () => {
@@ -131,6 +135,7 @@ export default function OverlayApp() {
       const hudH = Math.max(1, Math.ceil(rect.height * scale));
       hudSizeRef.current = { w: hudW, h: hudH };
       setOverlaySize(hudW, hudH);
+      if (!canPosition) return;
 
       // Skip position updates while the user is actively dragging.
       if (dragStart.current) return;
@@ -196,6 +201,7 @@ export default function OverlayApp() {
     // changes — not on every settings update (font sizes, sensor toggles,
     // etc. would otherwise round-trip a no-op setOverlayPosition).
   }, [
+    canPosition,
     settings.selectedDisplayIndex,
     settings.useCustomPosition,
     settings.positionX,
@@ -241,7 +247,7 @@ export default function OverlayApp() {
   // monitors + settings (instead of an async Tauri round-trip) so mousemove
   // events that fire on the same tick as mousedown aren't dropped.
   const onMouseDown = (e: React.MouseEvent) => {
-    if (!settings.useCustomPosition) return;
+    if (!canPosition || !settings.useCustomPosition) return;
     if (e.button !== 0) return;
     if (monitors.length === 0) return;
     e.preventDefault();
