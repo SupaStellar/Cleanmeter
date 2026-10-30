@@ -60,7 +60,7 @@
     "@storybook/addon-a11y": "^10.3.5",
     "@storybook/addon-docs": "^10.3.5",
     "@storybook/addon-onboarding": "^10.3.5",
-    "@storybook/addon-vitest": "^10.3.5",
+    "@storybook/addon-vitest": "^10.6.2",
     "@storybook/react-vite": "^10.3.5",
     "@tauri-apps/cli": "^2.11.4",
     "@tokens-studio/sd-transforms": "^2.0.3",
