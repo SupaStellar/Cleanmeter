@@ -7,8 +7,8 @@ No additional distribution or VM was installed for these checks.
 ## Verified
 
 - Frontend: 195 unit tests, ESLint and production Vite build passed.
-- Linux Rust: 60 tests passed, one explicitly ignored live-capture test.
-- Windows Rust: 63 tests passed, one explicitly ignored live-capture test.
+- Linux Rust: 62 tests passed, one explicitly ignored live-capture test.
+- Windows Rust: 64 tests passed, one explicitly ignored live-capture test.
 - Launcher: five tests passed.
 - Native binary: X11 and headless Weston startup reached monitoring with 11
   available sensors. WSL exposes only a subset of physical hardware.
@@ -57,3 +57,19 @@ setting, not an application-wide rendering override.
 Reproduce the native checks using `src-tauri/linux/test_native_webdriver.sh` as
 described in `linux.md`. These results establish a tested desktop development
 build, not complete Linux/Deck parity sign-off.
+
+## Review follow-up validation
+
+- Frozen results now survive game exit/telemetry expiry and source replacement.
+  Accumulator and publication regression tests pass; native X11 testing records
+  a real Vulkan workload, freezes it, terminates the game and confirms both low
+  readings are unchanged after telemetry expires.
+- GTK is initialized before selecting the shortcut backend. Native Sway tests
+  passed with both `GDK_BACKEND=wayland,x11` and `GDK_BACKEND=x11,wayland` without
+  an X11 display, exercising GTK's actual fallback choice.
+- Browser checks at 1280, 768 and 375 pixels verified that Pixel Shift is disabled
+  with an explanation on the unsupported Wayland fallback, and remains usable
+  on X11 and Windows. No horizontal overflow or browser errors were observed.
+
+The earlier AppImage shared for Desktop Mode testing predates these follow-up
+fixes. These results do not establish Game Mode or bounded long-session capture.

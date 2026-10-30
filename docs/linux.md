@@ -119,7 +119,7 @@ sharing. It does not send diagnostics anywhere.
 On Ubuntu 22.04+ with Rust and Node 22 installed:
 
 ```sh
-sudo apt install build-essential libwebkit2gtk-4.1-dev libgtk-3-dev \
+sudo apt install build-essential libwebkit2gtk-4.1-dev libgtk-3-dev libgtk-layer-shell-dev \
   libayatana-appindicator3-dev librsvg2-dev libssl-dev patchelf rpm
 cd tauri-app
 npm ci

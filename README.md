@@ -22,11 +22,12 @@ A clean, minimal performance overlay for gamers. Monitor your system stats witho
 
 ## Linux preview
 
-Linux support is available on the `feat/linux-support` branch with native hardware
-monitoring and sampled game FPS through MangoHud 0.7+. DEB, RPM, and AppImage
+Linux support is available on the `feat/linux-current` branch with native hardware
+monitoring and per-frame game FPS through MangoHud 0.7+. DEB, RPM, and AppImage
 packages are built by the Linux preview workflow. See the [Linux setup guide](docs/linux.md)
 for installation, Steam launch options, hardware coverage, and Wayland limitations.
-Percentile lows and benchmark recording are not yet supported on Linux.
+Live percentile lows and recording are supported. Game Mode integration and bounded
+long-session capture remain incomplete; this is a Desktop Mode test preview.
 
 ## Windows requirements
 
