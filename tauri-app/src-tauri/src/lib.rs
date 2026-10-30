@@ -305,6 +305,11 @@ pub fn run() {
     }
     let _ = logger.try_init();
 
+    #[cfg(target_os = "linux")]
+    if let Err(error) = platform::initialize_display() {
+        log::error!("Could not initialize the desktop display: {error}");
+        return;
+    }
     let mut builder = tauri::Builder::default();
     if !platform::native_wayland() {
         builder = builder.plugin(tauri_plugin_global_shortcut::Builder::new().build());

@@ -56,7 +56,19 @@ try:
     for _ in range(3):
         if wayland: portal_call('Activate', 'recording')
         else: subprocess.run(['xdotool', 'key', '--clearmodifiers', 'alt+F11'], check=True)
-        time.sleep(0.4)
+        time.sleep(6 if game is not None and _ == 0 else 0.4)
+        if game is not None and _ == 1:
+            # Wait for the monitor to publish the frozen result after the hotkey.
+            time.sleep(2)
+            before = js("return window.__sensors.filter(s=>s.identifier.includes('percentlow')).map(s=>s.value)")
+            assert len(before) == 2 and all(v > 0 for v in before), before
+            os.killpg(game.pid, signal.SIGTERM)
+            game.wait(timeout=10)
+            game = None
+            time.sleep(4)
+            after = js("return window.__sensors.filter(s=>s.identifier.includes('percentlow')).map(s=>s.value)")
+            assert after == before, (before, after)
+            print('PASS frozen lows survive game exit and telemetry expiry', flush=True)
     assert js('return window.__recording') == ['recording','frozen','live'], js('return window.__recording')
     print('PASS global recording shortcut cycle', flush=True)
     if wayland:
@@ -119,4 +131,3 @@ finally:
         if game.poll() is None: os.killpg(game.pid, signal.SIGTERM)
         game.wait(timeout=10)
     request('DELETE', prefix)
-

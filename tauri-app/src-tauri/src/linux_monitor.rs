@@ -126,10 +126,6 @@ pub fn run(
                 if let Some(s) = chosen {
                     if frames.attach(&s.path) { lows.reset(); }
                     for (time, ms) in frames.drain() { lows.add(time, ms); }
-                    let (one, point_one) = lows.values();
-                    for (key, name, value) in [("onepercentlow", "1% Low", one), ("zeropointonepercentlow", "0.1% Low", point_one)] {
-                        if value > 0.0 { if let Some(v) = sensor("/linux/fps", key, name, SensorType::Frequency, value as f64) { data.sensors.push(v); } }
-                    }
                     let id = "/linux/fps";
                     data.hardwares.push(Hardware {
                         identifier: id.into(),
@@ -159,6 +155,7 @@ pub fn run(
                     frames = linux_fps::FrameReader::default();
                     lows.reset();
                 }
+                append_lows(&mut data, &lows);
                 if !connected {
                     log::info!(
                         "Linux monitoring connected ({} sensors)",
@@ -220,4 +217,40 @@ pub fn diagnostics() -> Result<(), String> {
         serde_json::to_string_pretty(&output).map_err(|e| e.to_string())?
     );
     Ok(())
+}
+
+// Frozen results belong to the recording, not the lifetime of the game process.
+fn append_lows(data: &mut crate::types::HardwareMonitorData, lows: &crate::linux_frame_lows::FrameLows) {
+    let (one, point_one) = lows.values();
+    for (key, name, value) in [("onepercentlow", "1% Low", one), ("zeropointonepercentlow", "0.1% Low", point_one)] {
+        if value > 0.0 {
+            if let Some(value) = sensor("/linux/fps", key, name, SensorType::Frequency, value as f64) {
+                data.sensors.push(value);
+            }
+        }
+    }
+    if (one > 0.0 || point_one > 0.0) && !data.hardwares.iter().any(|h| h.identifier == "/linux/fps") {
+        data.hardwares.push(Hardware { identifier: "/linux/fps".into(), name: "MangoHud recording".into(), hardware_type: HardwareType::Unknown });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn publishes_frozen_lows_without_an_active_game() {
+        let mut lows = crate::linux_frame_lows::FrameLows::default();
+        lows.set_mode(1);
+        for i in 0..600 { lows.add(i as f64 * 10.0, 10.0); }
+        lows.set_mode(0);
+        lows.reset();
+        let mut data = crate::types::HardwareMonitorData { hardwares: vec![], sensors: vec![], last_poll_time: 0 };
+        super::append_lows(&mut data, &lows);
+        assert_eq!(data.sensors.len(), 2);
+        assert!(data.sensors.iter().all(|s| s.value == 100.0));
+        assert_eq!(data.hardwares[0].identifier, "/linux/fps");
+        lows.set_mode(2);
+        data.sensors.clear();
+        super::append_lows(&mut data, &lows);
+        assert!(data.sensors.is_empty());
+    }
 }

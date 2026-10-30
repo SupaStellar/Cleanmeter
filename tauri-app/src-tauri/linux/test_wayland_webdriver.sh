@@ -23,7 +23,7 @@ sleep 2
 export WAYLAND_DISPLAY=$(basename "$(find "$XDG_RUNTIME_DIR" -maxdepth 1 -type s -name 'wayland-*' | head -1)")
 export SWAYSOCK=$(find "$XDG_RUNTIME_DIR" -maxdepth 1 -type s -name 'sway-ipc*' | head -1)
 unset DISPLAY
-export GDK_BACKEND=wayland WEBKIT_DISABLE_COMPOSITING_MODE=1 CLEANMETER_TEST_WAYLAND=1
+export GDK_BACKEND="${CLEANMETER_TEST_GDK_BACKEND:-wayland}" WEBKIT_DISABLE_COMPOSITING_MODE=1 CLEANMETER_TEST_WAYLAND=1
 swaymsg -t get_outputs > "$XDG_RUNTIME_DIR/outputs.json"
 tauri-driver > "$XDG_RUNTIME_DIR/driver.log" 2>&1 &
 driver=$!

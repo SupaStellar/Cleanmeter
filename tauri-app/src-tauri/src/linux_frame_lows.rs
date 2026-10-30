@@ -18,7 +18,7 @@ impl FrameLows {
         self.live.clear();
         if self.total > 0.0 { self.buckets.fill(0); }
         self.total = 0.0;
-        self.frozen = (0.0, 0.0);
+        if self.mode != 0 { self.frozen = (0.0, 0.0); }
     }
     pub fn set_mode(&mut self, mode: u8) {
         if mode == self.mode { return; }
@@ -85,6 +85,22 @@ mod tests {
         assert_eq!(s.values(), (100.0,100.0));
         s.set_mode(2); assert_eq!(s.values(), (200.0,200.0));
         s.set_mode(1); assert_eq!(s.values(), (0.0,0.0));
+    }
+    #[test]
+    fn frozen_results_survive_source_expiry_and_replacement() {
+        let mut s = FrameLows::default();
+        s.set_mode(1);
+        for i in 0..600 { s.add(i as f64 * 10.0, 10.0); }
+        s.set_mode(0);
+        s.reset();
+        assert_eq!(s.values(), (100.0, 100.0));
+        s.reset();
+        for i in 0..1200 { s.add(i as f64 * 5.0, 5.0); }
+        assert_eq!(s.values(), (100.0, 100.0));
+        s.set_mode(2);
+        assert_eq!(s.values(), (200.0, 200.0));
+        s.reset();
+        assert_eq!(s.values(), (0.0, 0.0));
     }
     #[test]
     fn invalid_frames_and_warmup_do_not_publish() {
