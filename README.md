@@ -20,7 +20,16 @@ A clean, minimal performance overlay for gamers. Monitor your system stats witho
 - **Network speed** — download/upload rates with live graph
 - **Smart sensor auto-select** — picks the right CPU, GPU, RAM, and network sensors automatically
 
-## Requirements
+## Linux preview
+
+Linux support is available on the `feat/linux-current` branch with native hardware
+monitoring and per-frame game FPS through MangoHud 0.7+. DEB, RPM, and AppImage
+packages are built by the Linux preview workflow. See the [Linux setup guide](docs/linux.md)
+for installation, Steam launch options, hardware coverage, and Wayland limitations.
+Live percentile lows and recording are supported. Game Mode integration and bounded
+long-session capture remain incomplete; this is a Desktop Mode test preview.
+
+## Windows requirements
 
 - Windows 10/11 (x64)
 - [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) — required for hardware monitoring

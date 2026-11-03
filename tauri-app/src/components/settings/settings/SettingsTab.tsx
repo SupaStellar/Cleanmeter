@@ -1,5 +1,7 @@
+import { LinuxSupport } from "../LinuxSupport";
 import { settingsActions } from "@/lib/settings-actions";
 import { playSound, beginSoundAction } from "@/lib/sound-effects";
+import { usePlatformStore } from "@/stores/platform-store";
 import * as React from "react";
 import * as RadioGroupPrimitive from "@radix-ui/react-radio-group";
 import { Checkbox } from "@/components/shadcn/checkbox";
@@ -51,6 +53,8 @@ function SectionCard({
 }
 
 function GeneralSection() {
+  const canPosition = usePlatformStore((s) => s.platform.canPositionOverlay);
+  const linux = usePlatformStore((s) => s.platform.os === "linux");
   const startMinimized = useSettingsStore((s) => s.preferences.startMinimized);
   const soundEffects = useSettingsStore((s) => s.preferences.soundEffects);
   const preferencesLoaded = useSettingsStore((s) => s.preferencesLoaded);
@@ -93,7 +97,7 @@ function GeneralSection() {
               disabled={autoStartPending}
               onCheckedChange={(v) => handleStartWithWindows(v === true)}
             />
-          Start with windows
+          {linux ? "Start at login" : "Start with Windows"}
         </label>
         <label className="flex cursor-pointer items-center gap-[var(--spacingXs)] text-[14px] font-medium text-foreground">
           <Checkbox
@@ -136,18 +140,21 @@ function GeneralSection() {
             <span className="text-[14px] font-medium leading-[17px] text-[var(--textHeading)]">
               Pixel Shift
             </span>
-            <span className="text-[14px] font-normal leading-[17px] text-[var(--textParagraph1)]">
-              Shifts the overlay periodically to avoid OLED burn-in.
+            <span id="pixel-shift-description" className="text-[14px] font-normal leading-[17px] text-[var(--textParagraph1)]">
+              {canPosition ? "Shifts the overlay periodically to avoid OLED burn-in." : "Pixel Shift is unavailable because this desktop cannot position the overlay."}
             </span>
           </div>
           <Switch
-            checked={pixelShift}
-            onCheckedChange={(v) => updateSettings({ pixelShift: v })}
+            checked={canPosition && pixelShift}
+            disabled={!canPosition}
+            onCheckedChange={(v) => { if (canPosition) updateSettings({ pixelShift: v }); }}
             aria-label="Pixel Shift"
+            aria-describedby="pixel-shift-description"
           />
         </div>
-        <Disclosure open={pixelShift} variant="panel" className="pt-[var(--spacingM)]"><PixelShiftControls /></Disclosure>
+        <Disclosure open={canPosition && pixelShift} variant="panel" className="pt-[var(--spacingM)]"><PixelShiftControls /></Disclosure>
       </div>
+      <LinuxSupport />
     </SectionCard>
   );
 }
@@ -175,31 +182,35 @@ function GeneralSection() {
  * No grey panel: the rows sit directly on the card.
  */
 function ShortcutsSection() {
+  const platform = usePlatformStore((s) => s.platform);
   const settings = useSettingsStore((s) => s.settings);
   const updateSettings = settingsActions.updateSettings;
 
   const overlayAccelerator = settings.overlayShortcut ?? OVERLAY_SHORTCUT_DEFAULT;
   const recordingAccelerator = settings.recordingShortcut ?? RECORDING_SHORTCUT_DEFAULT;
 
+  if (!platform.globalShortcuts) return <SectionCard title="Shortcuts"><p className="text-[13px] text-muted-foreground">Your desktop does not provide global shortcuts. Use the visibility control in General.</p></SectionCard>;
   return (
     <SectionCard title="Shortcuts">
       <div className="flex flex-col gap-[var(--spacingS)]">
         <ShortcutField
           label="Show/hide overlay"
           accelerator={overlayAccelerator}
+          displayKeys={platform.shortcutDescriptions?.overlay?.split("+")}
           defaultAccelerator={OVERLAY_SHORTCUT_DEFAULT}
           onChange={(overlayShortcut) => updateSettings({ overlayShortcut })}
-          conflictsWith={{ "Start/stop FPS lows recording": recordingAccelerator }}
+          conflictsWith={platform.percentileLows ? { "Start/stop FPS lows recording": recordingAccelerator } : {}}
           className="gap-[var(--spacingL)]"
         />
-        <ShortcutField
+        {platform.percentileLows && <ShortcutField
           label="Start/stop FPS lows recording"
           accelerator={recordingAccelerator}
+          displayKeys={platform.shortcutDescriptions?.recording?.split("+")}
           defaultAccelerator={RECORDING_SHORTCUT_DEFAULT}
           onChange={(recordingShortcut) => updateSettings({ recordingShortcut })}
           conflictsWith={{ "Show/hide overlay": overlayAccelerator }}
           className="gap-[var(--spacingL)]"
-        />
+        />}
       </div>
     </SectionCard>
   );
@@ -416,9 +427,14 @@ const DISCORD_INVITE_URL = "https://discord.gg/SCgXtTMNvJ";
 // Triggers an in-app update check and reflects the updater status in its label.
 // The actual "download & install" happens from the floating UpdateBanner.
 function UpdatesButton() {
+  const platform = usePlatformStore((s) => s.platform);
   const status = useUpdaterStore((s) => s.status);
   const dismissed = useUpdaterStore((s) => s.dismissed);
   const check = useUpdaterStore((s) => s.check);
+
+  if (platform.os === "linux" && !platform.canAutoUpdate) {
+    return <FooterLinkButton icon={<BrowserUpdatedIcon className="size-8" />} label="Download Linux updates" href="https://github.com/SupaStellar/Cleanmeter/releases" />;
+  }
 
   const busy =
     status === "checking" ||

@@ -9,6 +9,9 @@ export function useHotkey() {
     let unlisten: (() => void) | undefined;
 
     onHotkey((action) => {
+      if (action === "hide-overlay") {
+        useSettingsStore.getState().setOverlayVisible(false);
+      }
       if (action === "toggle-overlay") {
         toggleOverlay();
       }

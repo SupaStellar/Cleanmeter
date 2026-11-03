@@ -213,6 +213,8 @@ pub fn toggle_recording(app: &AppHandle) {
 /// reset to defaults — so there is one place that knows the mapping from
 /// settings field to action.
 pub fn apply_all(app: &AppHandle, settings: &OverlaySettings) {
+    #[cfg(target_os = "linux")]
+    if crate::platform::native_wayland() { crate::linux_shortcuts::apply(app, settings); return; }
     let mut unavailable = HashMap::<&'static str, String>::new();
     for (action, accelerator) in [
         (ShortcutAction::ToggleOverlay, &settings.overlay_shortcut),
@@ -321,6 +323,8 @@ pub fn apply(
 /// overlay holds Alt+F1/F2/F3/F9/F10 by default) still never reaches us, and
 /// nothing here can change that.
 pub fn set_capturing(app: &AppHandle, capturing: bool, settings: &OverlaySettings) {
+    #[cfg(target_os = "linux")]
+    if crate::platform::native_wayland() { crate::linux_shortcuts::capturing(capturing); return; }
     if !capturing {
         apply_all(app, settings);
         return;

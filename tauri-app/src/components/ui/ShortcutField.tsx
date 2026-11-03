@@ -41,6 +41,7 @@ export function ShortcutField({
   label,
   accelerator,
   defaultAccelerator,
+  displayKeys,
   onChange,
   conflictsWith,
   className,
@@ -50,6 +51,7 @@ export function ShortcutField({
   accelerator: string;
   /** What the restore button puts back. */
   defaultAccelerator: string;
+  displayKeys?: string[];
   onChange: (accelerator: string) => void;
   /**
    * The app's other bindings, keyed by the name each is shown under. A
@@ -179,7 +181,7 @@ export function ShortcutField({
   }, [listening, stopListening]);
 
   const isBound = accelerator !== "";
-  const boundKeys = shortcutKeyLabels(accelerator);
+  const boundKeys = displayKeys ?? shortcutKeyLabels(accelerator);
   // Which of the two board shapes is on screen. Keycaps and text sit at
   // different heights in the frame, so this drives the padding as well as the
   // content — see the note on the field button.
