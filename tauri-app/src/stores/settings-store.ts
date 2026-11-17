@@ -24,7 +24,7 @@ import {
   type GpuSilence,
 } from "@/lib/gpu";
 import * as tauri from "@/lib/tauri";
-import { cpuClockOptions } from "@/lib/utils";
+import { cpuClockOptions, findFrametimeSensor } from "@/lib/utils";
 import { useToastStore } from "./toast-store";
 
 /**
@@ -190,13 +190,9 @@ function autoSelectSensors(
     }
   }
 
-  // Frametime — from PresentMon (hardware identifier contains "presentmon")
-  const frametimeSensor = sensors.find(
-    (s) =>
-      !settings.sensors.frametime.customReadingId &&
-      (s.name.toLowerCase().includes("frametime") ||
-        s.identifier.toLowerCase().includes("frametime"))
-  );
+  const frametimeSensor = settings.sensors.frametime.customReadingId
+    ? undefined
+    : findFrametimeSensor(sensors);
   if (frametimeSensor) {
     patch["frametime"] = {
       ...settings.sensors.frametime,
@@ -299,7 +295,7 @@ interface SettingsStore {
   updatePreferences: (patch: Partial<AppPreferences>) => void;
 
   // Sensor data
-  setSensorData: (data: HardwareMonitorData) => void;
+  setSensorData: (data: HardwareMonitorData, autoShowOverlay?: boolean) => void;
   setPresentMonApps: (apps: string[]) => void;
   setPipeStatus: (status: PipeStatus) => void;
   setSidecarStatus: (status: SidecarStatus) => void;
@@ -571,7 +567,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     });
   },
 
-  setSensorData: (data) => {
+  setSensorData: (data, autoShowOverlay = true) => {
     const state = get();
     const wasNull = state.sensorData === null;
     set({ sensorData: data });
@@ -601,7 +597,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       ),
     });
     // Auto-show overlay on first data arrival
-    if (wasNull && !state.overlayVisible) {
+    if (autoShowOverlay && wasNull && !state.overlayVisible) {
       set({ overlayVisible: true });
       tauri.setOverlayVisible(true);
     }
@@ -641,6 +637,11 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   },
 
   toggleOverlay: () => {
+    // Settings can miss packets while hidden. The native window owns its visibility.
+    if (!tauri.isBrowser) {
+      void tauri.toggleOverlay();
+      return;
+    }
     const visible = !get().overlayVisible;
     set({ overlayVisible: visible });
     tauri.setOverlayVisible(visible);

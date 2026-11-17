@@ -29,8 +29,7 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         {
             let app = tray.app_handle();
             if let Some(window) = app.get_webview_window("settings") {
-                let _ = window.show();
-                crate::commands::bring_to_front(&window);
+                crate::commands::show_settings(&window);
             }
         }
     });
@@ -38,8 +37,7 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     tray.on_menu_event(|app, event| match event.id.as_ref() {
         "show_settings" => {
             if let Some(window) = app.get_webview_window("settings") {
-                let _ = window.show();
-                crate::commands::bring_to_front(&window);
+                crate::commands::show_settings(&window);
             }
         }
         "toggle_overlay" => {

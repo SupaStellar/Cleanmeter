@@ -241,4 +241,21 @@ public class PercentileLowWiringTests
 
         Assert.Equal(before, poller.OnePercentLow.Value!.Value);
     }
+
+    [Fact]
+    public void ParseData_KeepsUnselectedAppsInPickerAndIgnoresShortRows()
+    {
+        var poller = NewPoller();
+
+        poller.ParseData("short.exe,0");
+        poller.ParseData(Row(0, 10).Replace(App, "Application"));
+        poller.ParseData(Row(0, 10).Replace(App, "other.exe"));
+
+        Assert.Equal(new[] { "other.exe" }, poller.SnapshotCurrentApps());
+        Assert.Equal(0f, poller.Presented.Value);
+
+        poller.ParseData(Row(10, 20).Replace(App, "GAME.EXE"));
+        Assert.Equal(50f, poller.Presented.Value);
+        Assert.Contains("GAME.EXE", poller.SnapshotCurrentApps());
+    }
 }

@@ -51,7 +51,7 @@ export function FpsSection({ isHorizontal }: FpsSectionProps) {
   // read 0.
   const fpsSensor =
     findSensorById(sensors, framerate.customReadingId) ??
-    sensors.find((s) => s.identifier === "/presentmon/presented") ??
+    findSensorById(sensors, "/presentmon/presented") ??
     sensors.find(
       (s) =>
         s.identifier.toLowerCase().includes("presented") ||
@@ -65,10 +65,10 @@ export function FpsSection({ isHorizontal }: FpsSectionProps) {
   // PresentMon poller, so there is no third-party naming to guess at.
   const onePercentLowSensor =
     findSensorById(sensors, onePercentLow.customReadingId) ??
-    sensors.find((s) => s.identifier === "/presentmon/onepercentlow");
+    findSensorById(sensors, "/presentmon/onepercentlow");
   const zeroPointOneLowSensor =
     findSensorById(sensors, zeroPointOnePercentLow.customReadingId) ??
-    sensors.find((s) => s.identifier === "/presentmon/zeropointonepercentlow");
+    findSensorById(sensors, "/presentmon/zeropointonepercentlow");
 
   const fpsValue = Math.round(fpsSensor?.value ?? 0);
   const onePercentValue = Math.round(onePercentLowSensor?.value ?? 0);

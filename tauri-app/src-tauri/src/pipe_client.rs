@@ -2,12 +2,73 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use log::{error, info, warn};
 use std::io::{self, Cursor, Read, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::sync::mpsc;
 
 use crate::types::*;
+
+// Tauri evaluates targeted JS events in any webview subscribed to the name,
+// even when the filter returns no listener IDs. Use one name per webview.
+const OVERLAY_SENSOR_EVENT: &str = "sensor-data";
+const SETTINGS_SENSOR_EVENT: &str = "settings-sensor-data";
+
+#[derive(Default)]
+pub struct SensorSnapshots(Mutex<Option<(HardwareMonitorData, bool)>>);
+
+fn settings_visible(app: &AppHandle) -> bool {
+    app.get_webview_window("settings").is_some_and(|window| {
+        window.is_visible().unwrap_or(false) && !window.is_minimized().unwrap_or(true)
+    })
+}
+
+pub fn replay_settings_snapshot(app: &AppHandle, force: bool) {
+    if !settings_visible(app) {
+        return;
+    }
+    let state = app.state::<SensorSnapshots>();
+    let mut latest = state.0.lock().unwrap();
+    if let Some((data, delivered)) = latest.as_mut() {
+        if force || !*delivered {
+            *delivered = app.emit(SETTINGS_SENSOR_EVENT, &*data).is_ok();
+        }
+    }
+}
+
+#[tauri::command]
+pub fn request_settings_sensor_snapshot(app: AppHandle, window: tauri::WebviewWindow) {
+    if window.label() == "settings" {
+        replay_settings_snapshot(&app, true);
+    }
+}
+
+fn publish_snapshot(app: &AppHandle, data: HardwareMonitorData) {
+    let handle = app.clone();
+    // Read visibility and emit on the window event loop, in order with show/hide.
+    let _ = app.run_on_main_thread(move || {
+        let visible = settings_visible(&handle);
+        let settings_received = if visible {
+            if let Ok(json) = serde_json::to_string(&data) {
+                let _ = handle.emit_str(OVERLAY_SENSOR_EVENT, json.clone());
+                handle.emit_str(SETTINGS_SENSOR_EVENT, json).is_ok()
+            } else {
+                false
+            }
+        } else {
+            let _ = handle.emit(OVERLAY_SENSOR_EVENT, &data);
+            false
+        };
+        *handle.state::<SensorSnapshots>().0.lock().unwrap() = Some((data, settings_received));
+    });
+}
+
+fn clear_snapshot(app: &AppHandle) {
+    let handle = app.clone();
+    let _ = app.run_on_main_thread(move || {
+        *handle.state::<SensorSnapshots>().0.lock().unwrap() = None;
+    });
+}
 
 /// Upper bound on one pipe frame. The sidecar's largest real packet is a full
 /// sensor snapshot, which is tens of KB, so this leaves generous headroom.
@@ -450,7 +511,7 @@ pub async fn run_pipe_client(
                                             data.hardwares.len(), data.sensors.len());
                                         received_sensor_data = true;
                                     }
-                                    let _ = app_for_read.emit("sensor-data", &data);
+                                    publish_snapshot(&app_for_read, data);
                                 }
                                 ParsedEvent::HardwareStatus(status) => {
                                     let _ = app_for_read.emit("hardware-status", &status);
@@ -470,6 +531,7 @@ pub async fn run_pipe_client(
                 // Report the lost connection before waiting or retrying. On
                 // reader EOF its task has finished and joining cannot stall.
                 let _ = app.emit("pipe-status", PipeStatus { connected: false });
+                clear_snapshot(&app);
                 announced_disconnect = true;
                 let _ = read_handle.await;
                 // The connection just ended: start a fresh fast-poll window so a

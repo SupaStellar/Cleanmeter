@@ -61,7 +61,7 @@ export default function OverlayApp() {
   const updateSettings = useSettingsStore((s) => s.updateSettings);
   const settings = useSettingsStore((s) => s.settings);
 
-  useSensorData();
+  useSensorData("overlay");
 
   const hudRef = useRef<HTMLDivElement>(null);
   const hudSizeRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });

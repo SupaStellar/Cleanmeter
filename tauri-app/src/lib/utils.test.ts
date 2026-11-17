@@ -5,6 +5,8 @@ import {
   formatClockLabel,
   cpuClockOptions,
   sensorDisplayName,
+  findFrametimeSensor,
+  findSensorById,
 } from "./utils";
 import type { Sensor } from "./types";
 import { SensorType } from "./types";
@@ -137,5 +139,28 @@ describe("sensorDisplayName", () => {
     expect(sensorDisplayName("GPU Core")).toBe("GPU Core");
     expect(sensorDisplayName("Core _Tctl_Tdie_")).toBe("Core _Tctl_Tdie_");
     expect(sensorDisplayName("Bus Speed")).toBe("Bus Speed");
+  });
+});
+
+describe("sensor identifiers", () => {
+  const fuzzy: Sensor = {
+    hardwareIdentifier: "/legacy",
+    identifier: "/legacy/frametime",
+    name: "FrameTime",
+    sensorType: SensorType.Load,
+    value: 17,
+  };
+  const exact: Sensor = { ...fuzzy, identifier: "/presentmon/frametime", value: 8 };
+
+  it("prefers the exact PresentMon ID and retains the legacy match", () => {
+    expect(findFrametimeSensor([fuzzy, exact])).toBe(exact);
+    expect(findFrametimeSensor([fuzzy])).toBe(fuzzy);
+  });
+
+  it("uses the first duplicate and takes updated readings from a new snapshot", () => {
+    const updated = { ...exact, value: 10 };
+    expect(findSensorById([exact, updated], exact.identifier)).toBe(exact);
+    expect(findSensorById([updated], exact.identifier)).toBe(updated);
+    expect(findSensorById([updated], "")).toBeUndefined();
   });
 });

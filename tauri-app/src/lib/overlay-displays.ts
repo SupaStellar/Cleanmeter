@@ -1,7 +1,8 @@
 import type { MonitorInfo } from "./types";
 
 // Display enumeration during Windows sign-in can precede the final topology.
-// Keep refreshing, including after resume, without resetting saved coordinates.
+// Retry during startup and after window/display signals without resetting saved coordinates.
+const DISPLAY_POLL_BURST_MS = 60_000;
 export function watchOverlayDisplays(
   read: () => Promise<MonitorInfo[] | undefined>,
   changed: (monitors: MonitorInfo[]) => void,
@@ -27,7 +28,40 @@ export function watchOverlayDisplays(
       pending = false;
     }
   };
-  void refresh();
-  const timer = setInterval(() => void refresh(), intervalMs);
-  return () => { stopped = true; clearInterval(timer); };
+  let timer: ReturnType<typeof setInterval> | undefined;
+  let endBurst: ReturnType<typeof setTimeout> | undefined;
+  const stopBurst = () => {
+    clearInterval(timer);
+    clearTimeout(endBurst);
+  };
+  const rearm = () => {
+    stopBurst();
+    void refresh();
+    timer = setInterval(() => void refresh(), intervalMs);
+    endBurst = setTimeout(stopBurst, DISPLAY_POLL_BURST_MS);
+  };
+
+  const viewport = typeof window === "undefined" ? undefined : window;
+  let dpi: MediaQueryList | undefined;
+  const watchDpi = () => {
+    dpi?.removeEventListener("change", onDpiChange);
+    dpi = viewport?.matchMedia?.(`(resolution: ${viewport.devicePixelRatio}dppx)`);
+    dpi?.addEventListener("change", onDpiChange);
+  };
+  const onDpiChange = () => {
+    watchDpi();
+    rearm();
+  };
+
+  viewport?.addEventListener("resize", rearm);
+  viewport?.document.addEventListener("visibilitychange", rearm);
+  watchDpi();
+  rearm();
+  return () => {
+    stopped = true;
+    stopBurst();
+    viewport?.removeEventListener("resize", rearm);
+    viewport?.document.removeEventListener("visibilitychange", rearm);
+    dpi?.removeEventListener("change", onDpiChange);
+  };
 }

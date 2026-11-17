@@ -432,27 +432,26 @@ public class PresentMonPoller(ILogger logger)
     internal void ParseData(string? argsData)
     {
         if (argsData == null) return;
-        var parts = argsData.Split(",");
-
-        // One-shot raw-row dump verifies PresentMon's actual column layout
-        // matches the hard-coded indices ([0]=app, [9]=frametime,
-        // [17]=displayed). If PresentMon's CSV format changed, attribution
-        // would silently read wrong columns — this catches that.
-        var seen = Interlocked.Increment(ref _rawRowsLogged);
-        if (seen <= RAW_ROWS_TO_LOG)
+        var commaCount = argsData.AsSpan().Count(',');
+        var debug = logger.IsEnabled(LogLevel.Debug);
+        if (debug)
         {
-            logger.LogDebug("[FPS-DEBUG] Raw row {N} ({Cols} cols): {Line}",
-                seen, parts.Length, argsData);
+            // Confirm the real CSV column layout without splitting unrelated rows.
+            var seen = Interlocked.Increment(ref _rawRowsLogged);
+            if (seen <= RAW_ROWS_TO_LOG)
+                logger.LogDebug("[FPS-DEBUG] Raw row {N} ({Cols} cols): {Line}",
+                    seen, commaCount + 1, argsData);
+
+            Interlocked.Increment(ref _totalRowCount);
         }
 
-        Interlocked.Increment(ref _totalRowCount);
-        if (parts.Length < 18)
+        if (commaCount < 17)
         {
-            Interlocked.Increment(ref _shortRowCount);
+            if (debug) Interlocked.Increment(ref _shortRowCount);
             return;
         }
 
-        var rowApp = parts[0];
+        var rowApp = argsData[..argsData.IndexOf(',')];
 
         // PresentMon writes the CSV header before the first frame row, and it
         // is wide enough to survive the length check above. Its first column
@@ -506,13 +505,15 @@ public class PresentMonPoller(ILogger logger)
                         && string.Equals(_foregroundAppName, rowApp, StringComparison.OrdinalIgnoreCase);
             }
 
-            if (match)
-                _countedByApp[rowApp] = _countedByApp.GetValueOrDefault(rowApp) + 1;
-            else
-                _droppedByApp[rowApp] = _droppedByApp.GetValueOrDefault(rowApp) + 1;
+            if (debug)
+            {
+                var counts = match ? _countedByApp : _droppedByApp;
+                counts[rowApp] = counts.GetValueOrDefault(rowApp) + 1;
+            }
 
             if (!match) return;
 
+            var parts = argsData.Split(',');
             // Parse PresentMon's per-frame timestamps. CPUStartTime [8]
             // is monotonic ms since capture start; FrameTime [9] is the
             // present-to-present interval. fps = N * 1000 / Σ frametime
@@ -913,13 +914,11 @@ public class PresentMonPoller(ILogger logger)
                 break;
             }
 
-            Dictionary<string, int> counted, dropped;
-            int total, shortRows;
-            string fg, sel;
-            int presentedQueue, displayedQueue;
-            float fps, ft;
+            var debug = logger.IsEnabled(LogLevel.Debug);
+            (Dictionary<string, int> Counted, Dictionary<string, int> Dropped,
+                int Total, int ShortRows, string Foreground, string Selected,
+                int Presented, int Displayed, float Fps, float Frametime, long LowsFrames)? diagnostics = null;
             bool stale;
-            long lowsFrames;
             lock (_stateLock)
             {
                 // Re-trim and recompute under the lock so the overlay value
@@ -968,18 +967,6 @@ public class PresentMonPoller(ILogger logger)
                     // between bursts.
                 }
 
-                counted = new Dictionary<string, int>(_countedByApp, StringComparer.OrdinalIgnoreCase);
-                dropped = new Dictionary<string, int>(_droppedByApp, StringComparer.OrdinalIgnoreCase);
-                _countedByApp.Clear();
-                _droppedByApp.Clear();
-                total = Interlocked.Exchange(ref _totalRowCount, 0);
-                shortRows = Interlocked.Exchange(ref _shortRowCount, 0);
-                fg = _foregroundAppName;
-                sel = _currentSelectedApp;
-                presentedQueue = _presentedFrames.Count;
-                displayedQueue = _displayedFrames.Count;
-                fps = Presented.Value ?? 0f;
-                ft = Frametime.Value ?? 0f;
                 // Computed under the lock rather than on a snapshot taken out
                 // of it. In Recording the walk starts at the slowest frame
                 // recorded and stops at the 1% crossing, so it reads a few
@@ -1000,8 +987,25 @@ public class PresentMonPoller(ILogger logger)
                 // leaving the write out is what makes "frozen" true of the
                 // published value and not just of its inputs.
                 PublishLows(_lowsMode);
-                lowsFrames = _lowsMode == LowsMode.Live ? _lowsLive.FrameCount : _lows.FrameCount;
+                if (debug)
+                {
+                    diagnostics = (
+                        new Dictionary<string, int>(_countedByApp, StringComparer.OrdinalIgnoreCase),
+                        new Dictionary<string, int>(_droppedByApp, StringComparer.OrdinalIgnoreCase),
+                        Interlocked.Exchange(ref _totalRowCount, 0),
+                        Interlocked.Exchange(ref _shortRowCount, 0),
+                        _foregroundAppName, _currentSelectedApp,
+                        _presentedFrames.Count, _displayedFrames.Count,
+                        Presented.Value ?? 0f, Frametime.Value ?? 0f,
+                        _lowsMode == LowsMode.Live ? _lowsLive.FrameCount : _lows.FrameCount);
+                    _countedByApp.Clear();
+                    _droppedByApp.Clear();
+                }
             }
+
+            if (diagnostics is not { } snapshot) continue;
+            var (counted, dropped, total, shortRows, fg, sel, presentedQueue,
+                displayedQueue, fps, ft, lowsFrames) = snapshot;
             var countedStr = counted.Count == 0
                 ? "-"
                 : string.Join(", ", counted.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key}:{kv.Value}"));
@@ -1047,9 +1051,10 @@ public class PresentMonPoller(ILogger logger)
                 {
                     if (!string.Equals(newName, _foregroundAppName, StringComparison.OrdinalIgnoreCase))
                     {
-                        logger.LogDebug("[FPS-DEBUG] Foreground change: {Old} -> {New}",
-                            string.IsNullOrEmpty(_foregroundAppName) ? "(empty)" : _foregroundAppName,
-                            string.IsNullOrEmpty(newName) ? "(empty)" : newName);
+                        if (logger.IsEnabled(LogLevel.Debug))
+                            logger.LogDebug("[FPS-DEBUG] Foreground change: {Old} -> {New}",
+                                string.IsNullOrEmpty(_foregroundAppName) ? "(empty)" : _foregroundAppName,
+                                string.IsNullOrEmpty(newName) ? "(empty)" : newName);
                         _foregroundAppName = newName;
                         if (_currentSelectedApp == NO_SELECTED_APP)
                         {

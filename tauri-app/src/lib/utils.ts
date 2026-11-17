@@ -144,10 +144,25 @@ export function findSensorByTypeAndHardware(
   );
 }
 
-export function findSensorById(
-  sensors: Sensor[],
-  id: string
-): Sensor | undefined {
-  if (!id) return undefined;
-  return sensors.find((s) => s.identifier === id);
+const sensorIndexes = new WeakMap<readonly Sensor[], Map<string, Sensor>>();
+
+export function findSensorById(sensors: readonly Sensor[], id: string): Sensor | undefined {
+  if (!id || sensors.length === 0) return undefined;
+  let index = sensorIndexes.get(sensors);
+  if (!index) {
+    index = new Map();
+    for (const sensor of sensors) {
+      // Match the first occurrence, like the original array lookup.
+      if (!index.has(sensor.identifier)) index.set(sensor.identifier, sensor);
+    }
+    sensorIndexes.set(sensors, index);
+  }
+  return index.get(id);
+}
+
+export function findFrametimeSensor(sensors: readonly Sensor[]): Sensor | undefined {
+  return findSensorById(sensors, "/presentmon/frametime") ?? sensors.find(
+    (sensor) => sensor.name.toLowerCase().includes("frametime") ||
+      sensor.identifier.toLowerCase().includes("frametime"),
+  );
 }

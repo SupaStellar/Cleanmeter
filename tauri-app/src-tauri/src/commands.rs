@@ -282,6 +282,16 @@ pub fn bring_to_front(window: &tauri::WebviewWindow) {
     let _ = window.set_focus();
 }
 
+pub fn show_settings(window: &tauri::WebviewWindow) {
+    let _ = window.show();
+    bring_to_front(window);
+    let app = window.app_handle();
+    let handle = app.clone();
+    let _ = app.run_on_main_thread(move || {
+        crate::pipe_client::replay_settings_snapshot(&handle, false);
+    });
+}
+
 /// Recompute the gate from live window state and apply it.
 ///
 /// The overlay accepts mouse input only while the settings window is visible *and*
@@ -314,6 +324,15 @@ pub fn set_overlay_visible(visible: bool, app: AppHandle) {
             sync_overlay_interactive(&app);
         } else {
             let _ = overlay.hide();
+        }
+    }
+}
+
+#[tauri::command]
+pub fn toggle_overlay(app: AppHandle) {
+    if let Some(window) = app.get_webview_window("overlay") {
+        if let Ok(visible) = window.is_visible() {
+            set_overlay_visible(!visible, app);
         }
     }
 }

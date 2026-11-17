@@ -109,7 +109,7 @@ export default function App() {
   const loadAppVersion = useSettingsStore((s) => s.loadAppVersion);
   const checkForUpdates = useUpdaterStore((s) => s.check);
 
-  useSensorData();
+  useSensorData("settings");
   useHotkey();
 
   useEffect(() => {
