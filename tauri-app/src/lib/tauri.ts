@@ -71,6 +71,9 @@ async function safeListen<T>(
   return listen<T>(event, handler);
 }
 
+export const onDisplayChanged = (callback: () => void) =>
+  safeListen<null>("overlay-display-changed", callback);
+
 // ─── Settings Commands ──────────────────────────────────────────
 
 export const getSettings = () =>

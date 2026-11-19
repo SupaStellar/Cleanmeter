@@ -7,6 +7,7 @@ export function watchOverlayDisplays(
   read: () => Promise<MonitorInfo[] | undefined>,
   changed: (monitors: MonitorInfo[]) => void,
   intervalMs = 2000,
+  subscribe?: (refresh: () => void) => Promise<() => void>,
 ): () => void {
   let stopped = false;
   let pending = false;
@@ -35,6 +36,7 @@ export function watchOverlayDisplays(
     clearTimeout(endBurst);
   };
   const rearm = () => {
+    if (stopped) return;
     stopBurst();
     void refresh();
     timer = setInterval(() => void refresh(), intervalMs);
@@ -55,11 +57,13 @@ export function watchOverlayDisplays(
 
   viewport?.addEventListener("resize", rearm);
   viewport?.document.addEventListener("visibilitychange", rearm);
+  const subscription = subscribe?.(rearm).catch(console.warn);
   watchDpi();
   rearm();
   return () => {
     stopped = true;
     stopBurst();
+    void subscription?.then((unlisten) => unlisten?.());
     viewport?.removeEventListener("resize", rearm);
     viewport?.document.removeEventListener("visibilitychange", rearm);
     dpi?.removeEventListener("change", onDpiChange);

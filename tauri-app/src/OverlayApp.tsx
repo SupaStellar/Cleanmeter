@@ -5,6 +5,7 @@ import { useSensorData } from "@/hooks/useSensorData";
 import { useSettingsStore } from "@/stores/settings-store";
 import {
   onSettingsChanged,
+  onDisplayChanged,
   getMonitors,
   setOverlayPosition,
   setOverlaySize,
@@ -89,7 +90,7 @@ export default function OverlayApp() {
     document.body.style.background = "transparent";
     let mounted = true;
     void loadSettings().then(() => { if (mounted) setSettingsReady(true); });
-    const stop = watchOverlayDisplays(getMonitors, setMonitors);
+    const stop = watchOverlayDisplays(getMonitors, setMonitors, undefined, onDisplayChanged);
     return () => { mounted = false; stop(); };
   }, [loadSettings]);
 

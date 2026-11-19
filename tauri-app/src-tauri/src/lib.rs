@@ -293,6 +293,11 @@ pub fn run() {
             }
         }))
         .setup(|app| {
+            #[cfg(windows)]
+            if let Some(overlay) = app.get_webview_window("overlay") {
+                commands::watch_display_changes(&overlay);
+            }
+
             info!("Cleanmeter {} starting (pid {}, executable {:?})",
                 app.package_info().version, std::process::id(), std::env::current_exe());
 

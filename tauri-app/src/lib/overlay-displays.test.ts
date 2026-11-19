@@ -46,6 +46,32 @@ describe("overlay display refresh", () => {
     expect(changed).toHaveBeenCalledTimes(1);
   });
 
+  it("refreshes same-DPI display geometry after the startup burst ends", async () => {
+    vi.useFakeTimers();
+    const nativeEvents = new EventTarget();
+    const subscribe = async (refresh: () => void) => {
+      nativeEvents.addEventListener("display-change", refresh);
+      return () => nativeEvents.removeEventListener("display-change", refresh);
+    };
+    const read = vi.fn().mockResolvedValue([display]);
+    const changed = vi.fn();
+    const stop = watchOverlayDisplays(read, changed, undefined, subscribe);
+
+    await vi.advanceTimersByTimeAsync(65_000);
+    const resized = { ...display, width: 2560 };
+    read.mockResolvedValue([resized]);
+    nativeEvents.dispatchEvent(new Event("display-change"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(changed).toHaveBeenLastCalledWith([resized]);
+
+    stop();
+    await vi.advanceTimersByTimeAsync(0);
+    read.mockResolvedValue([display]);
+    nativeEvents.dispatchEvent(new Event("display-change"));
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(changed).toHaveBeenCalledTimes(2);
+  });
+
   it("stops background polling and re-arms on resize, DPI, and visibility changes", async () => {
     vi.useFakeTimers();
     const viewport = Object.assign(new EventTarget(), {
