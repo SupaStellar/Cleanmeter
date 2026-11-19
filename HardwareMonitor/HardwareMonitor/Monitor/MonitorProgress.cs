@@ -1,13 +1,14 @@
 namespace HardwareMonitor.Monitor;
 
-internal record HardwareStatus(string State, string Stage, long ElapsedMs);
+internal record HardwareStatus(string State, string Stage, long ElapsedMs, bool SupportsMonitoringDemand, int SensorProtocolVersion);
 
 /// <summary>
 /// One immutable observation shared by the hardware owner and pipe heartbeat.
 /// A delayed status is informational: it never cancels or retries native work.
 /// </summary>
-internal sealed class MonitorProgress
+internal sealed class MonitorProgress(bool supportsMonitoringDemand = false)
 {
+    internal const int PipeProtocolVersion = 1;
     internal const long DelayWarningMs = 45_000;
     private sealed record Stage(string Name, long Since, bool Ready, bool Failed, bool HasReadings);
     private Stage _stage = new("Starting hardware worker", Environment.TickCount64, false, false, false);
@@ -32,6 +33,6 @@ internal sealed class MonitorProgress
         var elapsed = Math.Max(0, now - stage.Since);
         var state = stage.Failed ? "failed" : stage.Ready ? "ready"
             : elapsed >= DelayWarningMs ? "delayed" : stage.HasReadings ? "ready" : "starting";
-        return new HardwareStatus(state, stage.Name, stage.Ready ? 0 : elapsed);
+        return new HardwareStatus(state, stage.Name, stage.Ready ? 0 : elapsed, supportsMonitoringDemand, PipeProtocolVersion);
     }
 }

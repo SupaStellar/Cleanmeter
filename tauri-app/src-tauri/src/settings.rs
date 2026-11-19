@@ -54,6 +54,31 @@ impl SettingsManager {
         self.settings.lock().unwrap().clone()
     }
 
+    pub fn selected_sensor_identifiers(&self) -> Vec<String> {
+        let settings = self.settings.lock().unwrap();
+        let s = &settings.sensors;
+        [
+            &s.framerate.custom_reading_id, &s.frametime.custom_reading_id,
+            &s.one_percent_low.custom_reading_id, &s.zero_point_one_percent_low.custom_reading_id,
+            &s.cpu_temp.custom_reading_id, &s.cpu_usage.custom_reading_id,
+            &s.cpu_consumption.custom_reading_id, &s.cpu_clock.custom_reading_id,
+            &s.gpu_temp.custom_reading_id, &s.gpu_usage.custom_reading_id,
+            &s.vram_usage.custom_reading_id, &s.gpu_consumption.custom_reading_id,
+            &s.gpu_clock.custom_reading_id, &s.total_vram_used.custom_reading_id,
+            &s.ram_usage.custom_reading_id, &s.up_rate.custom_reading_id,
+            &s.down_rate.custom_reading_id,
+        ].into_iter().filter(|id| !id.is_empty()).cloned().collect()
+    }
+
+    pub fn overlay_uses_present_mon(&self) -> bool {
+        let settings = self.settings.lock().unwrap();
+        let sensors = &settings.sensors;
+        sensors.framerate.is_enabled
+            || sensors.frametime.is_enabled
+            || sensors.one_percent_low.is_enabled
+            || sensors.zero_point_one_percent_low.is_enabled
+    }
+
     pub fn save_settings(&self, new_settings: OverlaySettings) {
         *self.settings.lock().unwrap() = new_settings.clone();
         Self::save_to_file(&self.settings_path, &new_settings);

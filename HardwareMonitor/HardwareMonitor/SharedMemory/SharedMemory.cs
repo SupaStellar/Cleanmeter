@@ -52,6 +52,7 @@ public class SharedMemoryHardware
     public required string Identifier { get; set; }
     public required HardwareType HardwareType { get; set; }
 
+    internal long LastUpdateAt { get; set; }
     private bool _isActive = true;
 
     public void Update()

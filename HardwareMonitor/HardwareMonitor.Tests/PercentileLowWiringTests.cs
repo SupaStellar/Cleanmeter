@@ -87,6 +87,47 @@ public class PercentileLowWiringTests
         Assert.Equal(240f, poller.ZeroPointOnePercentLow.Value!.Value, 0);
     }
 
+    [Fact]
+    public void ReducedTrackingColumnsPreserveFrameReadings()
+    {
+        var poller = NewPoller();
+        var columns = PresentMonPoller.FrameColumns.FromHeader(
+            "Application,ProcessID,SwapChainAddress,PresentRuntime,SyncInterval,PresentFlags,AllowsTearing,PresentMode,CPUStartTime,FrameTime,CPUBusy,CPUWait,DisplayLatency,DisplayedTime,AnimationError");
+        Assert.NotNull(columns);
+        Assert.Null(PresentMonPoller.FrameColumns.FromHeader("Application,CPUStartTime,FrameTime"));
+        double time = 0;
+        for (var i = 0; i < 420; i++)
+        {
+            var row = FormattableString.Invariant($"{App},0,0,0,0,0,0,0,{time},16,0,0,0,16,0");
+            poller.ParseData(row, columns);
+            time += 16;
+        }
+        poller.SetLowsMode(LowsMode.Live);
+        Assert.Equal(62.5f, poller.Presented.Value!.Value, 1);
+        Assert.Equal(62.5f, poller.Displayed.Value!.Value, 1);
+        Assert.Equal(62.5f, poller.OnePercentLow.Value!.Value, 1);
+    }
+
+    [Fact]
+    public void HiddenCaptureCountsRecordingFramesAndRetainsTheFrozenResult()
+    {
+        var poller = NewPoller();
+        var nowMs = 0.0;
+
+        poller.SetCaptureRequested(false);
+        Feed(poller, ref nowMs, 90, 6);
+        Assert.Empty(poller.SnapshotCurrentApps());
+
+        poller.SetLowsMode(LowsMode.Recording);
+        Feed(poller, ref nowMs, 60, 7);
+        poller.SetLowsMode(LowsMode.Frozen);
+        Assert.Equal(60f, poller.OnePercentLow.Value!.Value, 0);
+
+        poller.SetCaptureRequested(true);
+        Feed(poller, ref nowMs, 90, 7);
+        Assert.Equal(60f, poller.OnePercentLow.Value!.Value, 0);
+    }
+
     /// <summary>
     /// A recording run is still cumulative over the whole run, which is the
     /// point of it — a benchmark that forgot its first thirty seconds would be

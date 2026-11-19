@@ -10,6 +10,8 @@ pub enum Command {
     PresentMonApps = 3,
     SelectPollingRate = 4,
     HardwareStatus = 6,
+    SensorCatalog = 9,
+    SensorValues = 10,
 }
 
 impl TryFrom<u16> for Command {
@@ -22,6 +24,8 @@ impl TryFrom<u16> for Command {
             3 => Ok(Command::PresentMonApps),
             4 => Ok(Command::SelectPollingRate),
             6 => Ok(Command::HardwareStatus),
+            9 => Ok(Command::SensorCatalog),
+            10 => Ok(Command::SensorValues),
             _ => Err(format!("Unknown command: {}", value)),
         }
     }
@@ -620,6 +624,10 @@ pub struct HardwareStatus {
     pub state: HardwareState,
     pub stage: String,
     pub elapsed_ms: u64,
+    #[serde(default, skip_serializing)]
+    pub supports_monitoring_demand: bool,
+    #[serde(default, skip_serializing)]
+    pub sensor_protocol_version: u16,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

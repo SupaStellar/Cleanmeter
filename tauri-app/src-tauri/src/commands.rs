@@ -102,6 +102,7 @@ pub fn save_settings(
     app: AppHandle,
 ) {
     settings_mgr.save_settings(settings.clone());
+    crate::pipe_client::refresh_selected_sensors(&app);
     // Re-register the global shortcuts from whatever was just saved.
     //
     // Driven off the save rather than commands of their own so the OS
@@ -120,6 +121,7 @@ pub fn save_settings(
 #[tauri::command]
 pub fn clear_settings(settings_mgr: State<'_, SettingsManager>, app: AppHandle) {
     settings_mgr.clear_settings();
+    crate::pipe_client::refresh_selected_sensors(&app);
     let defaults = settings_mgr.get_settings();
     crate::shortcuts::apply_all(&app, &defaults);
     let _ = app.emit("settings-changed", &defaults);
@@ -289,6 +291,7 @@ pub fn show_settings(window: &tauri::WebviewWindow) {
     let handle = app.clone();
     let _ = app.run_on_main_thread(move || {
         crate::pipe_client::replay_settings_snapshot(&handle, false);
+        crate::pipe_client::refresh_monitoring_demand(&handle);
     });
 }
 
@@ -307,9 +310,42 @@ pub fn show_settings(window: &tauri::WebviewWindow) {
 pub fn sync_overlay_interactive(app: &AppHandle) {
     let settings_shown = app
         .get_webview_window("settings")
-        .map(|w| w.is_visible().unwrap_or(false))
+        .map(|w| w.is_visible().unwrap_or(false) && !w.is_minimized().unwrap_or(true))
         .unwrap_or(false);
     apply_overlay_interactive(app, settings_shown && foreground_is_ours());
+}
+
+#[cfg(windows)]
+static FOREGROUND_APP: std::sync::OnceLock<AppHandle> = std::sync::OnceLock::new();
+
+#[cfg(windows)]
+pub fn watch_foreground(app: &AppHandle) {
+    use windows::Win32::Foundation::{HMODULE, HWND};
+    use windows::Win32::UI::Accessibility::{SetWinEventHook, HWINEVENTHOOK};
+    use windows::Win32::UI::WindowsAndMessaging::{EVENT_SYSTEM_FOREGROUND, WINEVENT_OUTOFCONTEXT};
+
+    unsafe extern "system" fn changed(
+        _: HWINEVENTHOOK, _: u32, _: HWND, _: i32, _: i32, _: u32, _: u32,
+    ) {
+        if let Some(app) = FOREGROUND_APP.get() {
+            if let Some(overlay) = app.get_webview_window("overlay") {
+                refresh_overlay_z_order(&overlay);
+                sync_overlay_interactive(app);
+            }
+        }
+    }
+
+    if FOREGROUND_APP.set(app.clone()).is_ok() {
+        let hook = unsafe {
+            SetWinEventHook(
+                EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, HMODULE::default(),
+                Some(changed), 0, 0, WINEVENT_OUTOFCONTEXT,
+            )
+        };
+        if hook.is_invalid() {
+            log::warn!("Could not watch foreground changes; retaining the stacking fallback");
+        }
+    }
 }
 
 #[tauri::command]
@@ -325,6 +361,10 @@ pub fn set_overlay_visible(visible: bool, app: AppHandle) {
         } else {
             let _ = overlay.hide();
         }
+        let handle = app.clone();
+        let _ = app.run_on_main_thread(move || {
+            crate::pipe_client::refresh_monitoring_demand(&handle);
+        });
     }
 }
 
