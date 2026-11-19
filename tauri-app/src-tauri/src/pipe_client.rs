@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, watch};
 
 use crate::types::*;
 
@@ -16,6 +16,50 @@ const SETTINGS_SENSOR_EVENT: &str = "settings-sensor-data";
 
 #[derive(Default)]
 pub struct SensorSnapshots(Mutex<Option<(HardwareMonitorData, bool)>>);
+
+const HARDWARE_VISIBLE: u16 = 1;
+const CAPTURE_REQUESTED: u16 = 2;
+const SETTINGS_VISIBLE: u16 = 4;
+const SENSOR_PROTOCOL_VERSION: u16 = 1;
+
+pub struct MonitoringDemand(pub watch::Sender<u16>);
+pub struct SelectedSensors(pub watch::Sender<Vec<String>>);
+
+pub fn refresh_selected_sensors(app: &AppHandle) {
+    let Some(state) = app.try_state::<SelectedSensors>() else { return };
+    let ids = app.state::<crate::settings::SettingsManager>().selected_sensor_identifiers();
+    state.0.send_if_modified(|current| {
+        if *current == ids { return false; }
+        *current = ids;
+        true
+    });
+}
+
+pub fn refresh_monitoring_demand(app: &AppHandle) {
+    let overlay_visible = app
+        .get_webview_window("overlay")
+        .is_some_and(|window| window.is_visible().unwrap_or(false));
+    sync_monitoring_demand(app, overlay_visible);
+}
+
+pub fn sync_monitoring_demand(app: &AppHandle, overlay_visible: bool) {
+    let Some(state) = app.try_state::<MonitoringDemand>() else {
+        return;
+    };
+    let settings_visible = settings_visible(app);
+    let capture_needed = settings_visible
+        || (overlay_visible && app.state::<crate::settings::SettingsManager>().overlay_uses_present_mon());
+    let demand = (u16::from(overlay_visible || settings_visible) * HARDWARE_VISIBLE)
+        | (u16::from(capture_needed) * CAPTURE_REQUESTED)
+        | (u16::from(settings_visible) * SETTINGS_VISIBLE);
+    state.0.send_if_modified(|previous| {
+        if *previous == demand {
+            return false;
+        }
+        *previous = demand;
+        true
+    });
+}
 
 fn settings_visible(app: &AppHandle) -> bool {
     app.get_webview_window("settings").is_some_and(|window| {
@@ -111,6 +155,9 @@ pub enum PipeCommand {
     /// live window. See MonitorPacketCommand.SetLowsMode and the C# LowsMode,
     /// whose values these are, and shortcuts::LowsMode for this side's copy.
     SetLowsMode(u8),
+    SetMonitoringDemand(u16),
+    SelectSensorProtocol,
+    SelectActiveSensors(Vec<String>),
 }
 
 /// Parse a Data packet (command 0) from raw bytes
@@ -232,16 +279,37 @@ fn parse_data_packet(data: &[u8]) -> Result<HardwareMonitorData, String> {
         });
     }
 
-    let now = std::time::SystemTime::now()
+    Ok(HardwareMonitorData { hardwares, sensors, last_poll_time: unix_time_ms() })
+}
+
+fn unix_time_ms() -> i64 {
+    std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
-        .as_millis() as i64;
+        .as_millis() as i64
+}
 
-    Ok(HardwareMonitorData {
-        hardwares,
-        sensors,
-        last_poll_time: now,
-    })
+fn parse_catalog(payload: &[u8]) -> Option<(i64, HardwareMonitorData)> {
+    let id = i64::from_le_bytes(payload.get(..8)?.try_into().ok()?);
+    Some((id, parse_data_packet(payload.get(8..)?).ok()?))
+}
+
+fn apply_sensor_values(
+    catalog: Option<&(i64, HardwareMonitorData)>,
+    payload: &[u8],
+) -> Option<HardwareMonitorData> {
+    let (catalog_id, catalog) = catalog?;
+    let values = payload.get(8..)?;
+    let id = i64::from_le_bytes(payload.get(..8)?.try_into().ok()?);
+    if id != *catalog_id || values.len() != catalog.sensors.len() * 4 {
+        return None;
+    }
+    let mut data = catalog.clone();
+    for (sensor, value) in data.sensors.iter_mut().zip(values.chunks_exact(4)) {
+        sensor.value = f32::from_le_bytes(value.try_into().ok()?);
+    }
+    data.last_poll_time = unix_time_ms();
+    Some(data)
 }
 
 /// Parse a PresentMonApps packet (command 3)
@@ -296,6 +364,24 @@ fn build_command(cmd: &PipeCommand) -> Vec<u8> {
             buf.write_u16::<LittleEndian>(5).unwrap();
             buf.write_u16::<LittleEndian>(u16::from(*mode)).unwrap();
         }
+        PipeCommand::SelectSensorProtocol => {
+            buf.write_u16::<LittleEndian>(8).unwrap();
+            buf.write_u16::<LittleEndian>(SENSOR_PROTOCOL_VERSION).unwrap();
+        }
+        PipeCommand::SelectActiveSensors(identifiers) => {
+            let bytes = serde_json::to_vec(identifiers).unwrap();
+            if bytes.len() > i16::MAX as usize {
+                warn!("Active sensor selection exceeds the sidecar frame limit");
+                return buf;
+            }
+            buf.write_u16::<LittleEndian>(11).unwrap();
+            buf.write_u16::<LittleEndian>(bytes.len() as u16).unwrap();
+            buf.extend_from_slice(&bytes);
+        }
+        PipeCommand::SetMonitoringDemand(demand) => {
+            buf.write_u16::<LittleEndian>(7).unwrap();
+            buf.write_u16::<LittleEndian>(*demand).unwrap();
+        }
     }
     buf
 }
@@ -345,6 +431,8 @@ fn retry_mode(disconnected_for: Duration) -> RetryMode {
 pub async fn run_pipe_client(
     app: AppHandle,
     mut cmd_rx: mpsc::Receiver<PipeCommand>,
+    mut demand: watch::Receiver<u16>,
+    mut selection: watch::Receiver<Vec<String>>,
     running: Arc<AtomicBool>,
 ) {
     let mut retry_delay = Duration::from_secs(2);
@@ -415,6 +503,7 @@ pub async fn run_pipe_client(
 
                 // Spawn blocking read loop on a dedicated OS thread
                 let read_handle = tokio::task::spawn_blocking(move || {
+                    let mut catalog = None;
                     loop {
                         if !running_for_read.load(Ordering::Relaxed) {
                             break;
@@ -469,6 +558,14 @@ pub async fn run_pipe_client(
                                     Err(e) => error!("Failed to parse data packet: {}", e),
                                 }
                             }
+                            Ok(Command::SensorCatalog) => {
+                                catalog = parse_catalog(&payload);
+                            }
+                            Ok(Command::SensorValues) => {
+                                if let Some(data) = apply_sensor_values(catalog.as_ref(), &payload) {
+                                    let _ = event_tx.blocking_send(ParsedEvent::SensorData(data));
+                                }
+                            }
                             Ok(Command::HardwareStatus) => {
                                 match serde_json::from_slice::<HardwareStatus>(&payload) {
                                     Ok(status) => {
@@ -492,9 +589,26 @@ pub async fn run_pipe_client(
 
                 // Async loop: forward events to Tauri and handle outgoing commands
                 let mut received_sensor_data = false;
-                while let Some(input) =
-                    crate::pipe_input::next_input(&mut cmd_rx, &mut event_rx).await
-                {
+                let mut supports_monitoring_demand = false;
+                let mut supports_sensor_protocol = false;
+                loop {
+                    let input = tokio::select! {
+                        input = crate::pipe_input::next_input(&mut cmd_rx, &mut event_rx) => input,
+                        Ok(()) = demand.changed(), if supports_monitoring_demand => {
+                            let flags = *demand.borrow_and_update();
+                            let flags = if supports_sensor_protocol { flags } else { flags & 3 };
+                            Some(crate::pipe_input::PipeInput::Command(
+                                PipeCommand::SetMonitoringDemand(flags),
+                            ))
+                        }
+                        Ok(()) = selection.changed(), if supports_sensor_protocol => {
+                            let ids = selection.borrow_and_update().clone();
+                            Some(crate::pipe_input::PipeInput::Command(
+                                PipeCommand::SelectActiveSensors(ids),
+                            ))
+                        }
+                    };
+                    let Some(input) = input else { break };
                     match input {
                         crate::pipe_input::PipeInput::Command(cmd) => {
                             let bytes = build_command(&cmd);
@@ -514,6 +628,34 @@ pub async fn run_pipe_client(
                                     publish_snapshot(&app_for_read, data);
                                 }
                                 ParsedEvent::HardwareStatus(status) => {
+                                    if !supports_sensor_protocol
+                                        && status.sensor_protocol_version == SENSOR_PROTOCOL_VERSION
+                                    {
+                                        supports_sensor_protocol = true;
+                                        let ids = selection.borrow_and_update().clone();
+                                        let commands = [
+                                            PipeCommand::SelectSensorProtocol,
+                                            PipeCommand::SelectActiveSensors(ids),
+                                        ];
+                                        for command in commands {
+                                            if let Err(e) = writer.write_all(&build_command(&command)) {
+                                                warn!("Could not negotiate the sensor protocol: {}", e);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    if status.supports_monitoring_demand && !supports_monitoring_demand {
+                                        supports_monitoring_demand = true;
+                                        let flags = *demand.borrow_and_update();
+                                        let flags = if supports_sensor_protocol { flags } else { flags & 3 };
+                                        let bytes = build_command(
+                                            &PipeCommand::SetMonitoringDemand(flags),
+                                        );
+                                        if let Err(e) = writer.write_all(&bytes) {
+                                            warn!("Could not set monitoring demand: {}", e);
+                                            break;
+                                        }
+                                    }
                                     let _ = app_for_read.emit("hardware-status", &status);
                                 }
                                 ParsedEvent::PresentMonApps(apps) => {
@@ -622,6 +764,28 @@ mod tests {
         assert!(FAST_POLL_INTERVAL <= Duration::from_millis(300));
     }
 
+    #[test]
+    fn monitoring_demand_wire_format_and_status_compatibility() {
+        assert_eq!(
+            build_command(&PipeCommand::SetMonitoringDemand(HARDWARE_VISIBLE | CAPTURE_REQUESTED)),
+            [7, 0, 3, 0],
+        );
+        assert_eq!(
+            build_command(&PipeCommand::SetMonitoringDemand(0)),
+            [7, 0, 0, 0],
+        );
+        let old = r#"{"state":"ready","stage":"Hardware readings available","elapsedMs":0}"#;
+        let status: HardwareStatus = serde_json::from_str(old).unwrap();
+        assert!(!status.supports_monitoring_demand);
+        let new = old.replace("}", ",\"supportsMonitoringDemand\":true}");
+        let status: HardwareStatus = serde_json::from_str(&new).unwrap();
+        assert!(status.supports_monitoring_demand);
+        assert_eq!(
+            serde_json::to_value(status).unwrap(),
+            serde_json::from_str::<serde_json::Value>(old).unwrap(),
+        );
+    }
+
     /// The lows-mode payload is the whole protocol for the recording hotkey, and
     /// the sidecar drops anything outside 0..=2 rather than coercing it, so a
     /// wrong byte here is a key that silently does nothing. Command id 5 and a
@@ -705,6 +869,24 @@ mod tests {
 
     /// The guard is worthless if it also turns away the packets the sidecar
     /// really sends, which is the way a validation fix breaks a working app.
+    #[test]
+    fn matching_values_rebuild_the_legacy_snapshot_and_reject_stale_catalogs() {
+        let legacy = data_packet(&[("CPU", "/cpu")], &[("Load", "/cpu/load", "/cpu")]);
+        let mut catalog = 17i64.to_le_bytes().to_vec();
+        catalog.extend_from_slice(&legacy);
+        let catalog = parse_catalog(&catalog).unwrap();
+        let mut values = 17i64.to_le_bytes().to_vec();
+        values.extend_from_slice(&37.5f32.to_le_bytes());
+        let data = apply_sensor_values(Some(&catalog), &values).unwrap();
+        assert_eq!(data.hardwares[0].identifier, "/cpu");
+        assert_eq!(data.sensors[0].identifier, "/cpu/load");
+        assert_eq!(data.sensors[0].value, 37.5);
+        assert!(apply_sensor_values(None, &values).is_none());
+        assert!(apply_sensor_values(Some(&catalog), &values[..11]).is_none());
+        values[0] = 18;
+        assert!(apply_sensor_values(Some(&catalog), &values).is_none());
+    }
+
     #[test]
     fn a_well_formed_packet_still_parses() {
         let packet = data_packet(

@@ -14,10 +14,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="5" />
-    </ItemGroup>
-
-    <ItemGroup>
         <!-- Lets HardwareMonitor.Tests drive PresentMonPoller.ParseData with
              synthetic PresentMon CSV rows, so the percentile-low wiring is
              covered and not just the arithmetic classes it calls. -->

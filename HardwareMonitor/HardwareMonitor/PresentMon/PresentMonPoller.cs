@@ -49,6 +49,25 @@ public class PresentMonPoller(ILogger logger)
     private const int APP_PUSH_INTERVAL_MS = 10_000;
 
     private Process _process;
+    private bool _captureRequested = true;
+    private string[] _ignoredProcesses = [];
+    private bool _useReducedTracking = Environment.GetEnvironmentVariable("CLEANMETER_DISABLE_REDUCED_TRACKING") != "1";
+
+    internal sealed record FrameColumns(int CpuStart, int FrameTime, int DisplayedTime)
+    {
+        public int LastIndex => Math.Max(CpuStart, Math.Max(FrameTime, DisplayedTime));
+
+        public static FrameColumns? FromHeader(string header)
+        {
+            var names = header.Split(',');
+            var start = Array.IndexOf(names, "CPUStartTime");
+            var frame = Array.IndexOf(names, "FrameTime");
+            var displayed = Array.IndexOf(names, "DisplayedTime");
+            return start < 0 || frame < 0 || displayed < 0
+                ? null : new FrameColumns(start, frame, displayed);
+        }
+    }
+    private TaskCompletionSource _captureChanged = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private CultureInfo _cultureInfo = (CultureInfo)CultureInfo.CurrentCulture.Clone();
 
     // Serializes attribution-state transitions: foreground-app swap, manual
@@ -233,13 +252,14 @@ public class PresentMonPoller(ILogger logger)
             // PollForegroundAsync hasn't had a tick yet.
             _foregroundAppName = ResolveForegroundProcessName();
 
-            var filteredApps = await ReadIgnoredProcessArgumentsAsync();
+            var ignored = await ReadIgnoredProcessesAsync();
+            lock (_stateLock) _ignoredProcesses = ignored;
 
             _ = PushAppsPeriodicallyAsync(stoppingToken);
             _ = PollForegroundAsync(stoppingToken);
             _ = LogFpsDiagnosticsAsync(stoppingToken);
 
-            await RunPresentMonAsync(filteredApps, stoppingToken);
+            await RunPresentMonAsync(stoppingToken);
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
@@ -253,33 +273,31 @@ public class PresentMonPoller(ILogger logger)
         }
     }
 
-    /// Builds the --exclude arguments from ignored-processes.txt.
+    /// Loads the process names from ignored-processes.txt.
     ///
     /// The file only suppresses noise in PresentMon's output, so an unreadable
     /// one degrades to no exclusions instead of failing the poller: PresentMon
     /// still runs and FPS still reports.
-    private async Task<string> ReadIgnoredProcessArgumentsAsync()
+    private async Task<string[]> ReadIgnoredProcessesAsync()
     {
         var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ignored-processes.txt");
 
         try
         {
             var contents = await File.ReadAllTextAsync(path);
-            var excludes = contents
-                .Split("\n", StringSplitOptions.RemoveEmptyEntries)
-                .Select(x => x.Trim())
-                .Where(x => x.Length > 0)
-                .Select(x => $"--exclude {x}");
-            return string.Join(" ", excludes);
+            return contents.Split("\n", StringSplitOptions.RemoveEmptyEntries)
+                .Select(name => name.Trim().Trim('"'))
+                .Where(name => name.Length > 0)
+                .ToArray();
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Could not read {Path}; continuing with no process exclusions", path);
-            return string.Empty;
+            return [];
         }
     }
 
-    // Keeps PresentMon running for as long as the sidecar runs.
+    // Restarts failed captures while monitoring demand is active.
     //
     // This method used to start the process once and await its exit with
     // nothing after the await. If PresentMon died, whether its trace session
@@ -292,7 +310,7 @@ public class PresentMonPoller(ILogger logger)
     // The body is guarded because a throw here used to take the whole sidecar
     // down: Start is async void, so an exception out of Process.Start (a
     // missing presentmon.exe, for one) reached the thread pool unhandled.
-    private async Task RunPresentMonAsync(string filteredApps, CancellationToken stoppingToken)
+    private async Task RunPresentMonAsync(CancellationToken stoppingToken)
     {
         // Pre-flight once. Restarts do not repeat it: the launch arguments
         // already carry --stop_existing_session, which clears a session left
@@ -310,13 +328,51 @@ public class PresentMonPoller(ILogger logger)
 
         while (!stoppingToken.IsCancellationRequested)
         {
+            var (needed, changed, excludedSelection) = CaptureState();
+            if (!needed)
+            {
+                await changed.WaitAsync(stoppingToken);
+                restartDelayMs = PRESENTMON_MIN_RESTART_MS;
+                continue;
+            }
+
             var startedAtMs = Environment.TickCount64;
 
             try
             {
-                StartPresentMonProcess(filteredApps);
-                await _process.WaitForExitAsync(stoppingToken);
+                var invalidHeader = StartPresentMonProcess(excludedSelection);
+                var exited = _process.WaitForExitAsync(stoppingToken);
+                var paused = false;
+                while (!exited.IsCompleted)
+                {
+                    var (stillNeeded, signal, currentExclusion) = CaptureState();
+                    if (!stillNeeded || currentExclusion != excludedSelection)
+                    {
+                        await PauseCaptureAsync(exited, stoppingToken);
+                        restartDelayMs = PRESENTMON_MIN_RESTART_MS;
+                        paused = true;
+                        break;
+                    }
+                    var completed = await Task.WhenAny(exited, signal, invalidHeader).WaitAsync(stoppingToken);
+                    if (completed == invalidHeader)
+                    {
+                        if (_useReducedTracking)
+                        {
+                            logger.LogWarning("PresentMon CSV is missing required columns; retrying with full tracking");
+                            _useReducedTracking = false;
+                        }
+                        await PauseCaptureAsync(exited, stoppingToken);
+                        break;
+                    }
+                }
+                if (paused) continue;
+                await exited;
                 if (stoppingToken.IsCancellationRequested) break;
+                if (invalidHeader.IsCompleted && _useReducedTracking)
+                {
+                    logger.LogWarning("PresentMon exited before a usable CSV header; retrying with full tracking");
+                    _useReducedTracking = false;
+                }
                 logger.LogError(
                     "PresentMon exited with code {ExitCode}. FPS and the monitored-app list are unavailable until it restarts.",
                     _process.ExitCode);
@@ -337,7 +393,9 @@ public class PresentMonPoller(ILogger logger)
 
             try
             {
-                await Task.Delay(restartDelayMs, stoppingToken);
+                var (_, demandChanged, _) = CaptureState();
+                await Task.WhenAny(Task.Delay(restartDelayMs, stoppingToken), demandChanged)
+                    .WaitAsync(stoppingToken);
             }
             catch (TaskCanceledException)
             {
@@ -348,7 +406,77 @@ public class PresentMonPoller(ILogger logger)
         }
     }
 
-    private void StartPresentMonProcess(string filteredApps)
+    private bool CaptureNeeded => _captureRequested || _lowsMode == LowsMode.Recording;
+
+    private string? SelectedExclusion => Array.Find(_ignoredProcesses,
+        name => string.Equals(name, _currentSelectedApp, StringComparison.OrdinalIgnoreCase));
+
+    private (bool Needed, Task Changed, string? ExcludedSelection) CaptureState()
+    {
+        lock (_stateLock)
+            return (CaptureNeeded, _captureChanged.Task, SelectedExclusion);
+    }
+
+    private void NotifyCaptureChange(bool wasNeeded)
+    {
+        if (wasNeeded != CaptureNeeded) SignalCaptureChange();
+    }
+
+    private void SignalCaptureChange()
+    {
+        var previous = _captureChanged;
+        _captureChanged = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        previous.SetResult();
+    }
+
+    internal void SetCaptureRequested(bool requested)
+    {
+        lock (_stateLock)
+        {
+            var wasNeeded = CaptureNeeded;
+            _captureRequested = requested;
+            NotifyCaptureChange(wasNeeded);
+        }
+    }
+
+    private async Task PauseCaptureAsync(Task exited, CancellationToken token)
+    {
+        // Stop the ETW session as well as its reader. Killing only the
+        // reader can leave Windows tracing frames without a consumer.
+        try
+        {
+            await TerminateCurrentPresentMon(token);
+            await exited.WaitAsync(TimeSpan.FromSeconds(3), token);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "PresentMon did not stop cleanly; retrying session cleanup");
+            Stop();
+            await TerminateCurrentPresentMon(token);
+            await exited.WaitAsync(TimeSpan.FromSeconds(3), token);
+        }
+
+        lock (_stateLock)
+        {
+            _presentedFrames.Clear();
+            _displayedFrames.Clear();
+            _presentedSumMs = 0;
+            _displayedSumMs = 0;
+            _latestStartTimeMs = 0;
+            _lastRowArrivalMs = 0;
+            Presented.Value = 0;
+            Displayed.Value = 0;
+            Frametime.Value = 0;
+            _lowsLive.Clear();
+            if (_lowsMode == LowsMode.Live)
+            {
+                OnePercentLow.Value = 0;
+                ZeroPointOnePercentLow.Value = 0;
+            }
+        }
+    }
+
+    private Task StartPresentMonProcess(string? excludedSelection)
     {
         var processStartInfo = new ProcessStartInfo
         {
@@ -357,14 +485,44 @@ public class PresentMonPoller(ILogger logger)
             RedirectStandardError = true,
             UseShellExecute = false,
             FileName = "presentmon.exe",
-            Arguments =
-                $"--stop_existing_session --no_console_stats --output_stdout --session_name HardwareMonitor {filteredApps}",
+
         };
-        logger.LogInformation("Starting PresentMon process with {Arguments}", processStartInfo.Arguments);
+        foreach (var argument in new[] { "--stop_existing_session", "--no_console_stats", "--output_stdout", "--session_name", "HardwareMonitor" })
+            processStartInfo.ArgumentList.Add(argument);
+        foreach (var name in _ignoredProcesses)
+        {
+            if (name == excludedSelection) continue;
+            processStartInfo.ArgumentList.Add("--exclude");
+            processStartInfo.ArgumentList.Add(name);
+        }
+        if (_useReducedTracking)
+        {
+            processStartInfo.ArgumentList.Add("--no_track_gpu");
+            processStartInfo.ArgumentList.Add("--no_track_input");
+        }
+        logger.LogInformation("Starting PresentMon process with {Arguments}", string.Join(" ", processStartInfo.ArgumentList));
 
         var process = new Process();
         process.StartInfo = processStartInfo;
-        process.OutputDataReceived += (sender, args) => ParseData(args.Data);
+        var invalidHeader = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        FrameColumns? columns = null;
+        process.OutputDataReceived += (_, args) =>
+        {
+            if (args.Data is not { } row)
+            {
+                if (columns is null) invalidHeader.TrySetResult();
+                return;
+            }
+            if (row.StartsWith("Application,", StringComparison.Ordinal))
+            {
+                columns = FrameColumns.FromHeader(row);
+                if (columns is null) invalidHeader.TrySetResult();
+            }
+            else if (columns is not null)
+            {
+                ParseData(row, columns);
+            }
+        };
         // PresentMon states its reason for refusing to start here (no
         // elevation, a session held by another capture tool, a blocked exe),
         // which is the only field evidence of why FPS never appears. Null
@@ -408,6 +566,7 @@ public class PresentMonPoller(ILogger logger)
         var previous = _process;
         _process = process;
         previous?.Dispose();
+        return invalidHeader.Task;
     }
 
     public void Stop()
@@ -429,7 +588,11 @@ public class PresentMonPoller(ILogger logger)
     // which accumulator a row feeds, the app-change guard, what each mode
     // publishes — only exists here, and a unit test of the accumulators alone
     // cannot see any of it.
-    internal void ParseData(string? argsData)
+    private static readonly FrameColumns LegacyFrameColumns = new(8, 9, 17);
+
+    internal void ParseData(string? argsData) => ParseData(argsData, LegacyFrameColumns);
+
+    internal void ParseData(string? argsData, FrameColumns columns)
     {
         if (argsData == null) return;
         var commaCount = argsData.AsSpan().Count(',');
@@ -445,7 +608,7 @@ public class PresentMonPoller(ILogger logger)
             Interlocked.Increment(ref _totalRowCount);
         }
 
-        if (commaCount < 17)
+        if (commaCount < columns.LastIndex)
         {
             if (debug) Interlocked.Increment(ref _shortRowCount);
             return;
@@ -467,6 +630,7 @@ public class PresentMonPoller(ILogger logger)
             // Record inside the lock: Dictionary<K,V> is not thread-safe, and
             // _appLastSeenMs is also read by SnapshotCurrentApps on the pipe
             // serializer's thread and pruned there.
+            if (!CaptureNeeded) return;
             _appLastSeenMs[rowApp] = nowMs;
 
 
@@ -521,8 +685,8 @@ public class PresentMonPoller(ILogger logger)
             // which is the point — ETW burst delivery doesn't affect it.
             // Skip rows we can't parse or with non-positive frametime
             // (would NaN the sum or divide by zero downstream).
-            if (!double.TryParse(parts[8], NumberStyles.Any, _cultureInfo, out var startMs)) return;
-            if (!float.TryParse(parts[9], NumberStyles.Any, _cultureInfo, out var ftMs) || ftMs <= 0) return;
+            if (!double.TryParse(parts[columns.CpuStart], NumberStyles.Any, _cultureInfo, out var startMs)) return;
+            if (!float.TryParse(parts[columns.FrameTime], NumberStyles.Any, _cultureInfo, out var ftMs) || ftMs <= 0) return;
 
             if (startMs > _latestStartTimeMs) _latestStartTimeMs = startMs;
             _lastRowArrivalMs = nowMs;
@@ -577,7 +741,7 @@ public class PresentMonPoller(ILogger logger)
             // game on a 144Hz monitor displays ~144fps). Frames where
             // DisplayedTime is 0 were dropped before scan-out and don't
             // contribute to either count or sum.
-            if (double.TryParse(parts[17], NumberStyles.Any, _cultureInfo, out var displayedTime)
+            if (double.TryParse(parts[columns.DisplayedTime], NumberStyles.Any, _cultureInfo, out var displayedTime)
                 && displayedTime > 0)
             {
                 var dtMs = (float)displayedTime;
@@ -636,6 +800,7 @@ public class PresentMonPoller(ILogger logger)
     {
         lock (_stateLock)
         {
+            var wasNeeded = CaptureNeeded;
             switch (mode)
             {
                 case LowsMode.Recording:
@@ -691,6 +856,7 @@ public class PresentMonPoller(ILogger logger)
             }
 
             _lowsMode = mode;
+            NotifyCaptureChange(wasNeeded);
         }
 
         logger.LogInformation("Percentile-low mode {Mode}", mode);
@@ -760,17 +926,14 @@ public class PresentMonPoller(ILogger logger)
             // fall back to foreground attribution.
             _lastSelectedAppMatchMs = Environment.TickCount64;
 
-            if (string.Equals(appName, AUTO_MODE, StringComparison.OrdinalIgnoreCase))
-            {
-                _currentSelectedApp = NO_SELECTED_APP;
-                return;
-            }
-
-            _currentSelectedApp = appName;
+            var previousExclusion = SelectedExclusion;
+            _currentSelectedApp = string.Equals(appName, AUTO_MODE, StringComparison.OrdinalIgnoreCase)
+                ? NO_SELECTED_APP : appName;
+            if (SelectedExclusion != previousExclusion) SignalCaptureChange();
         }
     }
 
-    private async Task TerminateCurrentPresentMon()
+    private async Task TerminateCurrentPresentMon(CancellationToken token = default)
     {
         var processStartInfo = new ProcessStartInfo
         {
@@ -784,10 +947,19 @@ public class PresentMonPoller(ILogger logger)
         };
         logger.LogInformation("Starting PresentMon process with {Arguments}", processStartInfo.Arguments);
 
-        var process = new Process();
-        process.StartInfo = processStartInfo;
+        using var process = new Process { StartInfo = processStartInfo };
         process.Start();
-        await process.WaitForExitAsync();
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+        timeout.CancelAfter(TimeSpan.FromSeconds(3));
+        try
+        {
+            await process.WaitForExitAsync(timeout.Token);
+        }
+        catch (OperationCanceledException) when (!token.IsCancellationRequested)
+        {
+            if (!process.HasExited) process.Kill();
+            throw new TimeoutException("PresentMon session cleanup timed out.");
+        }
     }
 
     // Pushes the current app list to connected clients on a fixed cadence.

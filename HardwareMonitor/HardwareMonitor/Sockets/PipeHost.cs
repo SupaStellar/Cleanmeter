@@ -1,4 +1,5 @@
 using System.IO.Pipes;
+using HardwareMonitor.Monitor;
 using Microsoft.Extensions.Logging;
 // ReSharper disable FieldCanBeMadeReadOnly.Local
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
@@ -8,7 +9,14 @@ namespace HardwareMonitor.Sockets;
 public class PipeHost(ILogger logger, string pipeName = "HardwareMonitor_31337")
 {
     private readonly string _pipeName = pipeName;
-    private List<NamedPipeServerStream> _clients = [];
+    private sealed class Client(NamedPipeServerStream pipe)
+    {
+        public readonly NamedPipeServerStream Pipe = pipe;
+        public volatile bool SupportsCatalog;
+        public long CatalogId;
+    }
+
+    private readonly List<Client> _clients = [];
     private CancellationTokenSource _cancellationTokenSource = new();
     private Task _serverTask;
 
@@ -51,15 +59,16 @@ public class PipeHost(ILogger logger, string pipeName = "HardwareMonitor_31337")
 
                 logger.LogInformation("Client connected to pipe: {PipeName}", _pipeName);
 
+                var client = new Client(pipeServer);
                 lock (_clients)
                 {
-                    _clients.Add(pipeServer);
+                    _clients.Add(client);
                 }
 
                 OnClientConnected?.Invoke();
 
                 // Handle this client in a separate task
-                _ = Task.Run(() => HandleClientAsync(pipeServer), _cancellationTokenSource.Token);
+                _ = Task.Run(() => HandleClientAsync(client), _cancellationTokenSource.Token);
             }
             catch (OperationCanceledException)
             {
@@ -73,29 +82,41 @@ public class PipeHost(ILogger logger, string pipeName = "HardwareMonitor_31337")
         }
     }
 
-    private async Task HandleClientAsync(NamedPipeServerStream pipeServer)
+    private async Task HandleClientAsync(Client client)
     {
-        var buffer = new byte[2048];
+        var pipeServer = client.Pipe;
+        var token = _cancellationTokenSource.Token;
+        var header = new byte[4];
 
         try
         {
-            while (pipeServer.IsConnected && !_cancellationTokenSource.Token.IsCancellationRequested)
+            while (pipeServer.IsConnected && !token.IsCancellationRequested)
             {
-                int bytesRead = await pipeServer.ReadAsync(buffer, 0, buffer.Length, _cancellationTokenSource.Token);
+                // Commands use a u16 ID, followed by a fixed u16 or a u16
+                // length and UTF-8 payload. A byte-mode read may return any
+                // fraction or combination of the writes made by the client.
+                await pipeServer.ReadExactlyAsync(header.AsMemory(0, 2), token);
+                var command = (MonitorPacketCommand)BitConverter.ToInt16(header);
+                var headerLength = command is MonitorPacketCommand.SelectPresentMonApp
+                    or MonitorPacketCommand.SelectPollingRate or MonitorPacketCommand.SetLowsMode
+                    or MonitorPacketCommand.SetMonitoringDemand or MonitorPacketCommand.SelectSensorProtocol
+                    or MonitorPacketCommand.SelectActiveSensors ? 4 : 2;
+                if (headerLength == 4)
+                    await pipeServer.ReadExactlyAsync(header.AsMemory(2, 2), token);
 
-                if (bytesRead > 0)
-                {
-                    var data = new byte[bytesRead];
-                    Array.Copy(buffer, data, bytesRead);
-                    OnClientData?.Invoke(data);
-                }
+                var payloadLength = command is MonitorPacketCommand.SelectPresentMonApp or MonitorPacketCommand.SelectActiveSensors
+                    ? Math.Max(0, (int)BitConverter.ToInt16(header, 2)) : 0;
+                var data = new byte[headerLength + payloadLength];
+                header.AsSpan(0, headerLength).CopyTo(data);
+                if (payloadLength != 0)
+                    await pipeServer.ReadExactlyAsync(data.AsMemory(headerLength), token);
+                if (command == MonitorPacketCommand.SelectSensorProtocol)
+                    client.SupportsCatalog = BitConverter.ToInt16(data, 2) == MonitorProgress.PipeProtocolVersion;
                 else
-                {
-                    // Client disconnected
-                    break;
-                }
+                    OnClientData?.Invoke(data);
             }
         }
+        catch (EndOfStreamException) { }
         catch (Exception ex)
         {
             logger.LogInformation("Client disconnected: {Exception}", ex.Message);
@@ -106,7 +127,7 @@ public class PipeHost(ILogger logger, string pipeName = "HardwareMonitor_31337")
 
             lock (_clients)
             {
-                _clients.Remove(pipeServer);
+                _clients.Remove(client);
             }
 
             try
@@ -129,7 +150,7 @@ public class PipeHost(ILogger logger, string pipeName = "HardwareMonitor_31337")
             {
                 try
                 {
-                    client.Dispose();
+                    client.Pipe.Dispose();
                 }
                 catch { }
             }
@@ -150,15 +171,48 @@ public class PipeHost(ILogger logger, string pipeName = "HardwareMonitor_31337")
     {
         lock (_clients)
         {
-            return _clients.Any(c => c.IsConnected);
+            return _clients.Any(c => c.Pipe.IsConnected);
         }
     }
 
-    public async Task SendToAllAsync(byte[] data)
+    private static byte[] Frame(byte[] data)
     {
-        var dataWithSize = data.ToList();
-        dataWithSize.InsertRange(2, BitConverter.GetBytes(dataWithSize.Count - 2));
-        var finalData = dataWithSize.ToArray();
+        var framed = new byte[data.Length + sizeof(int)];
+        data.AsSpan(0, 2).CopyTo(framed);
+        BitConverter.TryWriteBytes(framed.AsSpan(2), data.Length - 2);
+        data.AsSpan(2).CopyTo(framed.AsSpan(6));
+        return framed;
+    }
+
+    public Task SendToAllAsync(byte[] data)
+    {
+        var frame = Frame(data);
+        return SendAsync((client, token) => client.Pipe.WriteAsync(frame, token).AsTask());
+    }
+
+    internal Task SendSensorDataAsync(long catalogId, byte[] catalog, byte[] values, Func<byte[]> legacy)
+    {
+        byte[]? legacyFrame = null;
+        byte[]? catalogFrame = null;
+        byte[]? valuesFrame = null;
+        return SendAsync(async (client, token) =>
+        {
+            if (!client.SupportsCatalog)
+            {
+                await client.Pipe.WriteAsync(legacyFrame ??= Frame(legacy()), token);
+                return;
+            }
+            if (client.CatalogId != catalogId)
+            {
+                await client.Pipe.WriteAsync(catalogFrame ??= Frame(catalog), token);
+                client.CatalogId = catalogId;
+            }
+            await client.Pipe.WriteAsync(valuesFrame ??= Frame(values), token);
+        });
+    }
+
+    private async Task SendAsync(Func<Client, CancellationToken, Task> write)
+    {
 
         // Hold the lock across write+flush so a whole packet reaches the stream
         // before the next one starts. See _sendLock.
@@ -177,7 +231,7 @@ public class PipeHost(ILogger logger, string pipeName = "HardwareMonitor_31337")
 
         try
         {
-            List<NamedPipeServerStream> clientsCopy;
+            List<Client> clientsCopy;
             lock (_clients)
             {
                 clientsCopy = _clients.ToList();
@@ -187,10 +241,10 @@ public class PipeHost(ILogger logger, string pipeName = "HardwareMonitor_31337")
             {
                 try
                 {
-                    if (client.IsConnected)
+                    if (client.Pipe.IsConnected)
                     {
-                        await client.WriteAsync(finalData, 0, finalData.Length, _cancellationTokenSource.Token);
-                        await client.FlushAsync(_cancellationTokenSource.Token);
+                        await write(client, _cancellationTokenSource.Token);
+                        await client.Pipe.FlushAsync(_cancellationTokenSource.Token);
                     }
                 }
                 catch (Exception ex)
@@ -205,7 +259,7 @@ public class PipeHost(ILogger logger, string pipeName = "HardwareMonitor_31337")
 
                     try
                     {
-                        client.Dispose();
+                        client.Pipe.Dispose();
                     }
                     catch { }
                 }

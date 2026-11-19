@@ -22,7 +22,7 @@ public class MonitorPoller : BackgroundService
     private readonly ILogger<MonitorPoller> logger;
     private readonly Func<CancellationToken, Task>? _hardwareOverride;
     private readonly bool _startPresentMon;
-    private readonly MonitorProgress _progress = new();
+    private readonly MonitorProgress _progress = new(supportsMonitoringDemand: true);
 
     public MonitorPoller(ILogger<MonitorPoller> logger)
         : this(logger, new PipeHost(logger), null, true) { }
@@ -55,6 +55,17 @@ public class MonitorPoller : BackgroundService
 
     private short _pollingRate = 1000;
     private const short MinimalPollingRate = 33;
+    private const int HiddenPollIntervalMs = 10_000;
+    private static readonly bool IdlePollingEnabled =
+        Environment.GetEnvironmentVariable("CLEANMETER_DISABLE_IDLE_POLLING") != "1";
+    private readonly object _pollingVisibilityLock = new();
+    private readonly SemaphoreSlim _pollingVisibilityChanged = new(0, 1);
+    private int _hardwarePollingVisible = 1;
+    private int _settingsVisible = 1;
+    private HashSet<string>? _selectedSensors;
+    private static readonly bool TieringEnabled =
+        Environment.GetEnvironmentVariable("CLEANMETER_DISABLE_HARDWARE_TIERING") != "1";
+    private const int SlowHardwareIntervalMs = 10_000;
 
     // How many times a change to the active sensor set is worth logging.
     private const int SensorSetChangeLogLimit = 5;
@@ -245,17 +256,23 @@ public class MonitorPoller : BackgroundService
 
         _progress.Begin("Mapping sensor readings");
         var sharedMemoryData = QueryHardwareData();
-        var knownSensorCount = CountActiveSensors();
+        List<SharedMemorySensor>? catalogSensors = null;
+        HashSet<string>? mappedSelection = null;
+        List<SharedMemorySensor>? mappedSensors = null;
+        HashSet<string> fastHardware = [];
+        long catalogId = 0;
+        byte[] catalog = [];
         var sensorSetChanges = 0;
 
         using var memoryStream = new MemoryStream();
         using var writer = new BinaryWriter(memoryStream);
 
-        WriteDataToStream(writer, sharedMemoryData);
         _progress.Ready();
 
+        long lastHardwarePollAt = 0;
         while (!stoppingToken.IsCancellationRequested)
         {
+            await WaitForPollingInterval(lastHardwarePollAt, stoppingToken);
             // Ahead of the no-clients check on purpose: the GPU list should be
             // right by the time a client connects, not a poll or two after.
             // Wall-clock rather than an accumulator because the two waits below
@@ -275,7 +292,6 @@ public class MonitorPoller : BackgroundService
                         ForgetGpuHardware(sharedMemoryData);
 
                     MapHardwareData(sharedMemoryData);
-                    knownSensorCount = CountActiveSensors();
                 }
             }
 
@@ -287,8 +303,25 @@ public class MonitorPoller : BackgroundService
                 continue;
             }
 
+            var selected = Volatile.Read(ref _selectedSensors);
+            if (!ReferenceEquals(selected, mappedSelection) || !ReferenceEquals(sharedMemoryData.Sensors, mappedSensors))
+            {
+                mappedSelection = selected;
+                mappedSensors = sharedMemoryData.Sensors;
+                fastHardware = selected is null ? [] : sharedMemoryData.Sensors
+                    .Where(sensor => selected.Contains(sensor.Identifier))
+                    .Select(sensor => sensor.HardwareIdentifier).ToHashSet(StringComparer.Ordinal);
+            }
+
+            var pollAt = Environment.TickCount64;
+            var fullRate = !TieringEnabled || selected is null || Volatile.Read(ref _settingsVisible) != 0;
             foreach (var hardware in sharedMemoryData.Hardwares)
             {
+                if (!fullRate && !IsFastHardware(hardware, fastHardware)
+                    && pollAt - hardware.LastUpdateAt < SlowHardwareIntervalMs)
+                    continue;
+
+                hardware.LastUpdateAt = pollAt;
                 try
                 {
                     _progress.Begin(hardware.ReadStage);
@@ -315,8 +348,7 @@ public class MonitorPoller : BackgroundService
             // survives. On GPUs that activate everything up front (e.g. NVIDIA
             // via NvAPI) the count never moves and this whole block is a no-op.
             _progress.Begin("Mapping sensor readings");
-            var activeSensorCount = CountActiveSensors();
-            if (activeSensorCount != knownSensorCount)
+            if (HardwareSensorSetChanged(sharedMemoryData.Sensors))
             {
                 // Capped: a sensor that flaps in and out would otherwise write a
                 // line every poll (CPU core temperatures deactivate themselves
@@ -324,36 +356,68 @@ public class MonitorPoller : BackgroundService
                 // re-map, so the data stays correct either way.
                 if (sensorSetChanges++ < SensorSetChangeLogLimit)
                 {
-                    logger.LogInformation(
-                        "Active sensor set changed ({Previous} -> {Current}); refreshing sensor list",
-                        knownSensorCount, activeSensorCount);
+                    logger.LogInformation("Active sensor set changed; refreshing sensor list");
                 }
 
-                knownSensorCount = activeSensorCount;
                 MapHardwareData(sharedMemoryData);
             }
 
             _progress.Begin("Sending sensor readings");
-            WriteDataToStream(writer, sharedMemoryData);
-
-            if (_socketHost.HasConnections())
+            if (!ReferenceEquals(catalogSensors, sharedMemoryData.Sensors))
             {
-                _socketHost.SendToAll(memoryStream.ToArray());
-            } else
-            {
-                //logger.LogInformation("No clients connected, not sending data");
+                catalogSensors = sharedMemoryData.Sensors;
+                WriteDataToStream(writer, sharedMemoryData, ++catalogId);
+                catalog = memoryStream.ToArray();
             }
 
+            memoryStream.SetLength(0);
+            writer.Write((short)MonitorPacketCommand.SensorValues);
+            writer.Write(catalogId);
+            foreach (var sensor in sharedMemoryData.Sensors)
+                writer.Write(ReadSensorValue(sensor));
+
+            await _socketHost.SendSensorDataAsync(catalogId, catalog, memoryStream.ToArray(), () =>
+            {
+                WriteDataToStream(writer, sharedMemoryData);
+                return memoryStream.ToArray();
+            });
+
             _progress.Ready();
-            await Task.Delay(_pollingRate, stoppingToken);
+            lastHardwarePollAt = Environment.TickCount64;
         }
 
     }
 
-    private static void WriteDataToStream(BinaryWriter writer, SharedMemoryData sharedMemoryData)
+    private async Task WaitForPollingInterval(long lastPollAt, CancellationToken token)
+    {
+        if (lastPollAt == 0) return;
+        while (true)
+        {
+            var visible = Volatile.Read(ref _hardwarePollingVisible) != 0;
+            var interval = visible ? Volatile.Read(ref _pollingRate) : HiddenPollIntervalMs;
+            var remaining = interval - (Environment.TickCount64 - lastPollAt);
+            if (remaining <= 0) return;
+            if (!await _pollingVisibilityChanged.WaitAsync((int)remaining, token)) return;
+            if (Volatile.Read(ref _hardwarePollingVisible) != 0) return;
+        }
+    }
+
+    internal static bool IsFastHardware(SharedMemoryHardware hardware, HashSet<string> selectedHardware)
+        => hardware.HardwareType is HardwareType.Cpu or HardwareType.Memory or HardwareType.Network
+            or HardwareType.GpuNvidia or HardwareType.GpuAmd or HardwareType.GpuIntel
+            || selectedHardware.Contains(hardware.Identifier);
+
+    private static float ReadSensorValue(SharedMemorySensor sensor)
+    {
+        var value = sensor.HardwareSensor.Value ?? 0f;
+        return float.IsNaN(value) ? 0f : value;
+    }
+
+    private static void WriteDataToStream(BinaryWriter writer, SharedMemoryData sharedMemoryData, long catalogId = 0)
     {
         writer.BaseStream.SetLength(0);
-        writer.Write((short)MonitorPacketCommand.Data);
+        writer.Write((short)(catalogId == 0 ? MonitorPacketCommand.Data : MonitorPacketCommand.SensorCatalog));
+        if (catalogId != 0) writer.Write(catalogId);
         writer.Write(sharedMemoryData.Hardwares.Count);
         writer.Write(sharedMemoryData.Sensors.Count);
 
@@ -368,9 +432,6 @@ public class MonitorPoller : BackgroundService
 
         foreach (var sensor in sharedMemoryData.Sensors)
         {
-            var value = sensor.HardwareSensor.Value ?? 0f;
-            sensor.Value = float.IsNaN(value) ? 0f : value;
-
             writer.Write((short)sensor.Name.Length);
             writer.Write((short)sensor.Identifier.Length);
             writer.Write((short)sensor.HardwareIdentifier.Length);
@@ -378,7 +439,7 @@ public class MonitorPoller : BackgroundService
             writer.Write(Encoding.UTF8.GetBytes(sensor.Identifier));
             writer.Write(Encoding.UTF8.GetBytes(sensor.HardwareIdentifier));
             writer.Write((int)sensor.SensorType);
-            writer.Write((float)sensor.Value);
+            writer.Write(catalogId == 0 ? ReadSensorValue(sensor) : 0f);
         }
     }
 
@@ -401,6 +462,38 @@ public class MonitorPoller : BackgroundService
                 break;
             case MonitorPacketCommand.SelectPollingRate:
                 SelectPollingRate(data);
+                break;
+            case MonitorPacketCommand.SetMonitoringDemand:
+                if (ReadPayload(data, cmd) is short demand && demand is >= 0 and <= 7)
+                {
+                    _presentMonPoller.SetCaptureRequested((demand & 2) != 0);
+                    Volatile.Write(ref _settingsVisible, (demand & 4) != 0 ? 1 : 0);
+                    if (IdlePollingEnabled)
+                    {
+                        var visible = demand & 1;
+                        lock (_pollingVisibilityLock)
+                        {
+                            if (Interlocked.Exchange(ref _hardwarePollingVisible, visible) != visible
+                                && _pollingVisibilityChanged.CurrentCount == 0)
+                                _pollingVisibilityChanged.Release();
+                        }
+                    }
+                }
+                break;
+            case MonitorPacketCommand.SelectActiveSensors:
+                if (ReadPayload(data, cmd) is short length && length >= 0 && data.Length == 4 + length)
+                {
+                    try
+                    {
+                        var identifiers = JsonSerializer.Deserialize<string[]>(data.AsSpan(4));
+                        if (identifiers is not null)
+                            Volatile.Write(ref _selectedSensors, identifiers.ToHashSet(StringComparer.Ordinal));
+                    }
+                    catch (JsonException ex)
+                    {
+                        logger.LogWarning(ex, "Ignoring invalid active sensor selection");
+                    }
+                }
                 break;
             case MonitorPacketCommand.SetLowsMode:
                 SetLowsMode(data);
@@ -472,7 +565,7 @@ public class MonitorPoller : BackgroundService
     private void SelectPollingRate(byte[] data)
     {
         if (ReadPayload(data, MonitorPacketCommand.SelectPollingRate) is not { } pollingRate) return;
-        _pollingRate = Math.Max(pollingRate, MinimalPollingRate);
+        Volatile.Write(ref _pollingRate, Math.Max(pollingRate, MinimalPollingRate));
         logger.LogInformation("Selected polling rate of {PollingRate}", _pollingRate);
     }
 
@@ -838,24 +931,25 @@ public class MonitorPoller : BackgroundService
         sharedMemoryData.Sensors = sensorList;
     }
 
-    /// <summary>
-    /// Number of sensors LibreHardwareMonitor currently reports as active. Used
-    /// only to detect that the set changed, so the sensor list can be re-mapped.
-    /// </summary>
-    private int CountActiveSensors()
+    private bool HardwareSensorSetChanged(List<SharedMemorySensor> mapped)
     {
-        var count = 0;
-
+        var index = 0;
+        bool Matches(IHardware hardware)
+        {
+            foreach (var sensor in hardware.Sensors)
+            {
+                if (index >= mapped.Count - 5 || !ReferenceEquals(mapped[index++].HardwareSensor, sensor))
+                    return false;
+            }
+            return true;
+        }
         foreach (var hardware in HardwareSnapshot())
         {
-            count += hardware.Sensors.Length;
+            if (!Matches(hardware)) return true;
             foreach (var subHardware in hardware.SubHardware)
-            {
-                count += subHardware.Sensors.Length;
-            }
+                if (!Matches(subHardware)) return true;
         }
-
-        return count;
+        return index != mapped.Count - 5;
     }
 
     private static SharedMemoryHardware MapHardware(IHardware hardware) => new()

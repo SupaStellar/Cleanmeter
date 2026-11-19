@@ -381,6 +381,12 @@ pub fn run() {
             // Set up pipe client communication channel
             let (cmd_tx, cmd_rx) = mpsc::channel::<pipe_client::PipeCommand>(32);
             app.manage(PipeCommandSender(cmd_tx));
+            let (demand_tx, demand_rx) = tokio::sync::watch::channel(0);
+            app.manage(pipe_client::MonitoringDemand(demand_tx));
+            let (selection_tx, selection_rx) = tokio::sync::watch::channel(Vec::new());
+            app.manage(pipe_client::SelectedSensors(selection_tx));
+            pipe_client::refresh_selected_sensors(app.handle());
+            pipe_client::refresh_monitoring_demand(app.handle());
             // Managed before the shortcut below is applied: apply_shortcut
             // reads this state to know what to unregister.
             app.manage(shortcuts::ShortcutRegistry::new());
@@ -392,7 +398,7 @@ pub fn run() {
             let running_for_hw = running.clone();
 
             tauri::async_runtime::spawn(async move {
-                pipe_client::run_pipe_client(app_handle, cmd_rx, running_clone).await;
+                pipe_client::run_pipe_client(app_handle, cmd_rx, demand_rx, selection_rx, running_clone).await;
             });
 
             // Store running flag for cleanup
@@ -580,7 +586,10 @@ pub fn run() {
                 shortcuts::apply_all(&app.handle().clone(), &stored);
             }
 
-            // Periodically reassert overlay always-on-top so games can't push it behind.
+            #[cfg(windows)]
+            commands::watch_foreground(app.handle());
+
+            // Reassert stacking periodically for games that take topmost without a foreground change.
             // Only reasserts when overlay is currently visible (user hasn't hidden it).
             // The click-through gate is recomputed on the same tick, which is what
             // makes it self-correcting rather than dependent on having seen every
@@ -589,14 +598,21 @@ pub fn run() {
             {
                 let app_handle_top = app.handle().clone();
                 tauri::async_runtime::spawn(async move {
+                    let mut fallback = 0;
                     loop {
                         tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-                        if let Some(overlay) = app_handle_top.get_webview_window("overlay") {
-                            if overlay.is_visible().unwrap_or(false) {
-                                commands::refresh_overlay_z_order(&overlay);
-                                commands::sync_overlay_interactive(&app_handle_top);
+                        fallback = (fallback + 1) % 4;
+                        let handle = app_handle_top.clone();
+                        let _ = app_handle_top.run_on_main_thread(move || {
+                            if let Some(overlay) = handle.get_webview_window("overlay") {
+                                let visible = overlay.is_visible().unwrap_or(false);
+                                pipe_client::sync_monitoring_demand(&handle, visible);
+                                if visible && fallback == 0 {
+                                    commands::refresh_overlay_z_order(&overlay);
+                                    commands::sync_overlay_interactive(&handle);
+                                }
                             }
-                        }
+                        });
                     }
                 });
             }
@@ -647,6 +663,7 @@ pub fn run() {
                             commands::apply_overlay_interactive(&app_handle3, false);
                         }
                         tauri::WindowEvent::Resized(_) => {
+                            pipe_client::refresh_monitoring_demand(&app_handle3);
                             pipe_client::replay_settings_snapshot(&app_handle3, false);
                             if w_for_event.is_maximized().unwrap_or(false) {
                                 let _ = w_for_event.unmaximize();

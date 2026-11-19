@@ -103,6 +103,38 @@ public class MonitorStartupTests
     }
 
     [Fact]
+    public async Task PipeReadsSplitCommandsAndMultipleCommandsInOneWrite()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var name = "cleanmeter-test-" + Guid.NewGuid().ToString("N");
+        var pipe = new PipeHost(NullLogger.Instance, name);
+        var received = new List<byte[]>();
+        var complete = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        pipe.OnClientData += data =>
+        {
+            received.Add(data);
+            if (received.Count == 3) complete.SetResult();
+        };
+        pipe.StartServer();
+        try
+        {
+            using var client = new NamedPipeClientStream(".", name, PipeDirection.InOut, PipeOptions.Asynchronous);
+            await client.ConnectAsync(deadline.Token);
+            await client.WriteAsync(new byte[] { 7 }, deadline.Token);
+            await client.WriteAsync(new byte[] { 0, 1, 0, 5, 0, 1, 0, 2, 0, 1, 0, 65 }, deadline.Token);
+            await complete.Task.WaitAsync(deadline.Token);
+            Assert.Equal(new byte[] { 7, 0, 1, 0 }, received[0]);
+            Assert.Equal(new byte[] { 5, 0, 1, 0 }, received[1]);
+            Assert.Equal(new byte[] { 2, 0, 1, 0, 65 }, received[2]);
+        }
+        finally
+        {
+            pipe.Close();
+        }
+    }
+
+    [Fact]
     public async Task ShutdownDoesNotWaitForOrCleanUpAnActiveNativeCall()
     {
         if (!OperatingSystem.IsWindows()) return;

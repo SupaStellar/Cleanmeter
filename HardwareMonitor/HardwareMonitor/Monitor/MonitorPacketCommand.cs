@@ -23,5 +23,10 @@ public enum MonitorPacketCommand : short
     SetLowsMode = 5,
 
     // Server -> client JSON progress; independent of hardware data packets.
-    HardwareStatus = 6
+    HardwareStatus = 6,
+    SetMonitoringDemand = 7,
+    SelectSensorProtocol = 8,
+    SensorCatalog = 9,
+    SensorValues = 10,
+    SelectActiveSensors = 11
 }
