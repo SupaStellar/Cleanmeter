@@ -279,6 +279,7 @@ pub fn run() {
     let _ = logger.try_init();
 
     tauri::Builder::default()
+        .manage(pipe_client::SensorSnapshots::default())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
@@ -288,11 +289,15 @@ pub fn run() {
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             // Focus the existing settings window when a second instance launches
             if let Some(window) = app.get_webview_window("settings") {
-                let _ = window.show();
-                commands::bring_to_front(&window);
+                commands::show_settings(&window);
             }
         }))
         .setup(|app| {
+            #[cfg(windows)]
+            if let Some(overlay) = app.get_webview_window("overlay") {
+                commands::watch_display_changes(&overlay);
+            }
+
             info!("Cleanmeter {} starting (pid {}, executable {:?})",
                 app.package_info().version, std::process::id(), std::env::current_exe());
 
@@ -369,8 +374,7 @@ pub fn run() {
                 // Honor "Start minimized": when on, leave the settings window
                 // hidden (config is visible:false) so the app starts to tray.
                 if !start_minimized {
-                    let _ = window.show();
-                    commands::bring_to_front(&window);
+                    commands::show_settings(&window);
                 }
             }
 
@@ -618,8 +622,11 @@ pub fn run() {
                         // the HUD, which activated the overlay" (keep it open, a
                         // drag just started). sync_overlay_interactive tells those
                         // apart by asking whether any window of ours is in front.
-                        tauri::WindowEvent::Focused(_) => {
+                        tauri::WindowEvent::Focused(focused) => {
                             commands::sync_overlay_interactive(&app_handle3);
+                            if *focused {
+                                pipe_client::replay_settings_snapshot(&app_handle3, false);
+                            }
                         }
                         tauri::WindowEvent::CloseRequested { api, .. } => {
                             api.prevent_close();
@@ -640,6 +647,7 @@ pub fn run() {
                             commands::apply_overlay_interactive(&app_handle3, false);
                         }
                         tauri::WindowEvent::Resized(_) => {
+                            pipe_client::replay_settings_snapshot(&app_handle3, false);
                             if w_for_event.is_maximized().unwrap_or(false) {
                                 let _ = w_for_event.unmaximize();
                                 // Snap to full monitor height (minus taskbar) at 651 wide
@@ -678,6 +686,8 @@ pub fn run() {
             commands::get_preferences,
             commands::save_preferences,
             commands::set_overlay_visible,
+            commands::toggle_overlay,
+            pipe_client::request_settings_sensor_snapshot,
             commands::set_overlay_position,
             commands::set_overlay_size,
             commands::set_overlay_opacity,

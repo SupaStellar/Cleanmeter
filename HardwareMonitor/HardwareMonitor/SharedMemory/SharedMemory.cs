@@ -37,7 +37,18 @@ public class SharedMemoryHardware
     /// nothing to update. See HardwareMonitor.Monitor.GpuReconciler.
     /// </summary>
     public required IHardware? Hardware;
-    public required string Name { get; set; }
+    private string _name = "";
+    public required string Name
+    {
+        get => _name;
+        set
+        {
+            _name = value;
+            ReadStage = $"Reading sensors: {value}";
+        }
+    }
+
+    internal string ReadStage { get; private set; } = "";
     public required string Identifier { get; set; }
     public required HardwareType HardwareType { get; set; }
 

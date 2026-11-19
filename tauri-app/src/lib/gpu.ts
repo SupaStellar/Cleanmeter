@@ -1,5 +1,6 @@
 import type { Hardware, Sensor } from "./types";
 import { HardwareType, SensorType } from "./types";
+import { findSensorById } from "./utils";
 
 /**
  * Choosing which GPU the overlay reads from.
@@ -139,7 +140,7 @@ export function resolveSelectedGpu(
     return storedGpuId;
   }
 
-  const anchor = sensors.find((s) => s.identifier === gpuUsageSensorId);
+  const anchor = findSensorById(sensors, gpuUsageSensorId);
   if (anchor && gpus.some((g) => g.identifier === anchor.hardwareIdentifier)) {
     return anchor.hardwareIdentifier;
   }
@@ -255,7 +256,7 @@ export function shouldRepickSensor(
 ): boolean {
   if (!sensorId) return true;
 
-  const sensor = sensors.find((s) => s.identifier === sensorId);
+  const sensor = findSensorById(sensors, sensorId);
   if (!sensor) return false;
 
   return sensor.hardwareIdentifier !== gpuId;

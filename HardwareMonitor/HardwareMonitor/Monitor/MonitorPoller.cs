@@ -1,6 +1,5 @@
 #pragma warning disable CS8601 // Possible null
 
-using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Text.Json;
@@ -15,6 +14,11 @@ namespace HardwareMonitor.Monitor;
 
 public class MonitorPoller : BackgroundService
 {
+    private static readonly JsonSerializerOptions StatusJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
     private readonly ILogger<MonitorPoller> logger;
     private readonly Func<CancellationToken, Task>? _hardwareOverride;
     private readonly bool _startPresentMon;
@@ -131,8 +135,7 @@ public class MonitorPoller : BackgroundService
                     using var stream = new MemoryStream();
                     using var writer = new BinaryWriter(stream);
                     writer.Write((short)MonitorPacketCommand.HardwareStatus);
-                    writer.Write(JsonSerializer.SerializeToUtf8Bytes(status,
-                        new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
+                    writer.Write(JsonSerializer.SerializeToUtf8Bytes(status, StatusJsonOptions));
                     await _socketHost.SendToAllAsync(stream.ToArray());
                 }
                 await Task.Delay(1000, stoppingToken);
@@ -247,7 +250,6 @@ public class MonitorPoller : BackgroundService
 
         using var memoryStream = new MemoryStream();
         using var writer = new BinaryWriter(memoryStream);
-        var accumulator = 0;
 
         WriteDataToStream(writer, sharedMemoryData);
         _progress.Ready();
@@ -289,7 +291,7 @@ public class MonitorPoller : BackgroundService
             {
                 try
                 {
-                    _progress.Begin($"Reading sensors: {hardware.Name}");
+                    _progress.Begin(hardware.ReadStage);
                     hardware.Update();
                 }
                 catch
@@ -342,19 +344,7 @@ public class MonitorPoller : BackgroundService
                 //logger.LogInformation("No clients connected, not sending data");
             }
 
-            if (accumulator >= 1000)
-            {
-                GC.Collect();
-                accumulator = 0;
-            }
-
-            // Advance by the interval actually being waited, not a hardcoded
-            // 500. The accumulator is meant to make this a once-a-second
-            // collection; with a fixed 500 it instead tracked poll count, so at
-            // the 33ms floor it forced a full GC roughly every 66ms, about 15x
-            // too often, and only matched its intent at the default rate.
             _progress.Ready();
-            accumulator += _pollingRate;
             await Task.Delay(_pollingRate, stoppingToken);
         }
 
@@ -362,7 +352,7 @@ public class MonitorPoller : BackgroundService
 
     private static void WriteDataToStream(BinaryWriter writer, SharedMemoryData sharedMemoryData)
     {
-        writer.Seek(0, SeekOrigin.Begin);
+        writer.BaseStream.SetLength(0);
         writer.Write((short)MonitorPacketCommand.Data);
         writer.Write(sharedMemoryData.Hardwares.Count);
         writer.Write(sharedMemoryData.Sensors.Count);
@@ -379,8 +369,7 @@ public class MonitorPoller : BackgroundService
         foreach (var sensor in sharedMemoryData.Sensors)
         {
             var value = sensor.HardwareSensor.Value ?? 0f;
-            var floatValue = (IsNaN(value) ? 0f : value).ToString(CultureInfo.InvariantCulture);
-            sensor.Value = float.Parse(floatValue, CultureInfo.InvariantCulture);
+            sensor.Value = float.IsNaN(value) ? 0f : value;
 
             writer.Write((short)sensor.Name.Length);
             writer.Write((short)sensor.Identifier.Length);
@@ -895,11 +884,5 @@ public class MonitorPoller : BackgroundService
     public static string RemoveSpecialCharacters(string str)
     {
         return Regex.Replace(str, "[^a-zA-Z0-9_ .]+", "_", RegexOptions.Compiled);
-    }
-
-    public static unsafe bool IsNaN(float f)
-    {
-        int binary = *(int*)(&f);
-        return ((binary & 0x7F800000) == 0x7F800000) && ((binary & 0x007FFFFF) != 0);
     }
 }

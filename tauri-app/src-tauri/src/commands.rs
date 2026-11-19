@@ -282,6 +282,16 @@ pub fn bring_to_front(window: &tauri::WebviewWindow) {
     let _ = window.set_focus();
 }
 
+pub fn show_settings(window: &tauri::WebviewWindow) {
+    let _ = window.show();
+    bring_to_front(window);
+    let app = window.app_handle();
+    let handle = app.clone();
+    let _ = app.run_on_main_thread(move || {
+        crate::pipe_client::replay_settings_snapshot(&handle, false);
+    });
+}
+
 /// Recompute the gate from live window state and apply it.
 ///
 /// The overlay accepts mouse input only while the settings window is visible *and*
@@ -314,6 +324,15 @@ pub fn set_overlay_visible(visible: bool, app: AppHandle) {
             sync_overlay_interactive(&app);
         } else {
             let _ = overlay.hide();
+        }
+    }
+}
+
+#[tauri::command]
+pub fn toggle_overlay(app: AppHandle) {
+    if let Some(window) = app.get_webview_window("overlay") {
+        if let Ok(visible) = window.is_visible() {
+            set_overlay_visible(!visible, app);
         }
     }
 }
@@ -521,6 +540,42 @@ pub fn check_dotnet_runtime() -> bool {
             stdout.contains("Microsoft.NETCore.App 8.")
         }
         Err(_) => false,
+    }
+}
+
+#[cfg(windows)]
+pub fn watch_display_changes(overlay: &tauri::WebviewWindow) {
+    use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
+    use windows::Win32::UI::Shell::{DefSubclassProc, RemoveWindowSubclass, SetWindowSubclass};
+    use windows::Win32::UI::WindowsAndMessaging::{WM_DISPLAYCHANGE, WM_NCDESTROY};
+
+    unsafe extern "system" fn display_changed(
+        hwnd: HWND,
+        message: u32,
+        wparam: WPARAM,
+        lparam: LPARAM,
+        subclass: usize,
+        context: usize,
+    ) -> LRESULT {
+        // This subclass owns the AppHandle until the window is destroyed.
+        if message == WM_DISPLAYCHANGE {
+            let app = unsafe { &*(context as *const AppHandle) };
+            let _ = app.emit("overlay-display-changed", ());
+        } else if message == WM_NCDESTROY {
+            unsafe {
+                let _ = RemoveWindowSubclass(hwnd, Some(display_changed), subclass);
+                drop(Box::from_raw(context as *mut AppHandle));
+            }
+        }
+        unsafe { DefSubclassProc(hwnd, message, wparam, lparam) }
+    }
+
+    let Ok(raw) = overlay.hwnd() else { return };
+    let context = Box::into_raw(Box::new(overlay.app_handle().clone()));
+    // Setup runs on the thread that owns the overlay window.
+    if !unsafe { SetWindowSubclass(HWND(raw.0.cast()), Some(display_changed), 0, context as usize) }.as_bool() {
+        unsafe { drop(Box::from_raw(context)) };
+        log::warn!("Could not watch Windows display changes");
     }
 }
 

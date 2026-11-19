@@ -71,6 +71,9 @@ async function safeListen<T>(
   return listen<T>(event, handler);
 }
 
+export const onDisplayChanged = (callback: () => void) =>
+  safeListen<null>("overlay-display-changed", callback);
+
 // ─── Settings Commands ──────────────────────────────────────────
 
 export const getSettings = () =>
@@ -95,6 +98,9 @@ export const savePreferences = (prefs: AppPreferences) =>
 
 export const setOverlayVisible = (visible: boolean) =>
   safeInvoke("set_overlay_visible", { visible });
+export const toggleOverlay = () => safeInvoke("toggle_overlay");
+export const requestSettingsSensorSnapshot = () =>
+  safeInvoke("request_settings_sensor_snapshot");
 export const setOverlayPosition = (x: number, y: number) =>
   safeInvoke("set_overlay_position", { x, y });
 export const setOverlaySize = (width: number, height: number) =>
@@ -180,6 +186,7 @@ export const prepareForUpdate = async (): Promise<void> => {
 // ─── Event Listeners ────────────────────────────────────────────
 
 export const onSensorData = (
+  window: "settings" | "overlay",
   callback: (data: HardwareMonitorData) => void
 ): Promise<UnlistenFn> =>
   usePreviewFixture
@@ -191,8 +198,9 @@ export const onSensorData = (
         callback,
         PREVIEW_TICK_MS,
       )
-    : safeListen<HardwareMonitorData>("sensor-data", (event) =>
-        callback(event.payload)
+    : safeListen<HardwareMonitorData>(
+        window === "settings" ? "settings-sensor-data" : "sensor-data",
+        (event) => callback(event.payload),
       );
 
 export const onPresentMonApps = (

@@ -1,15 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import {
   onSensorData,
+  isBrowser,
+  requestSettingsSensorSnapshot,
   onPresentMonApps,
   onPipeStatus,
   onSidecarStatus,
   onHardwareStatus,
 } from "@/lib/tauri";
 import { useSettingsStore } from "@/stores/settings-store";
+import { findFrametimeSensor } from "@/lib/utils";
 import type { HardwareMonitorData } from "@/lib/types";
 
-export function useSensorData() {
+export function useSensorData(window: "settings" | "overlay") {
   const setSensorData = useSettingsStore((s) => s.setSensorData);
   const setPresentMonApps = useSettingsStore((s) => s.setPresentMonApps);
   const setPipeStatus = useSettingsStore((s) => s.setPipeStatus);
@@ -22,8 +25,15 @@ export function useSensorData() {
     const unlisteners: Array<() => void> = [];
 
     const setup = async () => {
-      const u1 = await onSensorData((data) => setSensorData(data));
+      const u1 = await onSensorData(window, (data) => {
+        if (mounted) setSensorData(data, isBrowser || window === "overlay");
+      });
       if (mounted) unlisteners.push(u1); else u1();
+
+      if (mounted && window === "settings" && !isBrowser) {
+        // A startup snapshot may have arrived before this webview subscribed.
+        void requestSettingsSensorSnapshot();
+      }
 
       const u2 = await onPresentMonApps((apps) => setPresentMonApps(apps));
       if (mounted) unlisteners.push(u2); else u2();
@@ -55,7 +65,7 @@ export function useSensorData() {
       mounted = false;
       unlisteners.forEach((u) => u());
     };
-  }, [setSensorData, setPresentMonApps, setPipeStatus, setSidecarStatus, setHardwareStatus, loadSidecarStatus]);
+  }, [setSensorData, setPresentMonApps, setPipeStatus, setSidecarStatus, setHardwareStatus, loadSidecarStatus, window]);
 }
 
 /** Hook for overlay — keeps a rolling buffer of frametime values */
@@ -74,9 +84,7 @@ export function useFrametimeHistory(maxPoints = 30) {
   if (sensorData && sensorData !== prevData.current) {
     prevData.current = sensorData;
 
-    const frametime = sensorData.sensors.find(
-      (s) => s.name.toLowerCase().includes("frametime") || s.identifier.toLowerCase().includes("frametime")
-    );
+    const frametime = findFrametimeSensor(sensorData.sensors);
     if (frametime?.value != null) {
       const buf = bufferRef.current;
       buf.push(frametime.value);
